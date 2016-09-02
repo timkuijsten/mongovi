@@ -25,9 +25,12 @@
 #include <bcon.h>
 #include <mongoc.h>
 
+#include "jsonify.h"
+
 #define MAXLINE 1024
 #define MAXPROMPT 30
 #define MAXPROG 10
+#define MAXQUERY 16 * 1024
 
 static char *progname;
 static char *dbname;
@@ -48,7 +51,7 @@ void usage(void)
 int main(int argc, char **argv)
 {
   const char *line;
-  int on, read;
+  int on, read, len;
   EditLine *e;
   History *h;
   HistEvent he;
@@ -57,6 +60,8 @@ int main(int argc, char **argv)
   mongoc_collection_t *collection;
   bson_t aggr_query;
   bson_error_t error;
+
+  char query_doc[MAXQUERY];
 
   progname = basename(argv[0]);
 
@@ -94,14 +99,19 @@ int main(int argc, char **argv)
   collection = mongoc_client_get_collection(client, dbname, collname);
 
   while ((line = el_gets(e, &read)) != NULL) {
-    if (strlen(line) == 1) // skip newlines
+    len = strlen(line);
+    if (len == 1) // skip lines with a newline only
       continue;
 
     if (history(h, &he, H_ENTER, line) == -1)
       fatal("can't enter history");
 
+    // try to parse as loose json and convert to strict json
+    if (from_loose_to_strict(query_doc, MAXQUERY, (char *)line, len - 1) == -1)
+      fatal("jsonify error");
+
     // try to parse it as json and convert to bson
-    if (!bson_init_from_json(&aggr_query, line, -1, &error))
+    if (!bson_init_from_json(&aggr_query, query_doc, -1, &error))
       fprintf(stderr, "%s\n", error.message);
     else
       exec_pipeline(collection, &aggr_query);
