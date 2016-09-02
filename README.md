@@ -1,0 +1,90 @@
+# mongovi
+
+*mongovi* is a cli for the MongoDB aggregation framework that uses *libedit* for
+it's line editing and [key bindings].
+
+Status: **alpha**, only use it if you're not afraid to dive into the source code.
+
+
+## Requirements:
+* [MongoDB C Driver] 1.4.0
+* [editline(3)] ships with OS X
+
+Only tested with OS X 10.11.
+
+## Installation
+
+    $ git clone https://github.com/timkuijsten/mongovi.git
+    $ cd mongovi
+    $ cc jsmn.c jsonify.c -I /usr/local/include/libmongoc-1.0 -I /usr/local/include/libbson-1.0 -ledit -lbson-1.0 -lmongoc-1.0 mongovi.c
+
+
+## Usage examples
+
+Open database *raboof* and collection *sabar*:
+
+    $ ./a.out raboof sabar
+    raboof.sabar > 
+
+Use an empty aggregation pipeline to list all documents in raboof.sabar:
+
+    raboof.sabar > []
+    { "_id" : { "$oid" : "57c6fb00495b576b10996f64" }, "foo" : "bar" }
+    { "_id" : { "$oid" : "57c6fb00495b576b10996f65" }, "foo" : "baz" }
+    raboof.sabar > 
+
+Same without the _id field:
+
+    raboof.sabar > [{ $project: { _id: false, foo: true } }]
+    { "foo" : "bar" }
+    { "foo" : "baz" }
+    raboof.sabar > 
+
+Same as previous, but filter on documents where *foo* is *bar*:
+
+    raboof.sabar > [{ $project: { _id: false, foo: true } }, { $match: { foo: "bar" } }]
+    { "foo" : "bar" }
+    raboof.sabar > 
+
+
+## Command-line options
+
+    usage: a.out database collection
+
+See [editline(7)] for a list of supported key bindings and the mongodb
+[aggregation framework] for query possibilities.
+
+
+## History
+
+This project is a continuation of [node-mongovi]. *node-mongovi* always had a
+limited set of key bindings and suffered from a lack of maintenance which became
+more apparent with every new node and mongodb release. Furthermore, nodejs
+shouldn't be a requirement for running a mongo cli.
+
+
+## License
+
+ISC
+
+Copyright (c) 2016 Tim Kuijsten
+
+Permission to use, copy, modify, and/or distribute this software for any
+purpose with or without fee is hereby granted, provided that the above
+copyright notice and this permission notice appear in all copies.
+
+THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+
+
+[editline(7)]: http://man.openbsd.org/editline.7
+[editline(3)]: http://man.openbsd.org/editline.3
+[key bindings]: http://man.openbsd.org/editline.7#Input_character_bindings
+[MongoDB C Driver]: http://mongoc.org/
+[aggregation framework]: https://docs.mongodb.com/manual/reference/operator/aggregation/
+[node-mongovi]: https://www.npmjs.com/package/mongovi
