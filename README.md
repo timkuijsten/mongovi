@@ -10,14 +10,38 @@ Status: **alpha**, only use it if you're not afraid to dive into the source code
 * [MongoDB C Driver] 1.4.0
 * [editline(3)] ships with OS X
 
-Only tested with OS X 10.11.
+Only tested with OS X 10.11, Ubuntu 12.04 and 14.04.
 
 ## Installation
 
+Download compile and install the mongo-c driver:
+
+    $ curl -LO https://github.com/mongodb/mongo-c-driver/releases/download/1.4.0/mongo-c-driver-1.4.0.tar.gz
+    $ sha256sum mongo-c-driver-1.4.0.tar.gz    # only proceed if this checksum matches
+    2bc6ea7fd8db15250910a7c72da7d959e416000bec2205be86b52d2899f6951b  mongo-c-driver-1.4.0.tar.gz
+    $ tar zxf mongo-c-driver-1.4.0.tar.gz
+    $ cd mongo-c-driver-1.4.0/
+    $ ./configure --enable-man-pages=yes
+    $ make
+    $ sudo make install
+    $ cd ~
+
+Download compile and install mongovi:
+
     $ git clone https://github.com/timkuijsten/mongovi.git
     $ cd mongovi
+
+### OS X 10.11
+
     $ cc jsmn.c jsonify.c -I /usr/local/include/libmongoc-1.0 -I /usr/local/include/libbson-1.0 -ledit -lbson-1.0 -lmongoc-1.0 mongovi.c
 
+### Ubuntu 12.04, 14.04
+
+Make sure libedit is installed before compiling mongovi:
+
+    $ sudo apt-get install libedit-dev
+    $ export LD_LIBRARY_PATH="/usr/local/lib/:$LD_LIBRARY_PATH"
+    $ cc compat/strlcat.c mongovi.c jsmn.c jsonify.c -I /usr/local/include/libmongoc-1.0 -I /usr/local/include/libbson-1.0 -lmongoc-1.0 -lbson-1.0 -ledit
 
 ## Usage examples
 
