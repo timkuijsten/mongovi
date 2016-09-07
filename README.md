@@ -43,6 +43,12 @@ Make sure libedit is installed before compiling mongovi:
     $ export LD_LIBRARY_PATH="/usr/local/lib/:$LD_LIBRARY_PATH"
     $ cc compat/strlcat.c mongovi.c jsmn.c jsonify.c shorten.c -I /usr/local/include/libmongoc-1.0 -I /usr/local/include/libbson-1.0 -lmongoc-1.0 -lbson-1.0 -ledit
 
+
+## Tests
+
+    $ cc shorten.c test/shorten.c && ./a.out; echo $?
+
+
 ## Usage examples
 
 Open database *raboof* and collection *sabar*:
