@@ -19,11 +19,13 @@
 #include <string.h>
 #include <stdio.h>
 
-// ensure str is at most maxlen chars
-// if str > maxlen, set middle of string to .. and remove chars at both sides of the middle
-// str must be \0 terminated and should be at least maxlen + 1 bytes
-// maxlen must be >= MINSHORTENED
-// return -1 on failure or the size of the new string
+/**
+ * Ensure str is at most maxlen chars. If str > maxlen, replace chars in the
+ * middle with "..".
+ *
+ * str must be \0 terminated and maxlen must be >= MINSHORTENED.
+ * return -1 on failure or the (potentially shortened) size of str.
+ */
 int
 shorten(char *str, int maxlen)
 {
@@ -40,7 +42,7 @@ shorten(char *str, int maxlen)
   // len > maxlen >= MINSHORTENED
   // shorten str to maxlen
 
-  // truncate fist half by putting the dots in the middle
+  // truncate first half by putting dots in the middle
   half = maxlen / 2;
   str[half - 1] = '.';
   str[half] = '.';
