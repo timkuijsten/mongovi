@@ -28,7 +28,8 @@
 #include "jsonify.h"
 
 #define MAXLINE 1024
-#define MAXPROMPT 30
+#define MAXPROMPT 30  // must support at least 1 + 4 + 1 + 4 + 3 = 13 characters for the shortened version of a prompt:
+                      // "/dbname/collname > " would become "/d..e/c..e > " if MAXPROMPT = 13
 #define MAXPROG 10
 #define MAXQUERY 16 * 1024
 
@@ -36,9 +37,10 @@ static char *progname;
 static char *dbname;
 static char *collname;
 
-static char p[MAXPROMPT];
+static char p[MAXPROMPT + 1];
 void exec_pipeline(mongoc_collection_t *collection, bson_t *pipeline);
 char *prompt(EditLine *e);
+int set_prompt(char *dbname, char *collname);
 void ferrno(const char *err);
 void fatal(const char *err);
 
@@ -78,8 +80,7 @@ int main(int argc, char **argv)
       break;
     }
 
-  // set prompt
-  snprintf(p, MAXPROMPT, "%s.%s > ", dbname, collname);
+  set_prompt(dbname, collname);
 
   if ((h = history_init()) == NULL)
     fatal("can't initialize history");
@@ -155,6 +156,37 @@ void exec_pipeline(mongoc_collection_t *collection, bson_t *pipeline)
 char *prompt(EditLine *e)
 {
   return p;
+}
+
+// if too long, shorten component(s)
+int
+set_prompt(char *dbname, char *collname)
+{
+  int nlen, dblen, colllen, plen, overflow;
+
+  dblen = strlen(dbname);
+  colllen = strlen(collname);
+  plen = 1 + dblen + 1 + colllen + 3; // prompt is of the form "/d/c > "
+
+  overflow = plen - MAXPROMPT;
+  if (overflow > 0) {
+    // shorten dbname first
+    nlen = dblen - overflow;
+    if (nlen < MINSHORTENED)
+      nlen = MINSHORTENED;
+
+    overflow -= dblen - nlen; // assume shorten succeeds
+    if ((dblen = shorten(dbname, nlen)) < 0)
+      fatal("can't shorten dbname");
+
+    // only shorten collname if shortening the dbname was not enough
+    if (overflow > 0)
+      if ((colllen = shorten(collname, colllen - overflow)) < 0)
+        fatal("can't shorten collname");
+  }
+
+  snprintf(p, MAXPROMPT + 1, "/%s/%s > ", dbname, collname);
+  return 0;
 }
 
 void ferrno(const char *err) {
