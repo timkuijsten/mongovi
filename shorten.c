@@ -25,7 +25,7 @@
  * are the first and last character of str, respectively.
  *
  * str must be \0 terminated and maxlen must be >= 4.
- * return -1 on failure or the (potentially shortened) size of str.
+ * return the (potentially shortened) size of str on success or -1 on failure.
  */
 int
 shorten(char *str, int maxlen)
