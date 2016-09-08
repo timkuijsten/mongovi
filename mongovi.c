@@ -158,34 +158,28 @@ char *prompt(EditLine *e)
   return p;
 }
 
-// if too long, shorten component(s)
+// if too long, shorten first or both components
+// global p should have space for MAXPROMPT + 1 bytes
 int
 set_prompt(char *dbname, char *collname)
 {
-  int nlen, dblen, colllen, plen, overflow;
+  const int static_chars = 5; // prompt is of the form "/d/c > "
+  char c1[MAXPROMPT + 1], c2[MAXPROMPT + 1];
+  int plen, i;
 
-  dblen = strlen(dbname);
-  colllen = strlen(collname);
-  plen = 1 + dblen + 1 + colllen + 3; // prompt is of the form "/d/c > "
+  strncpy(c1, dbname, MAXPROMPT);
+  strncpy(c2, collname, MAXPROMPT);
+  c1[MAXPROMPT] = '\0';
+  c2[MAXPROMPT] = '\0';
 
-  overflow = plen - MAXPROMPT;
-  if (overflow > 0) {
-    // shorten dbname first
-    nlen = dblen - overflow;
-    if (nlen < MINSHORTENED)
-      nlen = MINSHORTENED;
+  plen = static_chars + strlen(c1) + strlen(c2);
 
-    overflow -= dblen - nlen; // assume shorten succeeds
-    if ((dblen = shorten(dbname, nlen)) < 0)
-      fatal("can't shorten dbname");
+  // ensure prompt fits
+  if (plen - MAXPROMPT > 0)
+    if (shorten_comps(c1, c2, MAXPROMPT - static_chars) < 0)
+      fatal("can't initialize prompt");
 
-    // only shorten collname if shortening the dbname was not enough
-    if (overflow > 0)
-      if ((colllen = shorten(collname, colllen - overflow)) < 0)
-        fatal("can't shorten collname");
-  }
-
-  snprintf(p, MAXPROMPT + 1, "/%s/%s > ", dbname, collname);
+  snprintf(p, MAXPROMPT + 1, "/%s/%s > ", c1, c2);
   return 0;
 }
 
