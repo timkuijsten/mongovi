@@ -21,35 +21,34 @@
 
 /**
  * Ensure str is at most maxlen chars. If str > maxlen, replace chars in the
- * middle with "..".
+ * middle with "..". The minimum shortened string is thus "x..y" where x and y
+ * are the first and last character of str, respectively.
  *
- * str must be \0 terminated and maxlen must be >= MINSHORTENED.
+ * str must be \0 terminated and maxlen must be >= 4.
  * return -1 on failure or the (potentially shortened) size of str.
  */
 int
 shorten(char *str, int maxlen)
 {
-  int half, len, i;
+  int half, i, len, offset;
 
   if (maxlen < MINSHORTENED) // need at least four chars
     return -1;
 
   len = strlen(str);
 
-  if ((len - maxlen) <= 0)
+  offset = len - maxlen;
+  if (offset <= 0)
     return len;
 
   // len > maxlen >= MINSHORTENED
-  // shorten str to maxlen
 
-  // truncate first half by putting dots in the middle
   half = maxlen / 2;
   str[half - 1] = '.';
   str[half] = '.';
 
-  // remove characters after the second dot
   for (i = half + 1; i < maxlen; i++)
-    str[i] = str[len + i - maxlen];
+    str[i] = str[offset + i];
   str[maxlen] = '\0';
 
   return maxlen;
