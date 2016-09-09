@@ -15,34 +15,66 @@
  */
 
 #include <errno.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <histedit.h>
 #include <libgen.h>
+#include <pwd.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <histedit.h>
 
 #include <bson.h>
 #include <bcon.h>
 #include <mongoc.h>
 
+#include "common.h"
 #include "jsonify.h"
 
+#ifdef PATH_MAX
+static const long pathmax = PATH_MAX;
+#else
+static const long pathmax = 0;
+#endif
+
 #define MAXLINE 1024
+#define MAXUSERNAME 100
+
+#define MAXAUTHDB 100
+#define MAXMONGOUSER 100
+#define MAXMONGOPASS 100
+
 #define MAXPROMPT 30  // must support at least 1 + 4 + 1 + 4 + 3 = 13 characters for the shortened version of a prompt:
                       // "/dbname/collname > " would become "/d..e/c..e > " if MAXPROMPT = 13
 #define MAXPROG 10
 #define MAXQUERY 16 * 1024
 
 static char *progname;
+
 static char *dbname;
 static char *collname;
+
+/* shell specific user info */
+typedef struct {
+  char name[MAXUSERNAME];
+  char home[pathmax];
+} user_t;
+
+/* mongo specific user info */
+typedef struct {
+  char authdb[MAXAUTHDB];
+  char username[MAXMONGOUSER];
+  char password[MAXMONGOPASS];
+} config_t;
+
+static user_t user;
+static config_t config;
 
 static char p[MAXPROMPT + 1];
 void exec_pipeline(mongoc_collection_t *collection, bson_t *pipeline);
 char *prompt(EditLine *e);
+int init_user(user_t *usr);
 int set_prompt(char *dbname, char *collname);
-void ferrno(const char *err);
-void fatal(const char *err);
 
 void usage(void)
 {
@@ -79,6 +111,12 @@ int main(int argc, char **argv)
       collname = argv[argc];
       break;
     }
+
+  if (pathmax < 20)
+    fatal("can't determine PATH_MAX");
+
+  if (init_user(&user) < 0)
+    fatal("can't initialize user");
 
   set_prompt(dbname, collname);
 
@@ -181,12 +219,19 @@ set_prompt(char *dbname, char *collname)
   return 0;
 }
 
-void ferrno(const char *err) {
-  perror(err);
-  exit(1);
-}
+// set username and home dir
+// return 0 on success or -1 on failure.
+int
+init_user(user_t *usr)
+{
+  struct passwd *pw;
 
-void fatal(const char *err) {
-  fprintf(stderr, "%s\n", err ? err : "");
-  exit(1);
+  if ((pw = getpwuid(getuid())) == NULL)
+    return -1; // user not found
+  if (strlcpy(usr->name, pw->pw_name, MAXUSERNAME) >= MAXUSERNAME)
+    return -1; // username truncated
+  if (strlcpy(usr->home, pw->pw_dir, pathmax) >= pathmax)
+    return -1; // home dir truncated
+
+  return 0;
 }
