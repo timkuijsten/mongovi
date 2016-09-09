@@ -167,10 +167,8 @@ set_prompt(char *dbname, char *collname)
   char c1[MAXPROMPT + 1], c2[MAXPROMPT + 1];
   int plen, i;
 
-  strncpy(c1, dbname, MAXPROMPT);
-  strncpy(c2, collname, MAXPROMPT);
-  c1[MAXPROMPT] = '\0';
-  c2[MAXPROMPT] = '\0';
+  strlcpy(c1, dbname, MAXPROMPT);
+  strlcpy(c2, collname, MAXPROMPT);
 
   plen = static_chars + strlen(c1) + strlen(c2);
 
