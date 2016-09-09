@@ -40,9 +40,7 @@ static const long pathmax = 0;
 #define MAXLINE 1024
 #define MAXUSERNAME 100
 
-#define MAXAUTHDB 100
-#define MAXMONGOUSER 100
-#define MAXMONGOPASS 100
+#define MAXMONGOURL 200
 
 #define MAXPROMPT 30  // must support at least 1 + 4 + 1 + 4 + 3 = 13 characters for the shortened version of a prompt:
                       // "/dbname/collname > " would become "/d..e/c..e > " if MAXPROMPT = 13
@@ -60,11 +58,9 @@ typedef struct {
   char home[pathmax];
 } user_t;
 
-/* mongo specific user info */
+/* mongo specific db info */
 typedef struct {
-  char authdb[MAXAUTHDB];
-  char username[MAXMONGOUSER];
-  char password[MAXMONGOPASS];
+  char url[MAXMONGOURL];
 } config_t;
 
 static user_t user;
@@ -75,6 +71,8 @@ void exec_pipeline(mongoc_collection_t *collection, bson_t *pipeline);
 char *prompt(EditLine *e);
 int init_user(user_t *usr);
 int set_prompt(char *dbname, char *collname);
+int read_config(user_t *usr, config_t *cfg);
+int parse_file(FILE *fp, char *line, config_t *cfg);
 
 void usage(void)
 {
@@ -85,7 +83,7 @@ void usage(void)
 int main(int argc, char **argv)
 {
   const char *line;
-  int on, read, len;
+  int on, read, len, status;
   EditLine *e;
   History *h;
   HistEvent he;
@@ -96,6 +94,7 @@ int main(int argc, char **argv)
   bson_error_t error;
 
   char query_doc[MAXQUERY];
+  char connect_url[MAXMONGOURL] = "mongodb://localhost:27017";
 
   progname = basename(argv[0]);
 
@@ -118,6 +117,13 @@ int main(int argc, char **argv)
   if (init_user(&user) < 0)
     fatal("can't initialize user");
 
+  if ((status = read_config(&user, &config)) < 0)
+    fatal("can't read config file");
+  else if (status > 0)
+    if (strlcpy(connect_url, config.url, MAXMONGOURL) > MAXMONGOURL)
+      fatal("url in config too long");
+  // else use default
+
   set_prompt(dbname, collname);
 
   if ((h = history_init()) == NULL)
@@ -134,7 +140,9 @@ int main(int argc, char **argv)
 
   // setup mongo
   mongoc_init();
-  client = mongoc_client_new("mongodb://localhost:27017");
+  if ((client = mongoc_client_new(connect_url)) == NULL)
+    fatal("can't connect to mongo");
+
   collection = mongoc_client_get_collection(client, dbname, collname);
 
   while ((line = el_gets(e, &read)) != NULL) {
@@ -232,6 +240,66 @@ init_user(user_t *usr)
     return -1; // username truncated
   if (strlcpy(usr->home, pw->pw_dir, pathmax) >= pathmax)
     return -1; // home dir truncated
+
+  return 0;
+}
+
+// try to read ~/.mongovi and set cfg
+// return 1 if config is read and set, 0 if no config is found or -1 on failure.
+int
+read_config(user_t *usr, config_t *cfg)
+{
+  const char *file = ".mongovi";
+  char tmppath[pathmax + 1], *line;
+  FILE *fp;
+
+  line = NULL;
+
+  if (strlcpy(tmppath, usr->home, pathmax) >= pathmax)
+    return -1;
+  if (strlcat(tmppath, "/", pathmax) >= pathmax)
+    return -1;
+  if (strlcat(tmppath, file, pathmax) >= pathmax)
+    return -1;
+
+  if ((fp = fopen(tmppath, "re")) == NULL) {
+    if (errno != ENOENT) {
+      printf("errno %d\n", errno);
+      ferrno(strerror(errno));
+      return -1;
+    } else {
+      return 0;
+    }
+  }
+
+  if (parse_file(fp, line, cfg) < 0) {
+    if (line != NULL)
+      free(line);
+    fclose(fp);
+    return -1;
+  }
+
+  free(line);
+  fclose(fp);
+  return 1;
+}
+
+// read the credentials from a users config file
+// return 0 on success or -1 on failure.
+int
+parse_file(FILE *fp, char *line, config_t *cfg)
+{
+  size_t linesize = 0;
+  ssize_t linelen = 0;
+
+  // expect url on first line
+  if ((linelen = getline(&line, &linesize, fp)) < 0)
+    return -1;
+  if (linelen > MAXMONGOURL)
+    return -1;
+  if (strlcpy(cfg->url, line, MAXMONGOURL) >= MAXMONGOURL)
+    return -1;
+  cfg->url[linelen - 1] = '\0'; // trim newline
 
   return 0;
 }
