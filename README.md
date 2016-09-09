@@ -33,7 +33,7 @@ Download compile and install mongovi:
 
 ### OS X 10.11
 
-    $ cc mongovi.c jsmn.c jsonify.c shorten.c -I /usr/local/include/libmongoc-1.0 -I /usr/local/include/libbson-1.0 -lbson-1.0 -lmongoc-1.0 -ledit
+    $ cc mongovi.c common.c jsmn.c jsonify.c shorten.c -I /usr/local/include/libmongoc-1.0 -I /usr/local/include/libbson-1.0 -lbson-1.0 -lmongoc-1.0 -ledit
 
 ### Ubuntu 12.04, 14.04
 
@@ -41,7 +41,7 @@ Make sure libedit is installed before compiling mongovi:
 
     $ sudo apt-get install libedit-dev
     $ export LD_LIBRARY_PATH="/usr/local/lib/:$LD_LIBRARY_PATH"
-    $ cc compat/strlcat.c mongovi.c jsmn.c jsonify.c shorten.c -I /usr/local/include/libmongoc-1.0 -I /usr/local/include/libbson-1.0 -lmongoc-1.0 -lbson-1.0 -ledit
+    $ cc compat/strlcat.c mongovi.c common.c jsmn.c jsonify.c shorten.c -I /usr/local/include/libmongoc-1.0 -I /usr/local/include/libbson-1.0 -lmongoc-1.0 -lbson-1.0 -ledit
 
 
 ## Tests
