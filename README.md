@@ -41,7 +41,7 @@ Make sure libedit is installed before compiling mongovi:
 
     $ sudo apt-get install libedit-dev
     $ export LD_LIBRARY_PATH="/usr/local/lib/:$LD_LIBRARY_PATH"
-    $ cc compat/strlcat.c mongovi.c common.c jsmn.c jsonify.c shorten.c -I /usr/local/include/libmongoc-1.0 -I /usr/local/include/libbson-1.0 -lmongoc-1.0 -lbson-1.0 -ledit
+    $ cc compat/strlcpy.c compat/strlcat.c mongovi.c common.c jsmn.c jsonify.c shorten.c -I /usr/local/include/libmongoc-1.0 -I /usr/local/include/libbson-1.0 -lmongoc-1.0 -lbson-1.0 -ledit
 
 
 ## Tests
