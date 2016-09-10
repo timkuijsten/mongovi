@@ -40,23 +40,29 @@ int main()
   printf("\n");
 
   printf("test shorten_comps:\n");
-  failed += test_shorten_comps("foo", "bar", 6, "foo", "bar", -1, "");
-  failed += test_shorten_comps("foobar", "barbaz", 8, "f..r", "b..z", 2, "");
-  failed += test_shorten_comps("foobarbaz", "quxquuzraboof", 23, "foobarbaz", "quxquuzraboof", 0, "");
-  failed += test_shorten_comps("foobarbaz", "quxquuzraboof", 22, "foobarbaz", "quxquuzraboof", 0, "");
-  failed += test_shorten_comps("foobarbaz", "quxquuzraboof", 21, "foo..baz", "quxquuzraboof", 1, "");
-  failed += test_shorten_comps("foobarbaz", "quxquuzraboof", 20, "fo..baz", "quxquuzraboof", 1, "");
+  failed += test_shorten_comps("foo", "bar", 6, "foo", "bar", 6, "");
+  failed += test_shorten_comps("foobar", "barbaz", 8, "f..r", "b..z", 8, "");
+  failed += test_shorten_comps("foobar", "z", 8, "foobar", "z", 7, "");
+  failed += test_shorten_comps("foo", "barbaz", 8, "foo", "b..az", 8, "");
+  failed += test_shorten_comps("fu", "barbaz", 6, "fu", "b..z", 6, "");
+  failed += test_shorten_comps("fu", "barbaz", 7, "fu", "b..az", 7, "");
+  failed += test_shorten_comps("fu", "quxquuzraboof", 4, "fu", "q..f", 6, "");
 
-  failed += test_shorten_comps("foobarbaz", "quxquuzraboof", 18, "f..az", "quxquuzraboof", 1, "");
-  failed += test_shorten_comps("foobarbaz", "quxquuzraboof", 17, "f..z", "quxquuzraboof", 1, "");
-  failed += test_shorten_comps("foobarbaz", "quxquuzraboof", 16, "f..z", "quxqu..aboof", 2, "");
-  failed += test_shorten_comps("foobarbaz", "quxquuzraboof", 15, "f..z", "quxq..aboof", 2, "");
+  failed += test_shorten_comps("foobarbaz", "quxquuzraboof", 23, "foobarbaz", "quxquuzraboof", 22, "");
+  failed += test_shorten_comps("foobarbaz", "quxquuzraboof", 22, "foobarbaz", "quxquuzraboof", 22, "");
+  failed += test_shorten_comps("foobarbaz", "quxquuzraboof", 21, "foo..baz", "quxquuzraboof", 21, "");
+  failed += test_shorten_comps("foobarbaz", "quxquuzraboof", 20, "fo..baz", "quxquuzraboof", 20, "");
 
-  failed += test_shorten_comps("foobarbaz", "quxquuzraboof", 9, "f..z", "q..of", 2, "");
-  failed += test_shorten_comps("foobarbaz", "quxquuzraboof", 8, "f..z", "q..f", 2, "");
-  failed += test_shorten_comps("foobarbaz", "quxquuzraboof", 7, "foobarbaz", "quxquuzraboof", -1, "");
+  failed += test_shorten_comps("foobarbaz", "quxquuzraboof", 18, "f..az", "quxquuzraboof", 18, "");
+  failed += test_shorten_comps("foobarbaz", "quxquuzraboof", 17, "f..z", "quxquuzraboof", 17, "");
+  failed += test_shorten_comps("foobarbaz", "quxquuzraboof", 16, "f..z", "quxqu..aboof", 16, "");
+  failed += test_shorten_comps("foobarbaz", "quxquuzraboof", 15, "f..z", "quxq..aboof", 15, "");
 
-  failed += test_shorten_comps("foobarbaz", "quxquuzraboof", 0, "foobarbaz", "quxquuzraboof", -1, "");
+  failed += test_shorten_comps("foobarbaz", "quxquuzraboof", 9, "f..z", "q..of", 9, "");
+  failed += test_shorten_comps("foobarbaz", "quxquuzraboof", 8, "f..z", "q..f", 8, "");
+  failed += test_shorten_comps("foobarbaz", "quxquuzraboof", 7, "f..z", "q..f", 8, "");
+
+  failed += test_shorten_comps("foobarbaz", "quxquuzraboof", 0, "f..z", "q..f", 8, "");
 
   return failed;
 }

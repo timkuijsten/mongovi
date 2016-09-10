@@ -25,7 +25,7 @@
  * are the first and last character of str, respectively.
  *
  * str must be \0 terminated and maxlen must be >= 4.
- * return the (potentially shortened) size of str on success or -1 on failure.
+ * return the new length of str on success or -1 on failure.
  */
 int
 shorten(char *str, int maxlen)
@@ -58,35 +58,38 @@ shorten(char *str, int maxlen)
  * Shorten components from left to right until maxlen is satisfied.
  *
  * c1 and c2 must be \0 terminated and maxlen must be >= 2 * 4.
- * return the number of shortened components on success or -1 on failure.
+ * return the new total length of all components on success or -1 on failure.
  */
 int
 shorten_comps(char *c1, char *c2, int maxlen)
 {
   const int comps = 2; // number of components
-  int i, len, nlen, totlen, overflow;
-  char *comp[] = { c1, c2 };
-
-  if (maxlen < comps * MINSHORTENED)
-    return -1;
+  int len, nlen, totlen, overflow;
+  char *comp[] = { c1, c2, NULL };
+  char **compp;
 
   totlen = 0;
-  for (i = 0; i < comps; i++)
-    totlen += strlen(comp[i]);
+  compp = comp;
+  while (*compp)
+    totlen += strlen(*compp++);
 
   overflow = totlen - maxlen;
-  i = 0;
-  while (overflow > 0) {
-    len = strlen(comp[i]);
+  if (overflow <= 0)
+    return totlen;
+
+  compp = comp;
+  while (*compp && overflow > 0) {
+    len = strlen(*compp);
     nlen = len - overflow;
     if (nlen < MINSHORTENED)
       nlen = MINSHORTENED; // never shorten more than MINSHORTENED
 
-    overflow -= len - nlen;
-    if (shorten(comp[i], nlen) < 0)
+    if ((nlen = shorten(*compp, nlen)) < 0)
       return -1;
-    i++;
+    overflow -= len - nlen;
+    totlen -= len - nlen;
+    compp++;
   }
 
-  return i;
+  return totlen;
 }
