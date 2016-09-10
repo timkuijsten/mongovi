@@ -31,12 +31,6 @@
 #include "common.h"
 #include "jsonify.h"
 
-#ifdef PATH_MAX
-static const long pathmax = PATH_MAX;
-#else
-static const long pathmax = 0;
-#endif
-
 #define MAXLINE 1024
 #define MAXUSERNAME 100
 
@@ -55,7 +49,7 @@ static char *collname;
 /* shell specific user info */
 typedef struct {
   char name[MAXUSERNAME];
-  char home[pathmax];
+  char home[PATH_MAX];
 } user_t;
 
 /* mongo specific db info */
@@ -111,7 +105,7 @@ int main(int argc, char **argv)
       break;
     }
 
-  if (pathmax < 20)
+  if (PATH_MAX < 20)
     fatal("can't determine PATH_MAX");
 
   if (init_user(&user) < 0)
@@ -238,7 +232,7 @@ init_user(user_t *usr)
     return -1; // user not found
   if (strlcpy(usr->name, pw->pw_name, MAXUSERNAME) >= MAXUSERNAME)
     return -1; // username truncated
-  if (strlcpy(usr->home, pw->pw_dir, pathmax) >= pathmax)
+  if (strlcpy(usr->home, pw->pw_dir, PATH_MAX) >= PATH_MAX)
     return -1; // home dir truncated
 
   return 0;
@@ -250,16 +244,16 @@ int
 read_config(user_t *usr, config_t *cfg)
 {
   const char *file = ".mongovi";
-  char tmppath[pathmax + 1], *line;
+  char tmppath[PATH_MAX + 1], *line;
   FILE *fp;
 
   line = NULL;
 
-  if (strlcpy(tmppath, usr->home, pathmax) >= pathmax)
+  if (strlcpy(tmppath, usr->home, PATH_MAX) >= PATH_MAX)
     return -1;
-  if (strlcat(tmppath, "/", pathmax) >= pathmax)
+  if (strlcat(tmppath, "/", PATH_MAX) >= PATH_MAX)
     return -1;
-  if (strlcat(tmppath, file, pathmax) >= pathmax)
+  if (strlcat(tmppath, file, PATH_MAX) >= PATH_MAX)
     return -1;
 
   if ((fp = fopen(tmppath, "re")) == NULL) {
