@@ -44,45 +44,37 @@ Make sure libedit is installed before compiling mongovi:
     $ cc compat/strlcpy.c compat/strlcat.c mongovi.c common.c jsmn.c jsonify.c shorten.c -I /usr/local/include/libmongoc-1.0 -I /usr/local/include/libbson-1.0 -lmongoc-1.0 -lbson-1.0 -ledit
 
 
-## Tests
-
-    $ cc shorten.c test/shorten.c && ./a.out; echo $?
-
-
 ## Usage examples
 
 Open database *raboof* and collection *sabar*:
 
     $ ./a.out raboof sabar
-    raboof.sabar > 
+    /raboof/sabar > 
 
-Use an empty aggregation pipeline to list all documents in raboof.sabar:
+Use an empty query filter to list all documents:
 
-    raboof.sabar > []
+    /raboof/sabar > {}
     { "_id" : { "$oid" : "57c6fb00495b576b10996f64" }, "foo" : "bar" }
     { "_id" : { "$oid" : "57c6fb00495b576b10996f65" }, "foo" : "baz" }
-    raboof.sabar > 
+    /raboof/sabar > 
 
-Same without the _id field:
+Use an aggregation query to list all documents without the _id field:
 
-    raboof.sabar > [{ $project: { _id: false, foo: true } }]
+    /raboof/sabar > [{ $project: { _id: false, foo: true } }]
     { "foo" : "bar" }
     { "foo" : "baz" }
-    raboof.sabar > 
+    /raboof/sabar > 
 
 Same as previous, but filter on documents where *foo* is *bar*:
 
-    raboof.sabar > [{ $project: { _id: false, foo: true } }, { $match: { foo: "bar" } }]
+    /raboof/sabar > [{ $project: { _id: false, foo: true } }, { $match: { foo: "bar" } }]
     { "foo" : "bar" }
-    raboof.sabar > 
+    /raboof/sabar > 
 
 
 ## Command-line options
 
     usage: a.out database collection
-
-See [editline(7)] for a list of supported key bindings and the mongodb
-[aggregation framework] for query possibilities.
 
 
 ## Interactive commands
@@ -91,14 +83,21 @@ See [editline(7)] for a list of supported key bindings and the mongodb
 * `c` list all collections in the current database
 * `c coll` change the current collection to "coll"
 * `c /db/coll` change the current database to "db" and the collection to "coll"
-* `{...}` query
-* `[...]` aggregation pipeline
+* `{...}` query filter, see [query operators]
+* `[...]` aggregation pipeline, see [aggregation operators]
+
+See [editline(7)] for a list of supported key bindings.
 
 
 ## ~/.mongovi
 
 If this file exists, the first line is read and expected to be a valid mongodb
 [connection string], possibly containing a username and password.
+
+
+## Tests
+
+    $ cc shorten.c test/shorten.c && ./a.out; echo $?
 
 
 ## History
@@ -132,6 +131,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 [editline(3)]: http://man.openbsd.org/editline.3
 [key bindings]: http://man.openbsd.org/editline.7#Input_character_bindings
 [MongoDB C Driver]: http://mongoc.org/
-[aggregation framework]: https://docs.mongodb.com/manual/reference/operator/aggregation/
+[aggregation operators]: https://docs.mongodb.com/manual/reference/operator/aggregation/
+[query operators]: https://docs.mongodb.com/manual/reference/operator/query/
 [connection string]: https://docs.mongodb.com/manual/reference/connection-string/
 [node-mongovi]: https://www.npmjs.com/package/mongovi
