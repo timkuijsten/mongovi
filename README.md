@@ -87,7 +87,7 @@ See [editline(7)] for a list of supported key bindings and the mongodb
 
 ## Supported commands
 
-*colls* list all collections in the current database
+`colls` list all collections in the current database
 
 
 ## ~/.mongovi
