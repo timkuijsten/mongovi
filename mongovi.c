@@ -87,10 +87,11 @@ int read_config(user_t *usr, config_t *cfg);
 int parse_file(FILE *fp, char *line, config_t *cfg);
 int parse_cmd(int argc, const char *argv[]);
 int exec_cmd(const int cmd, int argc, const char *argv[], const char *line, int linelen);
-int exec_agquery(mongoc_collection_t *collection, const char *line, int len);
 int exec_lsdbs(mongoc_client_t *client);
 int exec_lscolls(mongoc_client_t *client, char *dbname);
 int exec_chcoll(mongoc_client_t *client, const char *newname);
+int exec_query(mongoc_collection_t *collection, const char *line, int len);
+int exec_agquery(mongoc_collection_t *collection, const char *line, int len);
 
 static mongoc_client_t *client;
 static mongoc_collection_t *ccoll; // current collection
@@ -257,7 +258,7 @@ int exec_cmd(const int cmd, int argc, const char *argv[], const char *line, int 
   case CHCOLL:
     return exec_chcoll(client, argv[1]);
   case QUERY:
-    break;
+    return exec_query(ccoll, line, linelen);
   case AGQUERY:
     return exec_agquery(ccoll, line, linelen);
   }
@@ -349,6 +350,45 @@ int exec_chcoll(mongoc_client_t *client, const char *newname)
   return 0;
 }
 
+// execute a query
+// return 0 on success, -1 on failure
+int exec_query(mongoc_collection_t *collection, const char *line, int len)
+{
+  mongoc_cursor_t *cursor;
+  bson_error_t error;
+  const bson_t *doc;
+  char *str;
+  bson_t query;
+  char query_doc[MAXQUERY];
+
+  // try to parse as loose json and convert to strict json
+  if (relaxed_to_strict(query_doc, MAXQUERY, line, len) == -1)
+    fatal("jsonify error");
+
+  // try to parse it as json and convert to bson
+  if (!bson_init_from_json(&query, query_doc, -1, &error)) {
+    fprintf(stderr, "%s\n", error.message);
+    return -1;
+  }
+
+  cursor = mongoc_collection_find(collection, MONGOC_QUERY_NONE, 0, 0, 0, &query, NULL, NULL);
+
+  while (mongoc_cursor_next(cursor, &doc)) {
+    str = bson_as_json(doc, NULL);
+    printf ("%s\n", str);
+    bson_free(str);
+  }
+
+  if (mongoc_cursor_error(cursor, &error)) {
+    fprintf(stderr, "cursor failed: %s\n", error.message);
+    mongoc_cursor_destroy(cursor);
+    return -1;
+  }
+
+  mongoc_cursor_destroy(cursor);
+
+  return 0;
+}
 // execute an aggregation pipeline
 // return 0 on success, -1 on failure
 int exec_agquery(mongoc_collection_t *collection, const char *line, int len)
