@@ -35,6 +35,8 @@
 #define MAXUSERNAME 100
 
 #define MAXMONGOURL 200
+#define MAXDBNAME 200
+#define MAXCOLLNAME 200
 
 #define MAXPROMPT 30  // must support at least 1 + 4 + 1 + 4 + 3 = 13 characters for the shortened version of a prompt:
                       // "/dbname/collname > " would become "/d..e/c..e > " if MAXPROMPT = 13
@@ -43,8 +45,8 @@
 
 static char *progname;
 
-static char *dbname;
-static char *collname;
+static char dbname[MAXDBNAME];
+static char collname[MAXCOLLNAME];
 
 /* shell specific user info */
 typedef struct {
@@ -121,10 +123,12 @@ int main(int argc, char **argv)
   while (--argc)
     switch (argc) {
     case 1:
-      dbname = argv[argc];
+      if (strlcpy(dbname, argv[argc], MAXDBNAME) > MAXDBNAME)
+        fatal("can't set database name");
       break;
     case 2:
-      collname = argv[argc];
+      if (strlcpy(collname, argv[argc], MAXCOLLNAME) > MAXCOLLNAME)
+        fatal("can't set collection name");
       break;
     }
 
