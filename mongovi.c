@@ -69,11 +69,11 @@ typedef struct {
 
 cmd_t cmds[] = {
   LSDBS,    "dbs",      0,
-  CURDB,    "db",       0,
-  LSCOLLS,  "colls",    0,
+  CURDB,    "pwd",      0, // print working database
   LSCOLLS,  "c",        0,
-  CURCOLL,  "coll",     0,
-  CHCOLL,   "coll",     1,
+  LSCOLLS,  "colls",    0, // alias for c
+  CURCOLL,  "pwc",      0, // print working collection
+  CHCOLL,   "c",        1,
   QUERY,    "{",        0,
   AGQUERY,  "[",        0,
 };
@@ -213,23 +213,42 @@ int parse_cmd(int argc, const char *argv[])
   int i;
   for (i = 0; i < argc; i++)
     if (strcmp("dbs", argv[i]) == 0) {
-      return LSDBS;
+      switch (argc) {
+      case 1:
+        return LSDBS;
+      default:
+        return ILLEGAL;
+      }
     } else if (strcmp("db", argv[i]) == 0) {
       switch (argc) {
-      case 0:
+      case 1:
         return CURDB;
       default:
         return ILLEGAL;
       }
     } else if (strcmp("colls", argv[i]) == 0) {
-      return LSCOLLS;
+      switch (argc) {
+      case 1:
+        return LSCOLLS;
+      default:
+        return ILLEGAL;
+      }
     } else if (strcmp("c", argv[i]) == 0) {
-      return LSCOLLS;
-    } else if (strcmp("coll", argv[i]) == 0) {
-      if (argc > 1)
+      switch (argc) {
+      case 1:
+        return LSCOLLS;
+      case 2:
         return CHCOLL;
-      else
+      default:
+        return ILLEGAL;
+      }
+    } else if (strcmp("pwc", argv[i]) == 0) {
+      switch (argc) {
+      case 1:
         return CURCOLL;
+      default:
+        return ILLEGAL;
+      }
     } else if (argv[0][0] == '{') {
       return QUERY;
     } else if (argv[0][0] == '[') {
