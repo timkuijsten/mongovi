@@ -90,6 +90,12 @@ See [editline(7)] for a list of supported key bindings and the mongodb
 *colls* list all collections in the current database
 
 
+## ~/.mongovi
+
+If this file exists, the first line is read and expected to be a valid mongodb
+[connection string], possibly containing a username and password.
+
+
 ## History
 
 This project is a continuation of [node-mongovi]. *node-mongovi* always had a
@@ -122,4 +128,5 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 [key bindings]: http://man.openbsd.org/editline.7#Input_character_bindings
 [MongoDB C Driver]: http://mongoc.org/
 [aggregation framework]: https://docs.mongodb.com/manual/reference/operator/aggregation/
+[connection string]: https://docs.mongodb.com/manual/reference/connection-string/
 [node-mongovi]: https://www.npmjs.com/package/mongovi
