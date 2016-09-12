@@ -89,8 +89,9 @@ See [editline(7)] for a list of supported key bindings and the mongodb
 
 `dbs` list all databases
 `c` list all collections in the current database
-`c coll` change the current working collection to "coll"
-`c /db/coll` change the current working database to "db" and the collection to "coll"
+`c coll` change the current collection to "coll"
+`c /db/coll` change the current database to "db" and the collection to "coll"
+`[]` aggregation pipeline
 
 
 ## ~/.mongovi

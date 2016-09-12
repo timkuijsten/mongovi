@@ -59,7 +59,7 @@ typedef struct {
   char url[MAXMONGOURL];
 } config_t;
 
-enum cmd { ILLEGAL = -1, UNKNOWN, LSDBS, CURDB, LSCOLLS, CURCOLL, CHCOLL, QUERY, AGQUERY };
+enum cmd { ILLEGAL = -1, UNKNOWN, LSDBS, LSCOLLS, CHCOLL, QUERY, AGQUERY };
 
 typedef struct {
   int tok;
@@ -69,11 +69,9 @@ typedef struct {
 
 cmd_t cmds[] = {
   LSDBS,    "dbs",      0,
-  CURDB,    "pwd",      0, // print working database
-  LSCOLLS,  "c",        0,
+  LSCOLLS,  "c",        0, // list all collections
   LSCOLLS,  "colls",    0, // alias for c
-  CURCOLL,  "pwc",      0, // print working collection
-  CHCOLL,   "c",        1,
+  CHCOLL,   "c",        1, // with an argument of the new collection
   QUERY,    "{",        0,
   AGQUERY,  "[",        0,
 };
@@ -220,13 +218,6 @@ int parse_cmd(int argc, const char *argv[])
       default:
         return ILLEGAL;
       }
-    } else if (strcmp("db", argv[i]) == 0) {
-      switch (argc) {
-      case 1:
-        return CURDB;
-      default:
-        return ILLEGAL;
-      }
     } else if (strcmp("colls", argv[i]) == 0) {
       switch (argc) {
       case 1:
@@ -240,13 +231,6 @@ int parse_cmd(int argc, const char *argv[])
         return LSCOLLS;
       case 2:
         return CHCOLL;
-      default:
-        return ILLEGAL;
-      }
-    } else if (strcmp("pwc", argv[i]) == 0) {
-      switch (argc) {
-      case 1:
-        return CURCOLL;
       default:
         return ILLEGAL;
       }
@@ -266,16 +250,12 @@ int exec_cmd(const int cmd, int argc, const char *argv[], const char *line, int 
   switch (cmd) {
   case LSDBS:
     return exec_lsdbs(client);
-  case CURDB:
-    break;
   case ILLEGAL:
     break;
   case LSCOLLS:
     return exec_lscolls(client, dbname);
   case CHCOLL:
     return exec_chcoll(client, argv[1]);
-  case CURCOLL:
-    break;
   case QUERY:
     break;
   case AGQUERY:
