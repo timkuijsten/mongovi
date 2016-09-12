@@ -168,6 +168,7 @@ int main(int argc, char **argv)
   history_end(h);
   el_end(e);
 
+  printf("\n");
   return 0;
 }
 
