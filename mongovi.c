@@ -102,8 +102,8 @@ void usage(void)
 
 int main(int argc, char **argv)
 {
-  const char *line, **mvav;
-  int on, read, len, status, i, mvac, mvcc, mvco, cmd;
+  const char *line, **av;
+  int on, read, len, status, i, ac, cc, co, cmd;
   EditLine *e;
   History *h;
   HistEvent he;
@@ -166,15 +166,15 @@ int main(int argc, char **argv)
   while ((line = el_gets(e, &read)) != NULL) {
     // tokenize
     tok_reset(t);
-    tok_line(t, el_line(e), &mvac, &mvav, &mvcc, &mvco);
+    tok_line(t, el_line(e), &ac, &av, &cc, &co);
 
-    if (mvac == 0)
+    if (ac == 0)
       continue;
 
     if (history(h, &he, H_ENTER, line) == -1)
       fatal("can't enter history");
 
-    cmd = parse_cmd(mvac, mvav);
+    cmd = parse_cmd(ac, av);
     switch (cmd) {
     case UNKNOWN:
     case ILLEGAL:
@@ -183,7 +183,7 @@ int main(int argc, char **argv)
       break;
     }
 
-    if (exec_cmd(cmd, mvac, mvav, line, strlen(line) - 1) == -1) {
+    if (exec_cmd(cmd, ac, av, line, strlen(line) - 1) == -1) {
       fprintf(stderr, "execution failed\n");
     }
   }
