@@ -20,7 +20,7 @@ static int sp = 0;
 static int stack[MAXSTACK];
 
 int
-from_loose_to_strict(char *output, size_t outputsize, char *input, ssize_t inputlen)
+relaxed_to_strict(char *output, size_t outputsize, const char *input, ssize_t inputlen)
 {
   ssize_t nrtokens;
   jsmntype_t jt;
@@ -29,12 +29,12 @@ from_loose_to_strict(char *output, size_t outputsize, char *input, ssize_t input
 
   jsmn_init(&parser);
 
-  nrtokens = from_loose(&parser, input, inputlen, tokens, TOKENS);
+  nrtokens = from_relaxed(&parser, input, inputlen, tokens, TOKENS);
   return to_strict(output, outputsize, input, tokens, nrtokens);
 }
 
 ssize_t
-from_loose(jsmn_parser *p, char *line, ssize_t linelen, jsmntok_t *tokens, ssize_t nrtokens)
+from_relaxed(jsmn_parser *p, const char *line, ssize_t linelen, jsmntok_t *tokens, ssize_t nrtokens)
 {
   return jsmn_parse(p, line, linelen, tokens, nrtokens);
 }

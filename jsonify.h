@@ -27,6 +27,6 @@
 int pop();
 int push(int val);
 
-int from_loose_to_strict(char *output, size_t outputsize, char *input, ssize_t inputlen);
-ssize_t from_loose(jsmn_parser *p, char *line, ssize_t linelen, jsmntok_t *tokens, ssize_t nrtokens);
+int relaxed_to_strict(char *output, size_t outputsize, const char *input, ssize_t inputlen);
+ssize_t from_relaxed(jsmn_parser *p, const char *line, ssize_t linelen, jsmntok_t *tokens, ssize_t nrtokens);
 int to_strict(char *output, size_t outputsize, const char *input, jsmntok_t *tokens, int nrtokens);
