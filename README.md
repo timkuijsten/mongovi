@@ -87,12 +87,12 @@ See [editline(7)] for a list of supported key bindings and the mongodb
 
 ## Interactive commands
 
-`dbs` list all databases
-`c` list all collections in the current database
-`c coll` change the current collection to "coll"
-`c /db/coll` change the current database to "db" and the collection to "coll"
-`{...}` query
-`[...]` aggregation pipeline
+* `dbs` list all databases
+* `c` list all collections in the current database
+* `c coll` change the current collection to "coll"
+* `c /db/coll` change the current database to "db" and the collection to "coll"
+* `{...}` query
+* `[...]` aggregation pipeline
 
 
 ## ~/.mongovi
