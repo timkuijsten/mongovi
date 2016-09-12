@@ -57,7 +57,7 @@ typedef struct {
   char url[MAXMONGOURL];
 } config_t;
 
-enum cmd { UNKNOWN, ILLEGAL, LSDBS, CURDB, CHDB, LSCOLLS, CURCOLL, CHCOLL, QUERY, AGQUERY };
+enum cmd { ILLEGAL = -1, UNKNOWN, LSDBS, CURDB, CHDB, LSCOLLS, CURCOLL, CHCOLL, QUERY, AGQUERY };
 
 typedef struct {
   int tok;
@@ -67,7 +67,6 @@ typedef struct {
 
 cmd_t cmds[] = {
   LSDBS,    "dbs",      0,
-  LSDBS,    "d",        0,
   CURDB,    "db",       0,
   CHDB,     "db",       1,
   LSCOLLS,  "colls",    0,
@@ -90,6 +89,7 @@ int parse_file(FILE *fp, char *line, config_t *cfg);
 int parse_cmd(int argc, const char *argv[]);
 int exec_cmd(const int cmd, int argc, const char *argv[], mongoc_client_t *client, mongoc_collection_t *coll, const char *line, int linelen);
 int exec_agquery(mongoc_collection_t *collection, const char *line, int len);
+int exec_lsdbs(mongoc_client_t *client);
 int exec_lscolls(mongoc_client_t *client, char *dbname);
 
 void usage(void)
@@ -210,8 +210,6 @@ int parse_cmd(int argc, const char *argv[])
   for (i = 0; i < argc; i++)
     if (strcmp("dbs", argv[i]) == 0) {
       return LSDBS;
-    } else if (strcmp("d", argv[i]) == 0) {
-      return LSDBS;
     } else if (strcmp("db", argv[i]) == 0) {
       switch (argc) {
       case 0:
@@ -247,7 +245,7 @@ int exec_cmd(const int cmd, int argc, const char *argv[], mongoc_client_t *clien
 
   switch (cmd) {
   case LSDBS:
-    break;
+    return exec_lsdbs(client);
   case CURDB:
     break;
   case CHDB:
@@ -267,6 +265,25 @@ int exec_cmd(const int cmd, int argc, const char *argv[], mongoc_client_t *clien
   }
 
   return -1;
+}
+
+// list database for the given client
+// return 0 on success, -1 on failure
+int exec_lsdbs(mongoc_client_t *client)
+{
+  bson_error_t error;
+  char **strv;
+  int i;
+
+  if ((strv = mongoc_client_get_database_names(client, &error)) == NULL)
+    return -1;
+
+  for (i = 0; strv[i]; i++)
+    printf("%s\n", strv[i]);
+
+  bson_strfreev(strv);
+
+  return 0;
 }
 
 // list collections for the given database
