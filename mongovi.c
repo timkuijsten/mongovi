@@ -57,7 +57,7 @@ typedef struct {
   char url[MAXMONGOURL];
 } config_t;
 
-enum cmd { ILLEGAL = -1, UNKNOWN, LSDBS, CURDB, CHDB, LSCOLLS, CURCOLL, CHCOLL, QUERY, AGQUERY };
+enum cmd { ILLEGAL = -1, UNKNOWN, LSDBS, CURDB, LSCOLLS, CURCOLL, CHCOLL, QUERY, AGQUERY };
 
 typedef struct {
   int tok;
@@ -68,7 +68,6 @@ typedef struct {
 cmd_t cmds[] = {
   LSDBS,    "dbs",      0,
   CURDB,    "db",       0,
-  CHDB,     "db",       1,
   LSCOLLS,  "colls",    0,
   LSCOLLS,  "c",        0,
   CURCOLL,  "coll",     0,
@@ -87,10 +86,13 @@ int set_prompt(char *dbname, char *collname);
 int read_config(user_t *usr, config_t *cfg);
 int parse_file(FILE *fp, char *line, config_t *cfg);
 int parse_cmd(int argc, const char *argv[]);
-int exec_cmd(const int cmd, int argc, const char *argv[], mongoc_client_t *client, mongoc_collection_t *coll, const char *line, int linelen);
+int exec_cmd(const int cmd, int argc, const char *argv[], const char *line, int linelen);
 int exec_agquery(mongoc_collection_t *collection, const char *line, int len);
 int exec_lsdbs(mongoc_client_t *client);
 int exec_lscolls(mongoc_client_t *client, char *dbname);
+
+static mongoc_client_t *client;
+static mongoc_collection_t *ccoll; // current collection
 
 void usage(void)
 {
@@ -107,8 +109,6 @@ int main(int argc, char **argv)
   HistEvent he;
   Tokenizer *t;
 
-  mongoc_client_t *client;
-  mongoc_collection_t *collection;
   bson_error_t error;
 
   char connect_url[MAXMONGOURL] = "mongodb://localhost:27017";
@@ -161,7 +161,7 @@ int main(int argc, char **argv)
   if ((client = mongoc_client_new(connect_url)) == NULL)
     fatal("can't connect to mongo");
 
-  collection = mongoc_client_get_collection(client, dbname, collname);
+  ccoll = mongoc_client_get_collection(client, dbname, collname);
 
   while ((line = el_gets(e, &read)) != NULL) {
     // tokenize
@@ -183,7 +183,7 @@ int main(int argc, char **argv)
     if (history(h, &he, H_ENTER, line) == -1)
       fatal("can't enter history");
 
-    if (exec_cmd(cmd, mvac, mvav, client, collection, line, strlen(line) - 1) == -1) {
+    if (exec_cmd(cmd, mvac, mvav, line, strlen(line) - 1) == -1) {
       fprintf(stderr, "execution failed\n");
     }
   }
@@ -191,7 +191,7 @@ int main(int argc, char **argv)
   if (read == -1)
     fstrerror();
 
-  mongoc_collection_destroy(collection);
+  mongoc_collection_destroy(ccoll);
   mongoc_client_destroy(client);
   mongoc_cleanup();
 
@@ -214,8 +214,6 @@ int parse_cmd(int argc, const char *argv[])
       switch (argc) {
       case 0:
         return CURDB;
-      case 1:
-        return CHDB;
       default:
         return ILLEGAL;
       }
@@ -239,16 +237,12 @@ int parse_cmd(int argc, const char *argv[])
 
 // execute command with given arguments
 // return 0 on success, -1 on failure
-int exec_cmd(const int cmd, int argc, const char *argv[], mongoc_client_t *client, mongoc_collection_t *coll, const char *line, int linelen)
+int exec_cmd(const int cmd, int argc, const char *argv[], const char *line, int linelen)
 {
-  int i;
-
   switch (cmd) {
   case LSDBS:
     return exec_lsdbs(client);
   case CURDB:
-    break;
-  case CHDB:
     break;
   case ILLEGAL:
     break;
@@ -261,7 +255,7 @@ int exec_cmd(const int cmd, int argc, const char *argv[], mongoc_client_t *clien
   case QUERY:
     break;
   case AGQUERY:
-    return exec_agquery(coll, line, linelen);
+    return exec_agquery(ccoll, line, linelen);
   }
 
   return -1;
