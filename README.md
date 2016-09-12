@@ -88,7 +88,9 @@ See [editline(7)] for a list of supported key bindings and the mongodb
 ## Interactive commands
 
 `dbs` list all databases
-`colls` list all collections in the current database
+`c` list all collections in the current database
+`c coll` change the current working collection to "coll"
+`c /db/coll` change the current working database to "db" and the collection to "coll"
 
 
 ## ~/.mongovi

@@ -92,6 +92,7 @@ int exec_cmd(const int cmd, int argc, const char *argv[], const char *line, int 
 int exec_agquery(mongoc_collection_t *collection, const char *line, int len);
 int exec_lsdbs(mongoc_client_t *client);
 int exec_lscolls(mongoc_client_t *client, char *dbname);
+int exec_chcoll(mongoc_client_t *client, const char *newname);
 
 static mongoc_client_t *client;
 static mongoc_collection_t *ccoll; // current collection
@@ -272,7 +273,7 @@ int exec_cmd(const int cmd, int argc, const char *argv[], const char *line, int 
   case LSCOLLS:
     return exec_lscolls(client, dbname);
   case CHCOLL:
-    break;
+    return exec_chcoll(client, argv[1]);
   case CURCOLL:
     break;
   case QUERY:
@@ -322,6 +323,48 @@ int exec_lscolls(mongoc_client_t *client, char *dbname)
 
   bson_strfreev(strv);
   mongoc_database_destroy(db);
+
+  return 0;
+}
+
+// change collection and optionally the database
+// return 0 on success, -1 on failure
+int exec_chcoll(mongoc_client_t *client, const char *newname)
+{
+  int i, ac;
+  const char **av, *collp;
+  char newdb[MAXDBNAME];
+  char newcoll[MAXCOLLNAME];
+  Tokenizer *t;
+
+  // default to current db
+  strlcpy(newdb, dbname, MAXDBNAME);
+
+  // assume newname has no database component
+  collp = newname;
+
+  // check if there is a database component
+  if (newname[0] == '/') {
+    t = tok_init("/");
+    tok_str(t, newname, &ac, &av);
+    if (ac > 1) { // use first component as the name of the database
+      if ((i = strlcpy(newdb, av[0], MAXDBNAME)) > MAXDBNAME)
+        return -1;
+      collp += 1 + i + 1; // skip db name and it's leading and trailing slash
+    }
+    tok_end(t);
+  }
+  if (strlcpy(newcoll, collp, MAXCOLLNAME) > MAXCOLLNAME)
+    return -1;
+
+  mongoc_collection_destroy(ccoll);
+  ccoll = mongoc_client_get_collection(client, newdb, newcoll);
+
+  // update references
+  strlcpy(dbname, newdb, MAXDBNAME);
+  strlcpy(collname, newcoll, MAXCOLLNAME);
+
+  set_prompt(newdb, newcoll);
 
   return 0;
 }
