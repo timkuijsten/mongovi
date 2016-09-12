@@ -85,7 +85,7 @@ See [editline(7)] for a list of supported key bindings and the mongodb
 [aggregation framework] for query possibilities.
 
 
-## Supported commands
+## Interactive commands
 
 `colls` list all collections in the current database
 
