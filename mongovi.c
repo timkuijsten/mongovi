@@ -67,9 +67,11 @@ typedef struct {
 
 cmd_t cmds[] = {
   LSDBS,    "dbs",      0,
+  LSDBS,    "d",        0,
   CURDB,    "db",       0,
   CHDB,     "db",       1,
   LSCOLLS,  "colls",    0,
+  LSCOLLS,  "c",        0,
   CURCOLL,  "coll",     0,
   CHCOLL,   "coll",     1,
   QUERY,    "{",        0,
@@ -86,8 +88,9 @@ int set_prompt(char *dbname, char *collname);
 int read_config(user_t *usr, config_t *cfg);
 int parse_file(FILE *fp, char *line, config_t *cfg);
 int parse_cmd(int argc, const char *argv[]);
-int exec_cmd(const int cmd, int argc, const char *argv[], mongoc_collection_t *coll, const char *line, int linelen);
+int exec_cmd(const int cmd, int argc, const char *argv[], mongoc_client_t *client, mongoc_collection_t *coll, const char *line, int linelen);
 int exec_agquery(mongoc_collection_t *collection, const char *line, int len);
+int exec_lscolls(mongoc_client_t *client, char *dbname);
 
 void usage(void)
 {
@@ -180,9 +183,8 @@ int main(int argc, char **argv)
     if (history(h, &he, H_ENTER, line) == -1)
       fatal("can't enter history");
 
-    if (exec_cmd(cmd, mvac, mvav, collection, line, strlen(line) - 1) == -1) {
+    if (exec_cmd(cmd, mvac, mvav, client, collection, line, strlen(line) - 1) == -1) {
       fprintf(stderr, "execution failed\n");
-      continue;
     }
   }
 
@@ -208,6 +210,8 @@ int parse_cmd(int argc, const char *argv[])
   for (i = 0; i < argc; i++)
     if (strcmp("dbs", argv[i]) == 0) {
       return LSDBS;
+    } else if (strcmp("d", argv[i]) == 0) {
+      return LSDBS;
     } else if (strcmp("db", argv[i]) == 0) {
       switch (argc) {
       case 0:
@@ -217,6 +221,10 @@ int parse_cmd(int argc, const char *argv[])
       default:
         return ILLEGAL;
       }
+    } else if (strcmp("colls", argv[i]) == 0) {
+      return LSCOLLS;
+    } else if (strcmp("c", argv[i]) == 0) {
+      return LSCOLLS;
     } else if (strcmp("coll", argv[i]) == 0) {
       if (argc > 1)
         return CHCOLL;
@@ -233,9 +241,10 @@ int parse_cmd(int argc, const char *argv[])
 
 // execute command with given arguments
 // return 0 on success, -1 on failure
-int exec_cmd(const int cmd, int argc, const char *argv[], mongoc_collection_t *coll, const char *line, int linelen)
+int exec_cmd(const int cmd, int argc, const char *argv[], mongoc_client_t *client, mongoc_collection_t *coll, const char *line, int linelen)
 {
   int i;
+
   switch (cmd) {
   case LSDBS:
     break;
@@ -245,6 +254,8 @@ int exec_cmd(const int cmd, int argc, const char *argv[], mongoc_collection_t *c
     break;
   case ILLEGAL:
     break;
+  case LSCOLLS:
+    return exec_lscolls(client, dbname);
   case CHCOLL:
     break;
   case CURCOLL:
@@ -253,10 +264,32 @@ int exec_cmd(const int cmd, int argc, const char *argv[], mongoc_collection_t *c
     break;
   case AGQUERY:
     return exec_agquery(coll, line, linelen);
-    break;
   }
 
   return -1;
+}
+
+// list collections for the given database
+// return 0 on success, -1 on failure
+int exec_lscolls(mongoc_client_t *client, char *dbname)
+{
+  bson_error_t error;
+  mongoc_database_t *db;
+  char **strv;
+  int i;
+
+  db = mongoc_client_get_database(client, dbname);
+
+  if ((strv = mongoc_database_get_collection_names(db, &error)) == NULL)
+    return -1;
+
+  for (i = 0; strv[i]; i++)
+    printf("%s\n", strv[i]);
+
+  bson_strfreev(strv);
+  mongoc_database_destroy(db);
+
+  return 0;
 }
 
 // execute an aggregation pipeline

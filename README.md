@@ -85,6 +85,11 @@ See [editline(7)] for a list of supported key bindings and the mongodb
 [aggregation framework] for query possibilities.
 
 
+## Supported commands
+
+*colls* list all collections in the current database
+
+
 ## History
 
 This project is a continuation of [node-mongovi]. *node-mongovi* always had a
