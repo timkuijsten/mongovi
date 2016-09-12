@@ -171,6 +171,9 @@ int main(int argc, char **argv)
     if (mvac == 0)
       continue;
 
+    if (history(h, &he, H_ENTER, line) == -1)
+      fatal("can't enter history");
+
     cmd = parse_cmd(mvac, mvav);
     switch (cmd) {
     case UNKNOWN:
@@ -179,9 +182,6 @@ int main(int argc, char **argv)
       continue;
       break;
     }
-
-    if (history(h, &he, H_ENTER, line) == -1)
-      fatal("can't enter history");
 
     if (exec_cmd(cmd, mvac, mvav, line, strlen(line) - 1) == -1) {
       fprintf(stderr, "execution failed\n");
