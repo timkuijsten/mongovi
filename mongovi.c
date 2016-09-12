@@ -57,16 +57,37 @@ typedef struct {
   char url[MAXMONGOURL];
 } config_t;
 
+enum cmd { UNKNOWN, ILLEGAL, LSDBS, CURDB, CHDB, LSCOLLS, CURCOLL, CHCOLL, QUERY, AGQUERY };
+
+typedef struct {
+  int tok;
+  char *name;
+  int nrargs;
+} cmd_t;
+
+cmd_t cmds[] = {
+  LSDBS,    "dbs",      0,
+  CURDB,    "db",       0,
+  CHDB,     "db",       1,
+  LSCOLLS,  "colls",    0,
+  CURCOLL,  "coll",     0,
+  CHCOLL,   "coll",     1,
+  QUERY,    "{",        0,
+  AGQUERY,  "[",        0,
+};
+
 static user_t user;
 static config_t config;
 
 static char p[MAXPROMPT + 1];
-void exec_pipeline(mongoc_collection_t *collection, bson_t *pipeline);
 char *prompt(EditLine *e);
 int init_user(user_t *usr);
 int set_prompt(char *dbname, char *collname);
 int read_config(user_t *usr, config_t *cfg);
 int parse_file(FILE *fp, char *line, config_t *cfg);
+int parse_cmd(int argc, const char *argv[]);
+int exec_cmd(const int cmd, int argc, const char *argv[], mongoc_collection_t *coll, const char *line, int linelen);
+int exec_agquery(mongoc_collection_t *collection, const char *line, int len);
 
 void usage(void)
 {
@@ -76,18 +97,17 @@ void usage(void)
 
 int main(int argc, char **argv)
 {
-  const char *line;
-  int on, read, len, status;
+  const char *line, **mvav;
+  int on, read, len, status, i, mvac, mvcc, mvco, cmd;
   EditLine *e;
   History *h;
   HistEvent he;
+  Tokenizer *t;
 
   mongoc_client_t *client;
   mongoc_collection_t *collection;
-  bson_t aggr_query;
   bson_error_t error;
 
-  char query_doc[MAXQUERY];
   char connect_url[MAXMONGOURL] = "mongodb://localhost:27017";
 
   progname = basename(argv[0]);
@@ -124,6 +144,7 @@ int main(int argc, char **argv)
     fatal("can't initialize history");
   if ((e = el_init(argv[0], stdin, stdout, stderr)) == NULL)
     fatal("can't initialize editline");
+  t = tok_init(NULL);
 
   el_set(e, EL_HIST, history, h);
   el_set(e, EL_PROMPT, prompt);
@@ -140,31 +161,39 @@ int main(int argc, char **argv)
   collection = mongoc_client_get_collection(client, dbname, collname);
 
   while ((line = el_gets(e, &read)) != NULL) {
-    len = strlen(line);
-    if (len == 1) // skip lines with a newline only
+    // tokenize
+    tok_reset(t);
+    tok_line(t, el_line(e), &mvac, &mvav, &mvcc, &mvco);
+
+    if (mvac == 0)
       continue;
+
+    cmd = parse_cmd(mvac, mvav);
+    switch (cmd) {
+    case UNKNOWN:
+    case ILLEGAL:
+      fprintf(stderr, "illegal syntax\n");
+      continue;
+      break;
+    }
 
     if (history(h, &he, H_ENTER, line) == -1)
       fatal("can't enter history");
 
-    // try to parse as loose json and convert to strict json
-    if (from_loose_to_strict(query_doc, MAXQUERY, (char *)line, len - 1) == -1)
-      fatal("jsonify error");
-
-    // try to parse it as json and convert to bson
-    if (!bson_init_from_json(&aggr_query, query_doc, -1, &error))
-      fprintf(stderr, "%s\n", error.message);
-    else
-      exec_pipeline(collection, &aggr_query);
+    if (exec_cmd(cmd, mvac, mvav, collection, line, strlen(line) - 1) == -1) {
+      fprintf(stderr, "execution failed\n");
+      continue;
+    }
   }
 
   if (read == -1)
-    ferrno("read line error");
+    fstrerror();
 
   mongoc_collection_destroy(collection);
   mongoc_client_destroy(client);
   mongoc_cleanup();
 
+  tok_end(t);
   history_end(h);
   el_end(e);
 
@@ -172,14 +201,86 @@ int main(int argc, char **argv)
   return 0;
 }
 
-void exec_pipeline(mongoc_collection_t *collection, bson_t *pipeline)
+// return command code
+int parse_cmd(int argc, const char *argv[])
+{
+  int i;
+  for (i = 0; i < argc; i++)
+    if (strcmp("dbs", argv[i]) == 0) {
+      return LSDBS;
+    } else if (strcmp("db", argv[i]) == 0) {
+      switch (argc) {
+      case 0:
+        return CURDB;
+      case 1:
+        return CHDB;
+      default:
+        return ILLEGAL;
+      }
+    } else if (strcmp("coll", argv[i]) == 0) {
+      if (argc > 1)
+        return CHCOLL;
+      else
+        return CURCOLL;
+    } else if (argv[0][0] == '{') {
+      return QUERY;
+    } else if (argv[0][0] == '[') {
+      return AGQUERY;
+    }
+
+  return -1;
+}
+
+// execute command with given arguments
+// return 0 on success, -1 on failure
+int exec_cmd(const int cmd, int argc, const char *argv[], mongoc_collection_t *coll, const char *line, int linelen)
+{
+  int i;
+  switch (cmd) {
+  case LSDBS:
+    break;
+  case CURDB:
+    break;
+  case CHDB:
+    break;
+  case ILLEGAL:
+    break;
+  case CHCOLL:
+    break;
+  case CURCOLL:
+    break;
+  case QUERY:
+    break;
+  case AGQUERY:
+    return exec_agquery(coll, line, linelen);
+    break;
+  }
+
+  return -1;
+}
+
+// execute an aggregation pipeline
+// return 0 on success, -1 on failure
+int exec_agquery(mongoc_collection_t *collection, const char *line, int len)
 {
   mongoc_cursor_t *cursor;
   bson_error_t error;
   const bson_t *doc;
   char *str;
+  bson_t aggr_query;
+  char query_doc[MAXQUERY];
 
-  cursor = mongoc_collection_aggregate (collection, MONGOC_QUERY_NONE, pipeline, NULL, NULL);
+  // try to parse as loose json and convert to strict json
+  if (relaxed_to_strict(query_doc, MAXQUERY, line, len) == -1)
+    fatal("jsonify error");
+
+  // try to parse it as json and convert to bson
+  if (!bson_init_from_json(&aggr_query, query_doc, -1, &error)) {
+    fprintf(stderr, "%s\n", error.message);
+    return -1;
+  }
+
+  cursor = mongoc_collection_aggregate(collection, MONGOC_QUERY_NONE, &aggr_query, NULL, NULL);
 
   while (mongoc_cursor_next(cursor, &doc)) {
     str = bson_as_json(doc, NULL);
@@ -188,10 +289,14 @@ void exec_pipeline(mongoc_collection_t *collection, bson_t *pipeline)
   }
 
   if (mongoc_cursor_error(cursor, &error)) {
-    fprintf (stderr, "Cursor Failure: %s\n", error.message);
+    fprintf(stderr, "cursor failed: %s\n", error.message);
+    mongoc_cursor_destroy(cursor);
+    return -1;
   }
 
   mongoc_cursor_destroy(cursor);
+
+  return 0;
 }
 
 char *prompt(EditLine *e)
