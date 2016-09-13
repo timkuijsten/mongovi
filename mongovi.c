@@ -107,6 +107,7 @@ void usage(void)
 int main(int argc, char **argv)
 {
   const char *line, **av;
+  char linecpy[MAXLINE];
   int on, read, len, status, i, ac, cc, co, cmd;
   EditLine *e;
   History *h;
@@ -177,7 +178,17 @@ int main(int argc, char **argv)
     if (ac == 0)
       continue;
 
-    if (history(h, &he, H_ENTER, line) == -1)
+    if (read > MAXLINE)
+      fatal("line too long");
+
+    if (line[read - 1] != '\n')
+      fatal("expected line to end with a newline");
+
+    // copy without newline
+    if (strlcpy(linecpy, line, read) > read)
+      fatal("could not copy line");
+
+    if (history(h, &he, H_ENTER, linecpy) == -1)
       fatal("can't enter history");
 
     cmd = parse_cmd(ac, av);
@@ -192,7 +203,7 @@ int main(int argc, char **argv)
       break;
     }
 
-    if (exec_cmd(cmd, ac, av, line, strlen(line) - 1) == -1) {
+    if (exec_cmd(cmd, ac, av, linecpy, strlen(linecpy)) == -1) {
       fprintf(stderr, "execution failed\n");
     }
   }
