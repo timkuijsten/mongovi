@@ -203,7 +203,9 @@ int main(int argc, char **argv)
   history_end(h);
   el_end(e);
 
-  printf("\n");
+  if (isatty(STDIN_FILENO))
+    printf("\n");
+
   return 0;
 }
 
