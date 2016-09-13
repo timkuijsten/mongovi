@@ -59,7 +59,7 @@ typedef struct {
   char url[MAXMONGOURL];
 } config_t;
 
-enum cmd { ILLEGAL = -1, UNKNOWN, LSDBS, LSCOLLS, CHCOLL, QUERY, AGQUERY };
+enum cmd { ILLEGAL = -1, UNKNOWN, LSDBS, LSCOLLS, CHCOLL, COUNT, QUERY, AGQUERY };
 
 typedef struct {
   int tok;
@@ -72,6 +72,7 @@ cmd_t cmds[] = {
   LSCOLLS,  "c",        0, // list all collections
   LSCOLLS,  "colls",    0, // alias for c
   CHCOLL,   "c",        1, // with an argument of the new collection
+  COUNT,    "count",    0,
   QUERY,    "{",        0,
   AGQUERY,  "[",        0,
 };
@@ -90,6 +91,7 @@ int exec_cmd(const int cmd, int argc, const char *argv[], const char *line, int 
 int exec_lsdbs(mongoc_client_t *client);
 int exec_lscolls(mongoc_client_t *client, char *dbname);
 int exec_chcoll(mongoc_client_t *client, const char *newname);
+int exec_count(mongoc_collection_t *collection, const char *line, int len);
 int exec_query(mongoc_collection_t *collection, const char *line, int len);
 int exec_agquery(mongoc_collection_t *collection, const char *line, int len);
 
@@ -181,6 +183,9 @@ int main(int argc, char **argv)
     cmd = parse_cmd(ac, av);
     switch (cmd) {
     case UNKNOWN:
+      fprintf(stderr, "unknown command\n");
+      continue;
+      break;
     case ILLEGAL:
       fprintf(stderr, "illegal syntax\n");
       continue;
@@ -212,38 +217,40 @@ int main(int argc, char **argv)
 // return command code
 int parse_cmd(int argc, const char *argv[])
 {
-  int i;
-  for (i = 0; i < argc; i++)
-    if (strcmp("dbs", argv[i]) == 0) {
-      switch (argc) {
-      case 1:
-        return LSDBS;
-      default:
-        return ILLEGAL;
-      }
-    } else if (strcmp("colls", argv[i]) == 0) {
-      switch (argc) {
-      case 1:
-        return LSCOLLS;
-      default:
-        return ILLEGAL;
-      }
-    } else if (strcmp("c", argv[i]) == 0) {
-      switch (argc) {
-      case 1:
-        return LSCOLLS;
-      case 2:
-        return CHCOLL;
-      default:
-        return ILLEGAL;
-      }
-    } else if (argv[0][0] == '{') {
-      return QUERY;
-    } else if (argv[0][0] == '[') {
-      return AGQUERY;
+  // expect command to be the first token
+  int i = 0;
+  if (strcmp("dbs", argv[i]) == 0) {
+    switch (argc) {
+    case 1:
+      return LSDBS;
+    default:
+      return ILLEGAL;
     }
+  } else if (strcmp("colls", argv[i]) == 0) {
+    switch (argc) {
+    case 1:
+      return LSCOLLS;
+    default:
+      return ILLEGAL;
+    }
+  } else if (strcmp("c", argv[i]) == 0) {
+    switch (argc) {
+    case 1:
+      return LSCOLLS;
+    case 2:
+      return CHCOLL;
+    default:
+      return ILLEGAL;
+    }
+  } else if (strcmp("count", argv[i]) == 0) {
+    return COUNT;
+  } else if (argv[0][0] == '{') {
+    return QUERY;
+  } else if (argv[0][0] == '[') {
+    return AGQUERY;
+  }
 
-  return -1;
+  return UNKNOWN;
 }
 
 // execute command with given arguments
@@ -259,6 +266,8 @@ int exec_cmd(const int cmd, int argc, const char *argv[], const char *line, int 
     return exec_lscolls(client, dbname);
   case CHCOLL:
     return exec_chcoll(client, argv[1]);
+  case COUNT:
+    return exec_count(ccoll, line, linelen);
   case QUERY:
     return exec_query(ccoll, line, linelen);
   case AGQUERY:
@@ -352,6 +361,21 @@ int exec_chcoll(mongoc_client_t *client, const char *newname)
   return 0;
 }
 
+// count number of documents in collection
+// return 0 on success, -1 on failure
+int exec_count(mongoc_collection_t *collection, const char *line, int len)
+{
+  bson_error_t error;
+  int64_t count;
+
+  if ((count = mongoc_collection_count(collection, MONGOC_QUERY_NONE, NULL, 0, 0, NULL, &error)) == -1)
+    fprintf(stderr, "cursor failed: %s\n", error.message);
+
+  printf("%lld\n", count);
+
+  return 0;
+}
+
 // execute a query
 // return 0 on success, -1 on failure
 int exec_query(mongoc_collection_t *collection, const char *line, int len)
@@ -391,6 +415,7 @@ int exec_query(mongoc_collection_t *collection, const char *line, int len)
 
   return 0;
 }
+
 // execute an aggregation pipeline
 // return 0 on success, -1 on failure
 int exec_agquery(mongoc_collection_t *collection, const char *line, int len)

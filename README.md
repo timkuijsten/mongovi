@@ -83,6 +83,7 @@ Same as previous, but filter on documents where *foo* is *bar*:
 * `c` list all collections in the current database
 * `c coll` change the current collection to "coll"
 * `c /db/coll` change the current database to "db" and the collection to "coll"
+* `count` count the number of documents in the current collection
 * `{...}` query filter, see [query operators]
 * `[...]` aggregation pipeline, see [aggregation operators]
 
