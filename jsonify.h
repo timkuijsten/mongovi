@@ -23,10 +23,11 @@
 
 #define TOKENS 100
 #define MAXSTACK 100
+#define MAXOUTPUT 1024 * 16
 
 int pop();
 int push(int val);
 
-int relaxed_to_strict(char *output, size_t outputsize, const char *input, ssize_t inputlen);
-ssize_t from_relaxed(jsmn_parser *p, const char *line, ssize_t linelen, jsmntok_t *tokens, ssize_t nrtokens);
-int to_strict(char *output, size_t outputsize, const char *input, jsmntok_t *tokens, int nrtokens);
+int relaxed_to_strict(char *output, size_t outputsize, const char *input, ssize_t inputlen, int firstroot);
+int iterate(const char *input, jsmntok_t *tokens, int nrtokens, void (*iterator)(jsmntok_t *, char *, int, int, char *));
+void writer(jsmntok_t *tok, char *key, int depth, int ndepth, char *closesym);
