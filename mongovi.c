@@ -59,7 +59,7 @@ typedef struct {
   char url[MAXMONGOURL];
 } config_t;
 
-enum cmd { ILLEGAL = -1, UNKNOWN, LSDBS, LSCOLLS, CHCOLL, COUNT, QUERY, AGQUERY };
+enum cmd { ILLEGAL = -1, UNKNOWN, LSDBS, LSCOLLS, CHCOLL, COUNT, UPDATE, QUERY, AGQUERY };
 
 typedef struct {
   int tok;
@@ -73,6 +73,7 @@ cmd_t cmds[] = {
   LSCOLLS,  "colls",    0, // alias for c
   CHCOLL,   "c",        1, // with an argument of the new collection
   COUNT,    "count",    0,
+  UPDATE,   "update",   2,
   QUERY,    "{",        0,
   AGQUERY,  "[",        0,
 };
@@ -86,12 +87,13 @@ int init_user(user_t *usr);
 int set_prompt(char *dbname, char *collname);
 int read_config(user_t *usr, config_t *cfg);
 int parse_file(FILE *fp, char *line, config_t *cfg);
-int parse_cmd(int argc, const char *argv[]);
+int parse_cmd(int argc, const char *argv[], const char *line, int linelen, char **lp);
 int exec_cmd(const int cmd, int argc, const char *argv[], const char *line, int linelen);
 int exec_lsdbs(mongoc_client_t *client);
 int exec_lscolls(mongoc_client_t *client, char *dbname);
 int exec_chcoll(mongoc_client_t *client, const char *newname);
 int exec_count(mongoc_collection_t *collection, const char *line, int len);
+int exec_update(mongoc_collection_t *collection, const char *line, int len);
 int exec_query(mongoc_collection_t *collection, const char *line, int len);
 int exec_agquery(mongoc_collection_t *collection, const char *line, int len);
 
@@ -107,7 +109,7 @@ void usage(void)
 int main(int argc, char **argv)
 {
   const char *line, **av;
-  char linecpy[MAXLINE];
+  char linecpy[MAXLINE], *lp;
   int on, read, len, status, i, ac, cc, co, cmd;
   EditLine *e;
   History *h;
@@ -191,7 +193,7 @@ int main(int argc, char **argv)
     if (history(h, &he, H_ENTER, linecpy) == -1)
       fatal("can't enter history");
 
-    cmd = parse_cmd(ac, av);
+    cmd = parse_cmd(ac, av, linecpy, strlen(linecpy), &lp);
     switch (cmd) {
     case UNKNOWN:
       fprintf(stderr, "unknown command\n");
@@ -203,7 +205,7 @@ int main(int argc, char **argv)
       break;
     }
 
-    if (exec_cmd(cmd, ac, av, linecpy, strlen(linecpy)) == -1) {
+    if (exec_cmd(cmd, ac, av, lp, strlen(lp)) == -1) {
       fprintf(stderr, "execution failed\n");
     }
   }
@@ -226,11 +228,12 @@ int main(int argc, char **argv)
 }
 
 // return command code
-int parse_cmd(int argc, const char *argv[])
+int parse_cmd(int argc, const char *argv[], const char *line, int linelen, char **lp)
 {
   // expect command to be the first token
   int i = 0;
   if (strcmp("dbs", argv[i]) == 0) {
+    *lp = strstr(line, "dbs") + strlen("dbs");
     switch (argc) {
     case 1:
       return LSDBS;
@@ -238,6 +241,7 @@ int parse_cmd(int argc, const char *argv[])
       return ILLEGAL;
     }
   } else if (strcmp("colls", argv[i]) == 0) {
+    *lp = strstr(line, "colls") + strlen("colls");
     switch (argc) {
     case 1:
       return LSCOLLS;
@@ -245,6 +249,7 @@ int parse_cmd(int argc, const char *argv[])
       return ILLEGAL;
     }
   } else if (strcmp("c", argv[i]) == 0) {
+    *lp = strstr(line, "c") + strlen("c");
     switch (argc) {
     case 1:
       return LSCOLLS;
@@ -254,10 +259,16 @@ int parse_cmd(int argc, const char *argv[])
       return ILLEGAL;
     }
   } else if (strcmp("count", argv[i]) == 0) {
+    *lp = strstr(line, "count") + strlen("count");
     return COUNT;
+  } else if (strcmp("update", argv[i]) == 0) {
+    *lp = strstr(line, "update") + strlen("update");
+    return UPDATE;
   } else if (argv[0][0] == '{') {
+    *lp = (char *)line;
     return QUERY;
   } else if (argv[0][0] == '[') {
+    *lp = (char *)line;
     return AGQUERY;
   }
 
@@ -279,6 +290,8 @@ int exec_cmd(const int cmd, int argc, const char *argv[], const char *line, int 
     return exec_chcoll(client, argv[1]);
   case COUNT:
     return exec_count(ccoll, line, linelen);
+  case UPDATE:
+    return exec_update(ccoll, line, linelen);
   case QUERY:
     return exec_query(ccoll, line, linelen);
   case AGQUERY:
@@ -387,6 +400,54 @@ int exec_count(mongoc_collection_t *collection, const char *line, int len)
   return 0;
 }
 
+// parse update command, expect two json objects, a selector, and an update doc and exec
+int exec_update(mongoc_collection_t *collection, const char *line, int len)
+{
+  int offset;
+  char query_doc[MAXQUERY];
+  char update_doc[MAXQUERY];
+  bson_error_t error;
+  bson_t query, update;
+
+  // read first json object
+  if ((offset = relaxed_to_strict(query_doc, MAXQUERY, line, strlen(line), 1)) == -1)
+    return ILLEGAL;
+  if (offset == 0)
+    return ILLEGAL;
+
+  // shorten line
+  line += offset;
+
+  // read second json object
+  if ((offset = relaxed_to_strict(update_doc, MAXQUERY, line, strlen(line), 1)) == -1)
+    return ILLEGAL;
+  if (offset == 0)
+    return ILLEGAL;
+
+  // shorten line
+  line += offset;
+
+  // try to parse the query as json and convert to bson
+  if (!bson_init_from_json(&query, query_doc, -1, &error)) {
+    fprintf(stderr, "%s\n", error.message);
+    return -1;
+  }
+
+  // try to parse the update as json and convert to bson
+  if (!bson_init_from_json(&update, update_doc, -1, &error)) {
+    fprintf(stderr, "%s\n", error.message);
+    return -1;
+  }
+
+  // execute update
+  if (!mongoc_collection_update(collection, MONGOC_UPDATE_MULTI_UPDATE, &query, &update, NULL, &error)) {
+    fprintf(stderr, "%s\n", error.message);
+    return -1;
+  }
+
+  return 0;
+}
+
 // execute a query
 // return 0 on success, -1 on failure
 int exec_query(mongoc_collection_t *collection, const char *line, int len)
@@ -398,8 +459,8 @@ int exec_query(mongoc_collection_t *collection, const char *line, int len)
   bson_t query;
   char query_doc[MAXQUERY];
 
-  // try to parse as loose json and convert to strict json
-  if (relaxed_to_strict(query_doc, MAXQUERY, line, len) == -1)
+  // try to parse as relaxed json and convert to strict json
+  if (relaxed_to_strict(query_doc, MAXQUERY, line, len, 0) == -1)
     fatal("jsonify error");
 
   // try to parse it as json and convert to bson
@@ -438,8 +499,8 @@ int exec_agquery(mongoc_collection_t *collection, const char *line, int len)
   bson_t aggr_query;
   char query_doc[MAXQUERY];
 
-  // try to parse as loose json and convert to strict json
-  if (relaxed_to_strict(query_doc, MAXQUERY, line, len) == -1)
+  // try to parse as relaxed json and convert to strict json
+  if (relaxed_to_strict(query_doc, MAXQUERY, line, len, 0) == -1)
     fatal("jsonify error");
 
   // try to parse it as json and convert to bson
