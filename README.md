@@ -1,7 +1,6 @@
 # mongovi
 
-*mongovi* is a cli for the MongoDB aggregation framework that uses *libedit* for
-it's line editing and [key bindings].
+mongovi is a cli for MongoDB that uses libedit for line editing and [key bindings].
 
 Status: **alpha**, only use it if you're not afraid to dive into the source code.
 
