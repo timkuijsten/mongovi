@@ -1,15 +1,16 @@
 OS= $(shell uname)
 
 ifeq (${OS},Linux)
-INCDIR= -I/usr/include/libbson-1.0/ -I/usr/include/libmongoc-1.0/
+COMPAT= compat-strlcat.o compat-strlcpy.o
 else
-INCDIR= -I/usr/local/include/libbson-1.0/ -I/usr/local/include/libmongoc-1.0/
+COMPAT=
 endif
+
+INCDIR= -I/usr/local/include/libbson-1.0/ -I/usr/local/include/libmongoc-1.0/
 
 CFLAGS= -Wall -Wextra ${INCDIR}
 LDFLAGS=-lmongoc-1.0 -lbson-1.0 -ledit
 OBJ= jsmn.o jsonify.o mongovi.o shorten.o common.o
-COMPAT= compat-strlcat.o compat-strlcpy.o
 
 mongovi: ${OBJ} ${COMPAT}
 	$(CC) ${CFLAGS} -o $@ ${OBJ} ${COMPAT} ${LDFLAGS}
