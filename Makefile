@@ -20,6 +20,10 @@ mongovi: ${OBJ} ${COMPAT}
 %.o: compat/%.c
 	$(CC) ${CFLAGS} -c $<
 
+test: ${OBJ}
+	$(CC) $(CFLAGS) shorten.c test/shorten.c -o shorten-test
+	./shorten-test
+
 .PHONY: clean 
 clean:
 	rm -f mongovi ${OBJ}
