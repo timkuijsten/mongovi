@@ -47,7 +47,7 @@ Make sure libedit is installed before compiling mongovi:
 
 Open database *raboof* and collection *sabar*:
 
-    $ ./a.out raboof sabar
+    $ ./mongovi raboof sabar
     /raboof/sabar > 
 
 Use an empty query filter to list all documents:
@@ -73,7 +73,7 @@ Same as previous, but filter on documents where *foo* is *bar*:
 
 ## Command-line options
 
-    usage: a.out database collection
+    usage: mongovi database collection
 
 
 ## Interactive commands
@@ -98,7 +98,7 @@ If this file exists, the first line is read and expected to be a valid mongodb
 
 ## Tests
 
-    $ cc shorten.c test/shorten.c && ./a.out; echo $?
+    $ cc shorten.c test/shorten.c && ./mongovi; echo $?
 
 
 ## History
