@@ -14,6 +14,7 @@ Only tested with OS X 10.11, Ubuntu 12.04 and 14.04.
 ## Installation
 
 Download compile and install the mongo-c driver:
+(Not needed on ubuntu, see below)
 
     $ curl -LO https://github.com/mongodb/mongo-c-driver/releases/download/1.4.0/mongo-c-driver-1.4.0.tar.gz
     $ sha256sum mongo-c-driver-1.4.0.tar.gz    # only proceed if this checksum matches
@@ -32,15 +33,14 @@ Download compile and install mongovi:
 
 ### OS X 10.11
 
-    $ cc mongovi.c common.c jsmn.c jsonify.c shorten.c -I /usr/local/include/libmongoc-1.0 -I /usr/local/include/libbson-1.0 -lbson-1.0 -lmongoc-1.0 -ledit
+    $ make
 
 ### Ubuntu 12.04, 14.04
 
-Make sure libedit is installed before compiling mongovi:
+Make sure the needed libraries are installed before compiling
 
-    $ sudo apt-get install libedit-dev
-    $ export LD_LIBRARY_PATH="/usr/local/lib/:$LD_LIBRARY_PATH"
-    $ cc compat/strlcpy.c compat/strlcat.c mongovi.c common.c jsmn.c jsonify.c shorten.c -I /usr/local/include/libmongoc-1.0 -I /usr/local/include/libbson-1.0 -lmongoc-1.0 -lbson-1.0 -ledit
+    $ sudo apt-get install libedit-dev libmongoc-dev libbson-dev
+    $ make
 
 
 ## Usage examples
@@ -98,7 +98,7 @@ If this file exists, the first line is read and expected to be a valid mongodb
 
 ## Tests
 
-    $ cc shorten.c test/shorten.c && ./mongovi; echo $?
+    $ make test
 
 
 ## History
