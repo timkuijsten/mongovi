@@ -1,3 +1,6 @@
+#ifndef JSONIFY_H
+#define JSONIFY_H
+
 /**
  * Copyright (c) 2016 Tim Kuijsten
  *
@@ -16,6 +19,7 @@
 
 #include "jsmn.h"
 #include "common.h"
+#include "compat/compat.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -31,3 +35,5 @@ int push(int val);
 int relaxed_to_strict(char *output, size_t outputsize, const char *input, ssize_t inputlen, int firstroot);
 int iterate(const char *input, jsmntok_t *tokens, int nrtokens, void (*iterator)(jsmntok_t *, char *, int, int, char *));
 void writer(jsmntok_t *tok, char *key, int depth, int ndepth, char *closesym);
+
+#endif
