@@ -80,7 +80,7 @@ Same as previous, but filter on documents where *foo* is *bar*:
 * `c coll` change the current collection to "coll"
 * `c /db/coll` change the current database to "db" and the collection to "coll"
 * `count` count the number of documents in the current collection
-* `update selector update` update using a selector document and update document
+* `update selector doc` update using a selector document and update document
 * `{...}` query filter, see [query operators]
 * `[...]` aggregation pipeline, see [aggregation operators]
 
@@ -91,6 +91,14 @@ See [editline(7)] for a list of supported key bindings.
 
 If this file exists, the first line is read and expected to be a valid mongodb
 [connection string], possibly containing a username and password.
+
+
+## Wish list
+
+Things that would be nice but are not implemented:
+* insert
+* edit docs with EDITOR
+* tab completion
 
 
 ## Tests
