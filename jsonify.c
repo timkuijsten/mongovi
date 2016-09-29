@@ -28,7 +28,6 @@ relaxed_to_strict(char *output, size_t outputsize, const char *input, ssize_t in
 {
   int i;
   ssize_t nrtokens;
-  jsmntype_t jt;
   jsmn_parser parser;
   jsmntok_t tokens[TOKENS];
 
