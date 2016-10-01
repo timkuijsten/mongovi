@@ -41,7 +41,7 @@
 #define MAXPROMPT 30  // must support at least 1 + 4 + 1 + 4 + 3 = 13 characters for the shortened version of a prompt:
                       // "/dbname/collname > " would become "/d..e/c..e > " if MAXPROMPT = 13
 #define MAXPROG 10
-#define MAXQUERY 16 * 1024
+#define MAXDOC 16 * 1024      /* maximum size of a json document */
 
 static char *progname;
 
@@ -402,13 +402,13 @@ int exec_count(mongoc_collection_t *collection)
 int exec_update(mongoc_collection_t *collection, const char *line)
 {
   size_t offset;
-  char query_doc[MAXQUERY];
-  char update_doc[MAXQUERY];
+  char query_doc[MAXDOC];
+  char update_doc[MAXDOC];
   bson_error_t error;
   bson_t query, update;
 
   // read first json object
-  if ((offset = relaxed_to_strict(query_doc, MAXQUERY, line, strlen(line), 1)) == (size_t)-1)
+  if ((offset = relaxed_to_strict(query_doc, MAXDOC, line, strlen(line), 1)) == (size_t)-1)
     return ILLEGAL;
   if (offset == 0)
     return ILLEGAL;
@@ -417,7 +417,7 @@ int exec_update(mongoc_collection_t *collection, const char *line)
   line += offset;
 
   // read second json object
-  if ((offset = relaxed_to_strict(update_doc, MAXQUERY, line, strlen(line), 1)) == (size_t)-1)
+  if ((offset = relaxed_to_strict(update_doc, MAXDOC, line, strlen(line), 1)) == (size_t)-1)
     return ILLEGAL;
   if (offset == 0)
     return ILLEGAL;
@@ -455,10 +455,10 @@ int exec_query(mongoc_collection_t *collection, const char *line, int len)
   const bson_t *doc;
   char *str;
   bson_t query;
-  char query_doc[MAXQUERY];
+  char query_doc[MAXDOC];
 
   // try to parse as relaxed json and convert to strict json
-  if (relaxed_to_strict(query_doc, MAXQUERY, line, len, 0) == (size_t)-1)
+  if (relaxed_to_strict(query_doc, MAXDOC, line, len, 0) == (size_t)-1)
     fatal("jsonify error");
 
   // try to parse it as json and convert to bson
@@ -495,10 +495,10 @@ int exec_agquery(mongoc_collection_t *collection, const char *line, int len)
   const bson_t *doc;
   char *str;
   bson_t aggr_query;
-  char query_doc[MAXQUERY];
+  char query_doc[MAXDOC];
 
   // try to parse as relaxed json and convert to strict json
-  if (relaxed_to_strict(query_doc, MAXQUERY, line, len, 0) == (size_t)-1)
+  if (relaxed_to_strict(query_doc, MAXDOC, line, len, 0) == (size_t)-1)
     fatal("jsonify error");
 
   // try to parse it as json and convert to bson
