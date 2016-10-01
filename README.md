@@ -81,6 +81,7 @@ Same as previous, but filter on documents where *foo* is *bar*:
 * `c /db/coll` change the current database to "db" and the collection to "coll"
 * `count` count the number of documents in the current collection
 * `update selector doc` update using a selector document and update document
+* `insert doc` insert given document
 * `{...}` query filter, see [query operators]
 * `[...]` aggregation pipeline, see [aggregation operators]
 
@@ -96,7 +97,6 @@ If this file exists, the first line is read and expected to be a valid mongodb
 ## Wish list
 
 Things that would be nice but are not implemented:
-* insert
 * edit docs with EDITOR
 * tab completion
 

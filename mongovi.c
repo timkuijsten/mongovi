@@ -59,7 +59,7 @@ typedef struct {
   char url[MAXMONGOURL];
 } config_t;
 
-enum cmd { ILLEGAL = -1, UNKNOWN, LSDBS, LSCOLLS, CHCOLL, COUNT, UPDATE, QUERY, AGQUERY };
+enum cmd { ILLEGAL = -1, UNKNOWN, LSDBS, LSCOLLS, CHCOLL, COUNT, UPDATE, INSERT, QUERY, AGQUERY };
 
 typedef struct {
   int tok;
@@ -74,6 +74,7 @@ cmd_t cmds[] = {
   { CHCOLL,   "c",        1 }, // with an argument of the new collection
   { COUNT,    "count",    0 },
   { UPDATE,   "update",   2 },
+  { INSERT,   "insert",   1 },
   { QUERY,    "{",        0 },
   { AGQUERY,  "[",        0 },
 };
@@ -94,6 +95,7 @@ int exec_lscolls(mongoc_client_t *client, char *dbname);
 int exec_chcoll(mongoc_client_t *client, const char *newname);
 int exec_count(mongoc_collection_t *collection);
 int exec_update(mongoc_collection_t *collection, const char *line);
+int exec_insert(mongoc_collection_t *collection, const char *line, int len);
 int exec_query(mongoc_collection_t *collection, const char *line, int len);
 int exec_agquery(mongoc_collection_t *collection, const char *line, int len);
 
@@ -171,18 +173,18 @@ int main(int argc, char **argv)
   ccoll = mongoc_client_get_collection(client, dbname, collname);
 
   while ((line = el_gets(e, &read)) != NULL) {
+    if (read > MAXLINE)
+      fatal("line too long");
+
+    if (line[read - 1] != '\n')
+      fatal("expected line to end with a newline");
+
     // tokenize
     tok_reset(t);
     tok_line(t, el_line(e), &ac, &av, &cc, &co);
 
     if (ac == 0)
       continue;
-
-    if (read > MAXLINE)
-      fatal("line too long");
-
-    if (line[read - 1] != '\n')
-      fatal("expected line to end with a newline");
 
     // copy without newline
     if (strlcpy(linecpy, line, read) > (size_t)read)
@@ -262,6 +264,9 @@ int parse_cmd(int argc, const char *argv[], const char *line, char **lp)
   } else if (strcmp("update", argv[i]) == 0) {
     *lp = strstr(line, "update") + strlen("update");
     return UPDATE;
+  } else if (strcmp("insert", argv[i]) == 0) {
+    *lp = strstr(line, "insert") + strlen("insert");
+    return INSERT;
   } else if (argv[0][0] == '{') {
     *lp = (char *)line;
     return QUERY;
@@ -290,6 +295,8 @@ int exec_cmd(const int cmd, const char **argv, const char *line, int linelen)
     return exec_count(ccoll);
   case UPDATE:
     return exec_update(ccoll, line);
+  case INSERT:
+    return exec_insert(ccoll, line, linelen);
   case QUERY:
     return exec_query(ccoll, line, linelen);
   case AGQUERY:
@@ -439,6 +446,35 @@ int exec_update(mongoc_collection_t *collection, const char *line)
 
   // execute update
   if (!mongoc_collection_update(collection, MONGOC_UPDATE_MULTI_UPDATE, &query, &update, NULL, &error)) {
+    fprintf(stderr, "%s\n", error.message);
+    return -1;
+  }
+
+  return 0;
+}
+
+// parse insert command, expect one json objects, the insert doc and exec
+int exec_insert(mongoc_collection_t *collection, const char *line, int len)
+{
+  size_t offset;
+  char insert_doc[MAXDOC];
+  bson_error_t error;
+  bson_t doc;
+
+  // read first json object
+  if ((offset = relaxed_to_strict(insert_doc, MAXDOC, line, len, 1)) == (size_t)-1)
+    return ILLEGAL;
+  if (offset == 0)
+    return ILLEGAL;
+
+  // try to parse the doc as json and convert to bson
+  if (!bson_init_from_json(&doc, insert_doc, -1, &error)) {
+    fprintf(stderr, "%s\n", error.message);
+    return -1;
+  }
+
+  // execute insert
+  if (!mongoc_collection_insert(collection, MONGOC_INSERT_NONE, &doc, NULL, &error)) {
     fprintf(stderr, "%s\n", error.message);
     return -1;
   }
