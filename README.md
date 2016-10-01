@@ -93,14 +93,14 @@ Show all documents in *raboof.sabar* with *foo* is *bar*:
 
 * `dbs` list all databases
 * `c` list all collections in the current database
-* `c coll` change the current collection to coll
+* `c coll` change the current collection to `coll`
 * `c /db/coll` change the current database to "db" and the collection to "coll"
-* `count` count the number of documents in the current collection
-* `update selector doc` update all documents that match selector with doc
-* `insert doc` insert given document
-* `remove selector` remove all documents that match selector
-* `find {...}` query filter, see [query operators]
-* `{...}` alias for find {...}
+* `count selector` count the number of documents in the current collection
+* `update selector doc` update all documents that match `selector` with `doc`
+* `insert doc` insert given document `doc`
+* `remove selector` remove all documents that match `selector`
+* `find selector` query the collection using `selector`, see [query operators]
+* `{...}` alias for find
 * `[...]` aggregation pipeline, see [aggregation operators]
 
 See [editline(7)] for a list of supported key bindings.
