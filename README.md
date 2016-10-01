@@ -112,6 +112,11 @@ If this file exists, the first line is read and expected to be a valid mongodb
 [connection string], possibly containing a username and password.
 
 
+## ~/.editrc
+
+See [editrc(5)] for all the editrc options.
+
+
 ## Wish list
 
 Things that would be nice but are not implemented:
@@ -151,6 +156,7 @@ ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 
+[editrc(5)]: http://man.openbsd.org/editrc.5
 [editline(7)]: http://man.openbsd.org/editline.7
 [editline(3)]: http://man.openbsd.org/editline.3
 [key bindings]: http://man.openbsd.org/editline.7#Input_character_bindings
