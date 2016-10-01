@@ -68,32 +68,32 @@ typedef struct {
 } cmd_t;
 
 cmd_t cmds[] = {
-  LSDBS,    "dbs",      0,
-  LSCOLLS,  "c",        0, // list all collections
-  LSCOLLS,  "colls",    0, // alias for c
-  CHCOLL,   "c",        1, // with an argument of the new collection
-  COUNT,    "count",    0,
-  UPDATE,   "update",   2,
-  QUERY,    "{",        0,
-  AGQUERY,  "[",        0,
+  { LSDBS,    "dbs",      0 },
+  { LSCOLLS,  "c",        0 }, // list all collections
+  { LSCOLLS,  "colls",    0 }, // alias for c
+  { CHCOLL,   "c",        1 }, // with an argument of the new collection
+  { COUNT,    "count",    0 },
+  { UPDATE,   "update",   2 },
+  { QUERY,    "{",        0 },
+  { AGQUERY,  "[",        0 },
 };
 
 static user_t user;
 static config_t config;
 
 static char p[MAXPROMPT + 1];
-char *prompt(EditLine *e);
+char *prompt();
 int init_user(user_t *usr);
 int set_prompt(char *dbname, char *collname);
 int read_config(user_t *usr, config_t *cfg);
 int parse_file(FILE *fp, char *line, config_t *cfg);
-int parse_cmd(int argc, const char *argv[], const char *line, int linelen, char **lp);
-int exec_cmd(const int cmd, int argc, const char *argv[], const char *line, int linelen);
+int parse_cmd(int argc, const char *argv[], const char *line, char **lp);
+int exec_cmd(const int cmd, const char **argv, const char *line, int linelen);
 int exec_lsdbs(mongoc_client_t *client);
 int exec_lscolls(mongoc_client_t *client, char *dbname);
 int exec_chcoll(mongoc_client_t *client, const char *newname);
-int exec_count(mongoc_collection_t *collection, const char *line, int len);
-int exec_update(mongoc_collection_t *collection, const char *line, int len);
+int exec_count(mongoc_collection_t *collection);
+int exec_update(mongoc_collection_t *collection, const char *line);
 int exec_query(mongoc_collection_t *collection, const char *line, int len);
 int exec_agquery(mongoc_collection_t *collection, const char *line, int len);
 
@@ -110,13 +110,11 @@ int main(int argc, char **argv)
 {
   const char *line, **av;
   char linecpy[MAXLINE], *lp;
-  int on, read, len, status, i, ac, cc, co, cmd;
+  int on, read, status, ac, cc, co, cmd;
   EditLine *e;
   History *h;
   HistEvent he;
   Tokenizer *t;
-
-  bson_error_t error;
 
   char connect_url[MAXMONGOURL] = "mongodb://localhost:27017";
 
@@ -187,13 +185,13 @@ int main(int argc, char **argv)
       fatal("expected line to end with a newline");
 
     // copy without newline
-    if (strlcpy(linecpy, line, read) > read)
+    if (strlcpy(linecpy, line, read) > (size_t)read)
       fatal("could not copy line");
 
     if (history(h, &he, H_ENTER, linecpy) == -1)
       fatal("can't enter history");
 
-    cmd = parse_cmd(ac, av, linecpy, strlen(linecpy), &lp);
+    cmd = parse_cmd(ac, av, linecpy, &lp);
     switch (cmd) {
     case UNKNOWN:
       fprintf(stderr, "unknown command\n");
@@ -205,7 +203,7 @@ int main(int argc, char **argv)
       break;
     }
 
-    if (exec_cmd(cmd, ac, av, lp, strlen(lp)) == -1) {
+    if (exec_cmd(cmd, av, lp, strlen(lp)) == -1) {
       fprintf(stderr, "execution failed\n");
     }
   }
@@ -228,7 +226,7 @@ int main(int argc, char **argv)
 }
 
 // return command code
-int parse_cmd(int argc, const char *argv[], const char *line, int linelen, char **lp)
+int parse_cmd(int argc, const char *argv[], const char *line, char **lp)
 {
   // expect command to be the first token
   int i = 0;
@@ -277,7 +275,7 @@ int parse_cmd(int argc, const char *argv[], const char *line, int linelen, char 
 
 // execute command with given arguments
 // return 0 on success, -1 on failure
-int exec_cmd(const int cmd, int argc, const char *argv[], const char *line, int linelen)
+int exec_cmd(const int cmd, const char **argv, const char *line, int linelen)
 {
   switch (cmd) {
   case LSDBS:
@@ -289,9 +287,9 @@ int exec_cmd(const int cmd, int argc, const char *argv[], const char *line, int 
   case CHCOLL:
     return exec_chcoll(client, argv[1]);
   case COUNT:
-    return exec_count(ccoll, line, linelen);
+    return exec_count(ccoll);
   case UPDATE:
-    return exec_update(ccoll, line, linelen);
+    return exec_update(ccoll, line);
   case QUERY:
     return exec_query(ccoll, line, linelen);
   case AGQUERY:
@@ -387,7 +385,7 @@ int exec_chcoll(mongoc_client_t *client, const char *newname)
 
 // count number of documents in collection
 // return 0 on success, -1 on failure
-int exec_count(mongoc_collection_t *collection, const char *line, int len)
+int exec_count(mongoc_collection_t *collection)
 {
   bson_error_t error;
   int64_t count;
@@ -401,7 +399,7 @@ int exec_count(mongoc_collection_t *collection, const char *line, int len)
 }
 
 // parse update command, expect two json objects, a selector, and an update doc and exec
-int exec_update(mongoc_collection_t *collection, const char *line, int len)
+int exec_update(mongoc_collection_t *collection, const char *line)
 {
   int offset;
   char query_doc[MAXQUERY];
@@ -528,7 +526,7 @@ int exec_agquery(mongoc_collection_t *collection, const char *line, int len)
   return 0;
 }
 
-char *prompt(EditLine *e)
+char *prompt()
 {
   return p;
 }
@@ -540,7 +538,7 @@ set_prompt(char *dbname, char *collname)
 {
   const int static_chars = 5; // prompt is of the form "/d/c > "
   char c1[MAXPROMPT + 1], c2[MAXPROMPT + 1];
-  int plen, i;
+  int plen;
 
   strlcpy(c1, dbname, MAXPROMPT);
   strlcpy(c2, collname, MAXPROMPT);
