@@ -73,7 +73,7 @@ cmd_t cmds[] = {
   { LSCOLLS,  "c",        0 }, // list all collections
   { LSCOLLS,  "colls",    0 }, // alias for c
   { CHCOLL,   "c",        1 }, // with an argument of the new database and/or collection
-  { COUNT,    "count",    0 },
+  { COUNT,    "count",    1 },
   { UPDATE,   "update",   2 },
   { INSERT,   "insert",   1 },
   { REMOVE,   "remove",   1 },
@@ -96,7 +96,7 @@ int exec_cmd(const int cmd, const char **argv, const char *line, int linelen);
 int exec_lsdbs(mongoc_client_t *client);
 int exec_lscolls(mongoc_client_t *client, char *dbname);
 int exec_chcoll(mongoc_client_t *client, const char *newname);
-int exec_count(mongoc_collection_t *collection);
+int exec_count(mongoc_collection_t *collection, const char *line, int len);
 int exec_update(mongoc_collection_t *collection, const char *line);
 int exec_insert(mongoc_collection_t *collection, const char *line, int len);
 int exec_remove(mongoc_collection_t *collection, const char *line, int len);
@@ -302,7 +302,7 @@ int exec_cmd(const int cmd, const char **argv, const char *line, int linelen)
   case CHCOLL:
     return exec_chcoll(client, argv[1]);
   case COUNT:
-    return exec_count(ccoll);
+    return exec_count(ccoll, line, linelen);
   case UPDATE:
     return exec_update(ccoll, line);
   case INSERT:
@@ -404,12 +404,25 @@ int exec_chcoll(mongoc_client_t *client, const char *newname)
 
 // count number of documents in collection
 // return 0 on success, -1 on failure
-int exec_count(mongoc_collection_t *collection)
+int exec_count(mongoc_collection_t *collection, const char *line, int len)
 {
   bson_error_t error;
   int64_t count;
+  bson_t query;
+  char query_doc[MAXDOC] = "{}"; /* default to all documents */
 
-  if ((count = mongoc_collection_count(collection, MONGOC_QUERY_NONE, NULL, 0, 0, NULL, &error)) == -1)
+  // try to parse as relaxed json and convert to strict json
+  if (len)
+    if (relaxed_to_strict(query_doc, MAXDOC, line, len, 0) == -1)
+      errx(1, "jsonify error");
+
+  // try to parse it as json and convert to bson
+  if (!bson_init_from_json(&query, query_doc, -1, &error)) {
+    warnx("%s", error.message);
+    return -1;
+  }
+
+  if ((count = mongoc_collection_count(collection, MONGOC_QUERY_NONE, &query, 0, 0, NULL, &error)) == -1)
     warnx("cursor failed: %s", error.message);
 
   printf("%lld\n", count);
