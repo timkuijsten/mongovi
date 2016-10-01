@@ -60,7 +60,7 @@ typedef struct {
   char url[MAXMONGOURL];
 } config_t;
 
-enum cmd { ILLEGAL = -1, UNKNOWN, LSDBS, LSCOLLS, CHCOLL, COUNT, UPDATE, INSERT, QUERY, AGQUERY };
+enum cmd { ILLEGAL = -1, UNKNOWN, LSDBS, LSCOLLS, CHCOLL, COUNT, UPDATE, INSERT, FIND, AGQUERY };
 
 typedef struct {
   int tok;
@@ -76,7 +76,7 @@ cmd_t cmds[] = {
   { COUNT,    "count",    0 },
   { UPDATE,   "update",   2 },
   { INSERT,   "insert",   1 },
-  { QUERY,    "{",        0 },
+  { FIND,     "{",        0 },
   { AGQUERY,  "[",        0 },
 };
 
@@ -270,7 +270,7 @@ int parse_cmd(int argc, const char *argv[], const char *line, char **lp)
     return INSERT;
   } else if (argv[0][0] == '{') {
     *lp = (char *)line;
-    return QUERY;
+    return FIND;
   } else if (argv[0][0] == '[') {
     *lp = (char *)line;
     return AGQUERY;
@@ -298,7 +298,7 @@ int exec_cmd(const int cmd, const char **argv, const char *line, int linelen)
     return exec_update(ccoll, line);
   case INSERT:
     return exec_insert(ccoll, line, linelen);
-  case QUERY:
+  case FIND:
     return exec_query(ccoll, line, linelen);
   case AGQUERY:
     return exec_agquery(ccoll, line, linelen);
