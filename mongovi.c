@@ -72,12 +72,13 @@ cmd_t cmds[] = {
   { LSDBS,    "dbs",      0 },
   { LSCOLLS,  "c",        0 }, // list all collections
   { LSCOLLS,  "colls",    0 }, // alias for c
-  { CHCOLL,   "c",        1 }, // with an argument of the new collection
+  { CHCOLL,   "c",        1 }, // with an argument of the new database and/or collection
   { COUNT,    "count",    0 },
   { UPDATE,   "update",   2 },
   { INSERT,   "insert",   1 },
   { REMOVE,   "remove",   1 },
-  { FIND,     "{",        0 },
+  { FIND,     "find",     1 },
+  { FIND,     "{",        0 }, // shortcut for find
   { AGQUERY,  "[",        0 },
 };
 
@@ -273,6 +274,9 @@ int parse_cmd(int argc, const char *argv[], const char *line, char **lp)
   } else if (strcmp("remove", argv[i]) == 0) {
     *lp = strstr(line, "remove") + strlen("remove");
     return REMOVE;
+  } else if (strcmp("find", argv[i]) == 0) {
+    *lp = strstr(line, "find") + strlen("find");
+    return FIND;
   } else if (argv[0][0] == '{') {
     *lp = (char *)line;
     return FIND;
@@ -528,11 +532,12 @@ int exec_query(mongoc_collection_t *collection, const char *line, int len)
   const bson_t *doc;
   char *str;
   bson_t query;
-  char query_doc[MAXDOC];
+  char query_doc[MAXDOC] = "{}"; /* default to all documents */
 
   // try to parse as relaxed json and convert to strict json
-  if (relaxed_to_strict(query_doc, MAXDOC, line, len, 0) == -1)
-    errx(1, "jsonify error");
+  if (len)
+    if (relaxed_to_strict(query_doc, MAXDOC, line, len, 0) == -1)
+      errx(1, "jsonify error");
 
   // try to parse it as json and convert to bson
   if (!bson_init_from_json(&query, query_doc, -1, &error)) {
