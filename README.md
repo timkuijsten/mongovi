@@ -49,11 +49,17 @@ Open database *raboof* and collection *sabar*:
     $ ./mongovi raboof sabar
     /raboof/sabar > 
 
-Use an empty query filter to list all documents:
+List all documents:
 
-    /raboof/sabar > {}
+    /raboof/sabar > find
     { "_id" : { "$oid" : "57c6fb00495b576b10996f64" }, "foo" : "bar" }
     { "_id" : { "$oid" : "57c6fb00495b576b10996f65" }, "foo" : "baz" }
+    /raboof/sabar > 
+
+List all documents with *foo* is *bar*:
+
+    /raboof/sabar > find { foo: "bar" }
+    { "foo" : "bar" }
     /raboof/sabar > 
 
 Use an aggregation query to list all documents without the _id field:
@@ -63,7 +69,7 @@ Use an aggregation query to list all documents without the _id field:
     { "foo" : "baz" }
     /raboof/sabar > 
 
-Same as previous, but filter on documents where *foo* is *bar*:
+Same as previous, but filter on documents with *foo* is *bar*:
 
     /raboof/sabar > [{ $project: { _id: false, foo: true } }, { $match: { foo: "bar" } }]
     { "foo" : "bar" }
@@ -71,9 +77,9 @@ Same as previous, but filter on documents where *foo* is *bar*:
 
 ### Non-interactive
 
-Show all documents in *raboof.sabar* where *foo* is *bar*:
+Show all documents in *raboof.sabar* with *foo* is *bar*:
 
-    $ echo '{ foo: "bar" }' | ./mongovi raboof sabar
+    $ echo 'find { foo: "bar" }' | ./mongovi raboof sabar
     { "foo" : "bar" }
     $
 
@@ -93,7 +99,8 @@ Show all documents in *raboof.sabar* where *foo* is *bar*:
 * `update selector doc` update using a selector document and update document
 * `insert doc` insert given document
 * `remove selector` remove all documents that match selector
-* `{...}` query filter, see [query operators]
+* `find {...}` query filter, see [query operators]
+* `{...}` alias for `find {...}`
 * `[...]` aggregation pipeline, see [aggregation operators]
 
 See [editline(7)] for a list of supported key bindings.
