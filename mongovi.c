@@ -116,7 +116,7 @@ int main(int argc, char **argv)
 {
   const char *line, **av;
   char linecpy[MAXLINE], *lp;
-  int on, read, status, ac, cc, co, cmd;
+  int read, status, ac, cc, co, cmd;
   EditLine *e;
   History *h;
   HistEvent he;
@@ -157,18 +157,19 @@ int main(int argc, char **argv)
 
   set_prompt(dbname, collname);
 
-  if ((h = history_init()) == NULL)
-    errx(1, "can't initialize history");
   if ((e = el_init(progname, stdin, stdout, stderr)) == NULL)
     errx(1, "can't initialize editline");
+  if ((h = history_init()) == NULL)
+    errx(1, "can't initialize history");
   t = tok_init(NULL);
 
-  el_set(e, EL_HIST, history, h);
-  el_set(e, EL_PROMPT, prompt);
-  el_get(e, EL_EDITMODE, &on);
-  el_source(e, NULL);
-
   history(h, &he, H_SETSIZE, 100);
+  el_set(e, EL_HIST, history, h);
+
+  el_set(e, EL_PROMPT, prompt);
+  el_set(e, EL_EDITOR, "vi");
+  el_set(e, EL_TERMINAL, NULL);
+  el_source(e, NULL);
 
   // setup mongo
   mongoc_init();
