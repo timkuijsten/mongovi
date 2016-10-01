@@ -42,6 +42,8 @@ Now download, compile and install mongovi:
 
 ## Usage examples
 
+### Interactive
+
 Open database *raboof* and collection *sabar*:
 
     $ ./mongovi raboof sabar
@@ -67,13 +69,21 @@ Same as previous, but filter on documents where *foo* is *bar*:
     { "foo" : "bar" }
     /raboof/sabar > 
 
+### Non-interactive
+
+Show all documents in *raboof.sabar* where *foo* is *bar*:
+
+    $ echo '{ foo: "bar" }' | ./mongovi raboof sabar
+    { "foo" : "bar" }
+    $
+
 
 ## Command-line options
 
     usage: mongovi database collection
 
 
-## Interactive commands
+## Commands
 
 * `dbs` list all databases
 * `c` list all collections in the current database
