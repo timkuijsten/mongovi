@@ -82,6 +82,7 @@ Same as previous, but filter on documents where *foo* is *bar*:
 * `count` count the number of documents in the current collection
 * `update selector doc` update using a selector document and update document
 * `insert doc` insert given document
+* `remove selector` remove all documents that match selector
 * `{...}` query filter, see [query operators]
 * `[...]` aggregation pipeline, see [aggregation operators]
 

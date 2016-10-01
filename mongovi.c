@@ -60,7 +60,7 @@ typedef struct {
   char url[MAXMONGOURL];
 } config_t;
 
-enum cmd { ILLEGAL = -1, UNKNOWN, LSDBS, LSCOLLS, CHCOLL, COUNT, UPDATE, INSERT, FIND, AGQUERY };
+enum cmd { ILLEGAL = -1, UNKNOWN, LSDBS, LSCOLLS, CHCOLL, COUNT, UPDATE, INSERT, REMOVE, FIND, AGQUERY };
 
 typedef struct {
   int tok;
@@ -76,6 +76,7 @@ cmd_t cmds[] = {
   { COUNT,    "count",    0 },
   { UPDATE,   "update",   2 },
   { INSERT,   "insert",   1 },
+  { REMOVE,   "remove",   1 },
   { FIND,     "{",        0 },
   { AGQUERY,  "[",        0 },
 };
@@ -97,6 +98,7 @@ int exec_chcoll(mongoc_client_t *client, const char *newname);
 int exec_count(mongoc_collection_t *collection);
 int exec_update(mongoc_collection_t *collection, const char *line);
 int exec_insert(mongoc_collection_t *collection, const char *line, int len);
+int exec_remove(mongoc_collection_t *collection, const char *line, int len);
 int exec_query(mongoc_collection_t *collection, const char *line, int len);
 int exec_agquery(mongoc_collection_t *collection, const char *line, int len);
 
@@ -268,6 +270,9 @@ int parse_cmd(int argc, const char *argv[], const char *line, char **lp)
   } else if (strcmp("insert", argv[i]) == 0) {
     *lp = strstr(line, "insert") + strlen("insert");
     return INSERT;
+  } else if (strcmp("remove", argv[i]) == 0) {
+    *lp = strstr(line, "remove") + strlen("remove");
+    return REMOVE;
   } else if (argv[0][0] == '{') {
     *lp = (char *)line;
     return FIND;
@@ -298,6 +303,8 @@ int exec_cmd(const int cmd, const char **argv, const char *line, int linelen)
     return exec_update(ccoll, line);
   case INSERT:
     return exec_insert(ccoll, line, linelen);
+  case REMOVE:
+    return exec_remove(ccoll, line, linelen);
   case FIND:
     return exec_query(ccoll, line, linelen);
   case AGQUERY:
@@ -476,6 +483,35 @@ int exec_insert(mongoc_collection_t *collection, const char *line, int len)
 
   // execute insert
   if (!mongoc_collection_insert(collection, MONGOC_INSERT_NONE, &doc, NULL, &error)) {
+    warnx("%s", error.message);
+    return -1;
+  }
+
+  return 0;
+}
+
+// parse remove command, expect one selector
+int exec_remove(mongoc_collection_t *collection, const char *line, int len)
+{
+  long offset;
+  char remove_doc[MAXDOC];
+  bson_error_t error;
+  bson_t doc;
+
+  // read first json object
+  if ((offset = relaxed_to_strict(remove_doc, MAXDOC, line, len, 1)) == -1)
+    return ILLEGAL;
+  if (offset == 0)
+    return ILLEGAL;
+
+  // try to parse the doc as json and convert to bson
+  if (!bson_init_from_json(&doc, remove_doc, -1, &error)) {
+    warnx("%s", error.message);
+    return -1;
+  }
+
+  // execute remove
+  if (!mongoc_collection_remove(collection, MONGOC_REMOVE_NONE, &doc, NULL, &error)) {
     warnx("%s", error.message);
     return -1;
   }
