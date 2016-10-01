@@ -84,14 +84,14 @@ iterate(const char *src, jsmntok_t *tokens, int nrtokens, void (*iterator)(jsmnt
       ndepth++;
       for (j = 0; j < tok->size - 1; j++)
         if (push(',') == -1)
-          fatal("stack push error");
+          warnx("stack push error");
       break;
     case JSMN_ARRAY:
       push(']');
       ndepth++;
       for (j = 0; j < tok->size - 1; j++)
         if (push(',') == -1)
-          fatal("stack push error");
+          warnx("stack push error");
       break;
     case JSMN_UNDEFINED:
     case JSMN_STRING:
@@ -154,7 +154,7 @@ writer(jsmntok_t *tok, char *key, int depth, int ndepth, char *closesym)
       strlcat(out, key, outsize);
     break;
   default:
-    fatal("unknown json token type");
+    warnx("unknown json token type");
   }
 
   // write any closing symbols
