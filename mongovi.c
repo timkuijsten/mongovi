@@ -44,7 +44,7 @@
 #define MAXPROG 10
 #define MAXDOC 16 * 1024      /* maximum size of a json document */
 
-static char *progname;
+static char progname[MAXPROG];
 
 static char dbname[MAXDBNAME];
 static char collname[MAXCOLLNAME];
@@ -124,7 +124,8 @@ int main(int argc, char **argv)
 
   char connect_url[MAXMONGOURL] = "mongodb://localhost:27017";
 
-  progname = basename(argv[0]);
+  if (strlcpy(progname, basename(argv[0]), MAXPROG) > MAXPROG)
+    errx(1, "program name too long");
 
   if (argc != 3)
     usage();
@@ -158,7 +159,7 @@ int main(int argc, char **argv)
 
   if ((h = history_init()) == NULL)
     errx(1, "can't initialize history");
-  if ((e = el_init(argv[0], stdin, stdout, stderr)) == NULL)
+  if ((e = el_init(progname, stdin, stdout, stderr)) == NULL)
     errx(1, "can't initialize editline");
   t = tok_init(NULL);
 
