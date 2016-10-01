@@ -23,13 +23,16 @@ static char closesym[MAXSTACK];
 static char out[MAXOUTPUT];
 static size_t outsize = MAXOUTPUT;
 
-size_t
+long
 relaxed_to_strict(char *dst, size_t dstsize, const char *src, size_t srcsize, int firstonly)
 {
   size_t i;
   ssize_t nrtokens;
   jsmn_parser parser;
   jsmntok_t tokens[TOKENS];
+
+  if (srcsize > LONG_MAX)
+    return -1;
 
   if (firstonly) {
     // stop after first document (root)
