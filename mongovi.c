@@ -15,6 +15,7 @@
  */
 
 #include "jsonify.h"
+#include "shorten.h"
 
 #include <bson.h>
 #include <bcon.h>
