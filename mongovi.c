@@ -401,14 +401,14 @@ int exec_count(mongoc_collection_t *collection)
 // parse update command, expect two json objects, a selector, and an update doc and exec
 int exec_update(mongoc_collection_t *collection, const char *line)
 {
-  int offset;
+  size_t offset;
   char query_doc[MAXQUERY];
   char update_doc[MAXQUERY];
   bson_error_t error;
   bson_t query, update;
 
   // read first json object
-  if ((offset = relaxed_to_strict(query_doc, MAXQUERY, line, strlen(line), 1)) == -1)
+  if ((offset = relaxed_to_strict(query_doc, MAXQUERY, line, strlen(line), 1)) == (size_t)-1)
     return ILLEGAL;
   if (offset == 0)
     return ILLEGAL;
@@ -417,7 +417,7 @@ int exec_update(mongoc_collection_t *collection, const char *line)
   line += offset;
 
   // read second json object
-  if ((offset = relaxed_to_strict(update_doc, MAXQUERY, line, strlen(line), 1)) == -1)
+  if ((offset = relaxed_to_strict(update_doc, MAXQUERY, line, strlen(line), 1)) == (size_t)-1)
     return ILLEGAL;
   if (offset == 0)
     return ILLEGAL;
@@ -458,7 +458,7 @@ int exec_query(mongoc_collection_t *collection, const char *line, int len)
   char query_doc[MAXQUERY];
 
   // try to parse as relaxed json and convert to strict json
-  if (relaxed_to_strict(query_doc, MAXQUERY, line, len, 0) == -1)
+  if (relaxed_to_strict(query_doc, MAXQUERY, line, len, 0) == (size_t)-1)
     fatal("jsonify error");
 
   // try to parse it as json and convert to bson
@@ -498,7 +498,7 @@ int exec_agquery(mongoc_collection_t *collection, const char *line, int len)
   char query_doc[MAXQUERY];
 
   // try to parse as relaxed json and convert to strict json
-  if (relaxed_to_strict(query_doc, MAXQUERY, line, len, 0) == -1)
+  if (relaxed_to_strict(query_doc, MAXQUERY, line, len, 0) == (size_t)-1)
     fatal("jsonify error");
 
   // try to parse it as json and convert to bson

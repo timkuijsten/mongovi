@@ -23,26 +23,26 @@ static char closesym[MAXSTACK];
 static char out[MAXOUTPUT];
 static size_t outsize = MAXOUTPUT;
 
-int
-relaxed_to_strict(char *output, size_t outputsize, const char *input, ssize_t inputlen, int firstroot)
+size_t
+relaxed_to_strict(char *dst, size_t dstsize, const char *src, size_t srcsize, int firstonly)
 {
-  int i;
+  size_t i;
   ssize_t nrtokens;
   jsmn_parser parser;
   jsmntok_t tokens[TOKENS];
 
-  if (firstroot) {
-    // stop after first root
+  if (firstonly) {
+    // stop after first document (root)
     i = 0;
     do {
       jsmn_init(&parser);
-      nrtokens = jsmn_parse(&parser, input, i++, tokens, TOKENS);
-    } while (i <= inputlen && (nrtokens == JSMN_ERROR_PART || nrtokens == 0));
+      nrtokens = jsmn_parse(&parser, src, i, tokens, TOKENS);
+    } while (i++ < srcsize && (nrtokens == JSMN_ERROR_PART || nrtokens == 0));
     i--;
   } else {
     jsmn_init(&parser);
-    i = inputlen;
-    nrtokens = jsmn_parse(&parser, input, inputlen, tokens, TOKENS);
+    i = srcsize;
+    nrtokens = jsmn_parse(&parser, src, srcsize, tokens, TOKENS);
   }
 
   if (nrtokens == 0)
@@ -52,17 +52,17 @@ relaxed_to_strict(char *output, size_t outputsize, const char *input, ssize_t in
 
   // wipe internal buffer
   out[0] = '\0';
-  if (iterate(input, tokens, nrtokens, (void (*)(jsmntok_t *, char *, int, int, char *))writer) == -1)
+  if (iterate(src, tokens, nrtokens, (void (*)(jsmntok_t *, char *, int, int, char *))writer) == -1)
     return -1;
 
-  if (strlcpy(output, out, outputsize) > outputsize)
+  if (strlcpy(dst, out, dstsize) > dstsize)
     return -1;
 
   return i;
 }
 
 int
-iterate(const char *input, jsmntok_t *tokens, int nrtokens, void (*iterator)(jsmntok_t *, char *, int, int, char *))
+iterate(const char *src, jsmntok_t *tokens, int nrtokens, void (*iterator)(jsmntok_t *, char *, int, int, char *))
 {
   char *key, *cp, c;
   jsmntok_t *tok;
@@ -73,7 +73,7 @@ iterate(const char *input, jsmntok_t *tokens, int nrtokens, void (*iterator)(jsm
 
   for (i = 0; i < nrtokens; i++) {
     tok = &tokens[i];
-    key = strndup(input + tok->start, tok->end - tok->start);
+    key = strndup(src + tok->start, tok->end - tok->start);
 
     switch (tok->type) {
     case JSMN_OBJECT:
