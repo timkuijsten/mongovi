@@ -14,6 +14,13 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+#include "jsonify.h"
+
+#include <bson.h>
+#include <bcon.h>
+#include <mongoc.h>
+
+#include <err.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <unistd.h>
@@ -23,13 +30,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
-#include <bson.h>
-#include <bcon.h>
-#include <mongoc.h>
-
-#include "common.h"
-#include "jsonify.h"
 
 #define MAXLINE 1024
 #define MAXUSERNAME 100
@@ -129,33 +129,33 @@ int main(int argc, char **argv)
     switch (argc) {
     case 1:
       if (strlcpy(dbname, argv[argc], MAXDBNAME) > MAXDBNAME)
-        fatal("can't set database name");
+        errx(1, "can't set database name");
       break;
     case 2:
       if (strlcpy(collname, argv[argc], MAXCOLLNAME) > MAXCOLLNAME)
-        fatal("can't set collection name");
+        errx(1, "can't set collection name");
       break;
     }
 
   if (PATH_MAX < 20)
-    fatal("can't determine PATH_MAX");
+    errx(1, "can't determine PATH_MAX");
 
   if (init_user(&user) < 0)
-    fatal("can't initialize user");
+    errx(1, "can't initialize user");
 
   if ((status = read_config(&user, &config)) < 0)
-    fatal("can't read config file");
+    errx(1, "can't read config file");
   else if (status > 0)
     if (strlcpy(connect_url, config.url, MAXMONGOURL) > MAXMONGOURL)
-      fatal("url in config too long");
+      errx(1, "url in config too long");
   // else use default
 
   set_prompt(dbname, collname);
 
   if ((h = history_init()) == NULL)
-    fatal("can't initialize history");
+    errx(1, "can't initialize history");
   if ((e = el_init(argv[0], stdin, stdout, stderr)) == NULL)
-    fatal("can't initialize editline");
+    errx(1, "can't initialize editline");
   t = tok_init(NULL);
 
   el_set(e, EL_HIST, history, h);
@@ -168,16 +168,16 @@ int main(int argc, char **argv)
   // setup mongo
   mongoc_init();
   if ((client = mongoc_client_new(connect_url)) == NULL)
-    fatal("can't connect to mongo");
+    errx(1, "can't connect to mongo");
 
   ccoll = mongoc_client_get_collection(client, dbname, collname);
 
   while ((line = el_gets(e, &read)) != NULL) {
     if (read > MAXLINE)
-      fatal("line too long");
+      errx(1, "line too long");
 
     if (line[read - 1] != '\n')
-      fatal("expected line to end with a newline");
+      errx(1, "expected line to end with a newline");
 
     // tokenize
     tok_reset(t);
@@ -188,30 +188,30 @@ int main(int argc, char **argv)
 
     // copy without newline
     if (strlcpy(linecpy, line, read) > (size_t)read)
-      fatal("could not copy line");
+      errx(1, "could not copy line");
 
     if (history(h, &he, H_ENTER, linecpy) == -1)
-      fatal("can't enter history");
+      errx(1, "can't enter history");
 
     cmd = parse_cmd(ac, av, linecpy, &lp);
     switch (cmd) {
     case UNKNOWN:
-      fprintf(stderr, "unknown command\n");
+      warnx("unknown command");
       continue;
       break;
     case ILLEGAL:
-      fprintf(stderr, "illegal syntax\n");
+      warnx("illegal syntax");
       continue;
       break;
     }
 
     if (exec_cmd(cmd, av, lp, strlen(lp)) == -1) {
-      fprintf(stderr, "execution failed\n");
+      warnx("execution failed");
     }
   }
 
   if (read == -1)
-    fstrerror();
+    err(1, "");
 
   mongoc_collection_destroy(ccoll);
   mongoc_client_destroy(client);
@@ -398,7 +398,7 @@ int exec_count(mongoc_collection_t *collection)
   int64_t count;
 
   if ((count = mongoc_collection_count(collection, MONGOC_QUERY_NONE, NULL, 0, 0, NULL, &error)) == -1)
-    fprintf(stderr, "cursor failed: %s\n", error.message);
+    warnx("cursor failed: %s", error.message);
 
   printf("%lld\n", count);
 
@@ -434,19 +434,19 @@ int exec_update(mongoc_collection_t *collection, const char *line)
 
   // try to parse the query as json and convert to bson
   if (!bson_init_from_json(&query, query_doc, -1, &error)) {
-    fprintf(stderr, "%s\n", error.message);
+    warnx("%s", error.message);
     return -1;
   }
 
   // try to parse the update as json and convert to bson
   if (!bson_init_from_json(&update, update_doc, -1, &error)) {
-    fprintf(stderr, "%s\n", error.message);
+    warnx("%s", error.message);
     return -1;
   }
 
   // execute update
   if (!mongoc_collection_update(collection, MONGOC_UPDATE_MULTI_UPDATE, &query, &update, NULL, &error)) {
-    fprintf(stderr, "%s\n", error.message);
+    warnx("%s", error.message);
     return -1;
   }
 
@@ -469,13 +469,13 @@ int exec_insert(mongoc_collection_t *collection, const char *line, int len)
 
   // try to parse the doc as json and convert to bson
   if (!bson_init_from_json(&doc, insert_doc, -1, &error)) {
-    fprintf(stderr, "%s\n", error.message);
+    warnx("%s", error.message);
     return -1;
   }
 
   // execute insert
   if (!mongoc_collection_insert(collection, MONGOC_INSERT_NONE, &doc, NULL, &error)) {
-    fprintf(stderr, "%s\n", error.message);
+    warnx("%s", error.message);
     return -1;
   }
 
@@ -495,11 +495,11 @@ int exec_query(mongoc_collection_t *collection, const char *line, int len)
 
   // try to parse as relaxed json and convert to strict json
   if (relaxed_to_strict(query_doc, MAXDOC, line, len, 0) == -1)
-    fatal("jsonify error");
+    errx(1, "jsonify error");
 
   // try to parse it as json and convert to bson
   if (!bson_init_from_json(&query, query_doc, -1, &error)) {
-    fprintf(stderr, "%s\n", error.message);
+    warnx("%s", error.message);
     return -1;
   }
 
@@ -512,7 +512,7 @@ int exec_query(mongoc_collection_t *collection, const char *line, int len)
   }
 
   if (mongoc_cursor_error(cursor, &error)) {
-    fprintf(stderr, "cursor failed: %s\n", error.message);
+    warnx("cursor failed: %s", error.message);
     mongoc_cursor_destroy(cursor);
     return -1;
   }
@@ -535,11 +535,11 @@ int exec_agquery(mongoc_collection_t *collection, const char *line, int len)
 
   // try to parse as relaxed json and convert to strict json
   if (relaxed_to_strict(query_doc, MAXDOC, line, len, 0) == -1)
-    fatal("jsonify error");
+    errx(1, "jsonify error");
 
   // try to parse it as json and convert to bson
   if (!bson_init_from_json(&aggr_query, query_doc, -1, &error)) {
-    fprintf(stderr, "%s\n", error.message);
+    warnx("%s", error.message);
     return -1;
   }
 
@@ -552,7 +552,7 @@ int exec_agquery(mongoc_collection_t *collection, const char *line, int len)
   }
 
   if (mongoc_cursor_error(cursor, &error)) {
-    fprintf(stderr, "cursor failed: %s\n", error.message);
+    warnx("cursor failed: %s", error.message);
     mongoc_cursor_destroy(cursor);
     return -1;
   }
@@ -584,7 +584,7 @@ set_prompt(char *dbname, char *collname)
   // ensure prompt fits
   if (plen - MAXPROMPT > 0)
     if (shorten_comps(c1, c2, MAXPROMPT - static_chars) < 0)
-      fatal("can't initialize prompt");
+      errx(1, "can't initialize prompt");
 
   snprintf(p, MAXPROMPT + 1, "/%s/%s > ", c1, c2);
   return 0;
@@ -626,13 +626,10 @@ read_config(user_t *usr, config_t *cfg)
     return -1;
 
   if ((fp = fopen(tmppath, "re")) == NULL) {
-    if (errno != ENOENT) {
-      printf("errno %d\n", errno);
-      ferrno(strerror(errno));
-      return -1;
-    } else {
+    if (errno == ENOENT)
       return 0;
-    }
+
+    return -1;
   }
 
   if (parse_file(fp, line, cfg) < 0) {
