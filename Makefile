@@ -1,16 +1,20 @@
-OS= $(shell uname)
+OS=$(shell uname)
+
+COMPAT=""
 
 ifeq (${OS},Linux)
-COMPAT= compat-strlcat.o compat-strlcpy.o
-else
-COMPAT=
+COMPAT=strlcat.o strlcpy.o reallocarray.o
 endif
 
-INCDIR= -I/usr/local/include/libbson-1.0/ -I/usr/local/include/libmongoc-1.0/
+ifeq (${OS},Darwin)
+COMPAT=reallocarray.o
+endif
 
-CFLAGS= -Wall -Wextra ${INCDIR}
+INCDIR=-I/usr/local/include/libbson-1.0/ -I/usr/local/include/libmongoc-1.0/
+
+CFLAGS=-Wall -Wextra ${INCDIR}
 LDFLAGS=-lmongoc-1.0 -lbson-1.0 -ledit
-OBJ= jsmn.o jsonify.o mongovi.o shorten.o
+OBJ=jsmn.o jsonify.o mongovi.o shorten.o
 
 mongovi: ${OBJ} ${COMPAT}
 	$(CC) ${CFLAGS} -o $@ ${OBJ} ${COMPAT} ${LDFLAGS}

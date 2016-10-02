@@ -6,5 +6,6 @@ size_t strlcpy(char *dst, const char *src, size_t size);
 size_t strlcat(char *dst, const char *src, size_t size);
 #endif
 
-#endif
+void * reallocarray(void *optr, size_t nmemb, size_t size);
 
+#endif
