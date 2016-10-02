@@ -219,7 +219,7 @@ int main(int argc, char **argv)
   }
 
   if (read == -1)
-    err(1, "");
+    err(1, NULL);
 
   mongoc_collection_destroy(ccoll);
   mongoc_client_destroy(client);
