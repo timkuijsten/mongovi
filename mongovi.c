@@ -39,8 +39,10 @@
 #define MAXDBNAME 200
 #define MAXCOLLNAME 200
 
-#define MAXPROMPT 30  // must support at least 1 + 4 + 1 + 4 + 3 = 13 characters for the shortened version of a prompt:
-                      // "/dbname/collname > " would become "/d..e/c..e > " if MAXPROMPT = 13
+#define MAXPROMPT 30  /* must support at least 1 + 4 + 1 + 4 + 2 = 12 characters
+                         for the minimally shortened version of a prompt.
+                         if MAXPROMPT = 12 then "/dbname/collname> " would
+                         become "/d..e/c..e> " */
 #define MAXPROG 10
 #define MAXDOC 16 * 1024      /* maximum size of a json document */
 
@@ -629,7 +631,7 @@ char *prompt()
 int
 set_prompt(char *dbname, char *collname)
 {
-  const int static_chars = 5; // prompt is of the form "/d/c > "
+  const int static_chars = 4; /* prompt is of the form "/d/c> " */
   char c1[MAXPROMPT + 1], c2[MAXPROMPT + 1];
   int plen;
 
@@ -643,7 +645,7 @@ set_prompt(char *dbname, char *collname)
     if (shorten_comps(c1, c2, MAXPROMPT - static_chars) < 0)
       errx(1, "can't initialize prompt");
 
-  snprintf(p, MAXPROMPT + 1, "/%s/%s > ", c1, c2);
+  snprintf(p, MAXPROMPT + 1, "/%s/%s> ", c1, c2);
   return 0;
 }
 
