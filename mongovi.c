@@ -169,7 +169,7 @@ int main(int argc, char **argv)
   el_set(e, EL_HIST, history, h);
 
   el_set(e, EL_PROMPT, prompt);
-  el_set(e, EL_EDITOR, "vi");
+  el_set(e, EL_EDITOR, "emacs");
   el_set(e, EL_TERMINAL, NULL);
   el_source(e, NULL);
 

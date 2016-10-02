@@ -83,6 +83,14 @@ Show all documents in *raboof.sabar* with *foo* is *bar*:
     { "foo" : "bar" }
     $
 
+### vi key bindings
+
+vi key bindings can be enabled with a standard editline command. Just make sure
+your [editrc(5)] contains `bind -v`:
+
+```sh
+echo "bind -v" >> ~/.editrc
+```
 
 ## Command-line options
 
@@ -110,11 +118,6 @@ See [editline(7)] for a list of supported key bindings.
 
 If this file exists, the first line is read and expected to be a valid mongodb
 [connection string], possibly containing a username and password.
-
-
-## ~/.editrc
-
-See [editrc(5)] for all the editrc options.
 
 
 ## Wish list
