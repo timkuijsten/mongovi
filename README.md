@@ -158,7 +158,12 @@ WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
 ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
+---
 
+mongovi uses the JSMN [JSON parser] which is distributed under the MIT license.
+
+
+[JSON parser]: http://zserge.com/jsmn.html
 [editrc(5)]: http://man.openbsd.org/editrc.5
 [editline(7)]: http://man.openbsd.org/editline.7
 [editline(3)]: http://man.openbsd.org/editline.3
