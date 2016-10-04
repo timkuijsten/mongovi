@@ -68,7 +68,7 @@ enum cmd { ILLEGAL = -1, UNKNOWN, LSDBS, LSCOLLS, CHCOLL, COUNT, UPDATE, INSERT,
 #define NCMDS (sizeof cmds / sizeof cmds[0])
 
 const char *cmds[] = {
-  "databases"     /* LSDBS,   list all databases */
+  "databases",    /* LSDBS,   list all databases */
   "collections",  /* LSCOLLS, list all collections */
   "cd",           /* CHCOLL,  change database and/or collection */
   "count",        /* COUNT */
@@ -76,9 +76,8 @@ const char *cmds[] = {
   "insert",       /* INSERT */
   "remove",       /* REMOVE */
   "find",         /* FIND */
-  "{",            /* FIND alias */
-  "[",            /* AGQUERY */
-  NULL            /*          nul terminate this list */
+  "aggregate",    /* AGQUERY */
+  NULL            /* nul terminate this list */
 };
 
 static user_t user;
@@ -362,8 +361,6 @@ int parse_cmd(int argc, const char *argv[], const char *line, char **lp)
   } else if (strcmp("cd", cmd) == 0) {
     *lp = strstr(line, argv[0]) + strlen(argv[0]);
     switch (argc) {
-    case 1:
-      return LSCOLLS;
     case 2:
       return CHCOLL;
     default:
@@ -384,11 +381,8 @@ int parse_cmd(int argc, const char *argv[], const char *line, char **lp)
   } else if (strcmp("find", cmd) == 0) {
     *lp = strstr(line, argv[0]) + strlen(argv[0]);
     return FIND;
-  } else if (argv[0][0] == '{') {
-    *lp = (char *)line;
-    return FIND;
-  } else if (argv[0][0] == '[') {
-    *lp = (char *)line;
+  } else if (strcmp("aggregate", cmd) == 0) {
+    *lp = strstr(line, argv[0]) + strlen(argv[0]);
     return AGQUERY;
   }
 
