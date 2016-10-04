@@ -115,7 +115,7 @@ echo "bind -v" >> ~/.editrc
 * `cd coll` change the current collection to `coll`
 * `cd /db/coll` change the current database to "db" and the collection to "coll"
 * `count selector` count the number of documents in the current collection
-* `update selector doc` update all documents that match `selector` with `doc`
+* `update selector doc` update all documents that match `selector` using `doc`
 * `insert doc` insert given document `doc`
 * `remove selector` remove all documents that match `selector`
 * `find selector` query the collection using `selector`, see [query operators]
