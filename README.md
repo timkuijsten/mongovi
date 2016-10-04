@@ -31,12 +31,17 @@ On OS X 10.11, Ubuntu 12.04 and Ubuntu 14.04, install the mongoc and bson librar
 
 On Ubuntu 16.04:
 
+I'm currently not testing on Ubuntu 16.04 myself, but since this version ships
+with libmongoc it should be easier in the future to install mongovi.
+
     $ sudo apt-get install libmongoc-dev libbson-dev
 
-Now download, compile and install mongovi:
+Now download mongovi, remove the local path components to libbson and libmongoc
+in the Makefile and then compile and install.
 
     $ git clone https://github.com/timkuijsten/mongovi.git
     $ cd mongovi
+    $ # edit Makefile
     $ make
 
 
