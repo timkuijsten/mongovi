@@ -1,2 +1,4 @@
 *.o
 mongovi
+shorten-test
+prefix_match-test

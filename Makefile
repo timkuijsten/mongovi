@@ -25,10 +25,12 @@ mongovi: ${OBJ} ${COMPAT}
 %.o: compat/%.c
 	$(CC) ${CFLAGS} -c $<
 
-test: ${OBJ}
+test: ${OBJ} ${COMPAT}
 	$(CC) $(CFLAGS) shorten.c test/shorten.c -o shorten-test
 	./shorten-test
+	$(CC) $(CFLAGS) prefix_match.c compat/reallocarray.c test/prefix_match.c -o prefix_match-test
+	./prefix_match-test
 
 .PHONY: clean 
 clean:
-	rm -f mongovi ${OBJ}
+	rm -f mongovi ${OBJ} shorten-test prefix_match-test
