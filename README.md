@@ -70,14 +70,14 @@ Quick search on object id:
 
 Use an aggregation query to list all documents without the _id field:
 
-    /raboof/sabar > [{ $project: { _id: false, foo: true } }]
+    /raboof/sabar > aggregate [{ $project: { _id: false, foo: true } }]
     { "foo" : "bar" }
     { "foo" : "baz" }
     /raboof/sabar > 
 
 Same as previous, but filter on documents with *foo* is *bar*:
 
-    /raboof/sabar > [{ $project: { _id: false, foo: true } }, { $match: { foo: "bar" } }]
+    /raboof/sabar > aggregate [{ $project: { _id: false, foo: true } }, { $match: { foo: "bar" } }]
     { "foo" : "bar" }
     /raboof/sabar > 
 
@@ -105,17 +105,19 @@ echo "bind -v" >> ~/.editrc
 
 ## Commands
 
-* `dbs` list all databases
-* `c` list all collections in the current database
-* `c coll` change the current collection to `coll`
-* `c /db/coll` change the current database to "db" and the collection to "coll"
+* `databases` list all databases
+* `collections` list all collections in the current database
+* `cd coll` change the current collection to `coll`
+* `cd /db/coll` change the current database to "db" and the collection to "coll"
 * `count selector` count the number of documents in the current collection
 * `update selector doc` update all documents that match `selector` with `doc`
 * `insert doc` insert given document `doc`
 * `remove selector` remove all documents that match `selector`
 * `find selector` query the collection using `selector`, see [query operators]
-* `{...}` alias for find
-* `[...]` aggregation pipeline, see [aggregation operators]
+* `aggregate [...]` aggregation pipeline, see [aggregation operators]
+
+Any command can be abbreviated as long as it is not ambiguous. So find can also be
+written as "f" since no other command starts with an f.
 
 If selector is not a JSON document it is treated as a shortcut to search on _id
 with type string. Hexadecimal strings of 24 characters are treated as object ids.
