@@ -62,6 +62,12 @@ List all documents with *foo* is *bar*:
     { "foo" : "bar" }
     /raboof/sabar > 
 
+Quick search on object id:
+
+    /raboof/sabar > find 57c6fb00495b576b10996f64
+    { "_id" : { "$oid" : "57c6fb00495b576b10996f64" }, "foo" : "bar" }
+    /raboof/sabar > 
+
 Use an aggregation query to list all documents without the _id field:
 
     /raboof/sabar > [{ $project: { _id: false, foo: true } }]
@@ -110,6 +116,9 @@ echo "bind -v" >> ~/.editrc
 * `find selector` query the collection using `selector`, see [query operators]
 * `{...}` alias for find
 * `[...]` aggregation pipeline, see [aggregation operators]
+
+If selector is not a JSON document it is treated as a shortcut to search on _id
+with type string. Hexadecimal strings of 24 characters are treated as object ids.
 
 See [editline(7)] for a list of supported key bindings.
 

@@ -92,6 +92,8 @@ char *prompt();
 int init_user(user_t *usr);
 int set_prompt(char *dbname, char *collname);
 int read_config(user_t *usr, config_t *cfg);
+int idtosel(char *doc, const size_t docsize, const char *sel, const size_t sellen);
+long parse_selector(char *doc, size_t docsize, const char *line, int len);
 int parse_file(FILE *fp, char *line, config_t *cfg);
 int parse_cmd(int argc, const char *argv[], const char *line, char **lp);
 int exec_cmd(const int cmd, const char **argv, const char *line, int linelen);
@@ -233,6 +235,85 @@ int main(int argc, char **argv)
     printf("\n");
 
   return 0;
+}
+
+/*
+ * Create a mongo extended JSON id selector document. If selector is 24 hex
+ * digits treat it as an object id, otherwise as a literal.
+ *
+ * doc     - resulting json doc is set in doc
+ * dosize  - the size of doc
+ * sel     - selector, does not have to be NUL terminated
+ * sellen  - length of sel, excluding a terminating NUL character, if any
+ *
+ * Return 0 on success or -1 on error.
+ */
+int idtosel(char *doc, const size_t docsize, const char *sel, const size_t sellen)
+{
+  char *idtpls = "{ \"_id\": \"";
+  char *idtple = "\" }";
+  char *oidtpls = "{ \"_id\": { \"$oid\": \"";
+  char *oidtple = "\" } }";
+  char *start, *end;
+
+  if (docsize < 1)
+    return -1;
+  if (sellen < 1)
+    return -1;
+
+  /* if 24 hex chars, assume an object id */
+  if (sellen == 24 && (strspn(sel, "0123456789abcdefABCDEF") == 24)) {
+    start = oidtpls;
+    end = oidtple;
+  } else {
+    /* otherwise treat as a literal */
+    start = idtpls;
+    end = idtple;
+  }
+
+  if (strlen(start) + sellen + strlen(end) + 1 > docsize)
+    return -1;
+
+  if (strlcpy(doc, start, docsize) > docsize)
+    return -1;
+  strncat(doc, sel, sellen);
+  doc[strlen(start) + sellen] = '\0'; // ensure NUL termination
+  if (strlcat(doc, end, docsize) > docsize)
+    return -1;
+
+  return 0;
+}
+
+/*
+ * parse json docs or id only specifications
+ * return size of parsed length on success or -1 on failure.
+ */
+long parse_selector(char *doc, size_t docsize, const char *line, int len)
+{
+  long offset;
+
+  /* support id only selectors */
+  const char *ids; /* id start */
+  size_t fnb, snb; /* first and second non-blank characters used for id selection */
+
+  offset = 0;
+
+  /* if first non-blank char is not a "{", use it as a literal and convert to an
+     id selector */
+  fnb = strspn(line, " \t");
+  if (line[fnb] != '{') {
+    ids = line + fnb; /* id start */
+    snb = strcspn(ids, " \t"); /* id end */
+
+    idtosel(doc, docsize, ids, snb);
+    offset = fnb + snb;
+  } else {
+    // try to parse as relaxed json and convert to strict json
+    if ((offset = relaxed_to_strict(doc, docsize, line, len, 0)) == -1)
+      errx(1, "jsonify error");
+  }
+
+  return offset;
 }
 
 // return command code
@@ -415,10 +496,8 @@ int exec_count(mongoc_collection_t *collection, const char *line, int len)
   bson_t query;
   char query_doc[MAXDOC] = "{}"; /* default to all documents */
 
-  // try to parse as relaxed json and convert to strict json
-  if (len)
-    if (relaxed_to_strict(query_doc, MAXDOC, line, len, 0) == -1)
-      errx(1, "jsonify error");
+  if (parse_selector(query_doc, MAXDOC, line, len) == -1)
+    return -1;
 
   // try to parse it as json and convert to bson
   if (!bson_init_from_json(&query, query_doc, -1, &error)) {
@@ -444,7 +523,7 @@ int exec_update(mongoc_collection_t *collection, const char *line)
   bson_t query, update;
 
   // read first json object
-  if ((offset = relaxed_to_strict(query_doc, MAXDOC, line, strlen(line), 1)) == -1)
+  if ((offset = parse_selector(query_doc, MAXDOC, line, strlen(line))) == -1)
     return ILLEGAL;
   if (offset == 0)
     return ILLEGAL;
@@ -491,7 +570,7 @@ int exec_insert(mongoc_collection_t *collection, const char *line, int len)
   bson_t doc;
 
   // read first json object
-  if ((offset = relaxed_to_strict(insert_doc, MAXDOC, line, len, 1)) == -1)
+  if ((offset = parse_selector(insert_doc, MAXDOC, line, len)) == -1)
     return ILLEGAL;
   if (offset == 0)
     return ILLEGAL;
@@ -520,7 +599,7 @@ int exec_remove(mongoc_collection_t *collection, const char *line, int len)
   bson_t doc;
 
   // read first json object
-  if ((offset = relaxed_to_strict(remove_doc, MAXDOC, line, len, 1)) == -1)
+  if ((offset = parse_selector(remove_doc, MAXDOC, line, len)) == -1)
     return ILLEGAL;
   if (offset == 0)
     return ILLEGAL;
@@ -551,10 +630,8 @@ int exec_query(mongoc_collection_t *collection, const char *line, int len)
   bson_t query;
   char query_doc[MAXDOC] = "{}"; /* default to all documents */
 
-  // try to parse as relaxed json and convert to strict json
-  if (len)
-    if (relaxed_to_strict(query_doc, MAXDOC, line, len, 0) == -1)
-      errx(1, "jsonify error");
+  if (parse_selector(query_doc, MAXDOC, line, len) == -1)
+    return -1;
 
   // try to parse it as json and convert to bson
   if (!bson_init_from_json(&query, query_doc, -1, &error)) {
