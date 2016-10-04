@@ -16,6 +16,7 @@
 
 #include "jsonify.h"
 #include "shorten.h"
+#include "prefix_match.h"
 
 #include <bson.h>
 #include <bcon.h>
@@ -64,24 +65,20 @@ typedef struct {
 
 enum cmd { ILLEGAL = -1, UNKNOWN, LSDBS, LSCOLLS, CHCOLL, COUNT, UPDATE, INSERT, REMOVE, FIND, AGQUERY };
 
-typedef struct {
-  int tok;
-  char *name;
-  int nrargs;
-} cmd_t;
+#define NCMDS (sizeof cmds / sizeof cmds[0])
 
-cmd_t cmds[] = {
-  { LSDBS,    "dbs",      0 },
-  { LSCOLLS,  "c",        0 }, // list all collections
-  { LSCOLLS,  "colls",    0 }, // alias for c
-  { CHCOLL,   "c",        1 }, // with an argument of the new database and/or collection
-  { COUNT,    "count",    1 },
-  { UPDATE,   "update",   2 },
-  { INSERT,   "insert",   1 },
-  { REMOVE,   "remove",   1 },
-  { FIND,     "find",     1 },
-  { FIND,     "{",        0 }, // shortcut for find
-  { AGQUERY,  "[",        0 },
+const char *cmds[] = {
+  "databases"     /* LSDBS,   list all databases */
+  "collections",  /* LSCOLLS, list all collections */
+  "cd",           /* CHCOLL,  change database and/or collection */
+  "count",        /* COUNT */
+  "update",       /* UPDATE */
+  "insert",       /* INSERT */
+  "remove",       /* REMOVE */
+  "find",         /* FIND */
+  "{",            /* FIND alias */
+  "[",            /* AGQUERY */
+  NULL            /*          nul terminate this list */
 };
 
 static user_t user;
@@ -319,26 +316,51 @@ long parse_selector(char *doc, size_t docsize, const char *line, int len)
 // return command code
 int parse_cmd(int argc, const char *argv[], const char *line, char **lp)
 {
-  // expect command to be the first token
-  int i = 0;
-  if (strcmp("dbs", argv[i]) == 0) {
-    *lp = strstr(line, "dbs") + strlen("dbs");
+  char **list;
+  const char *cmd;
+  int i;
+
+  // check if the first token matches one or more commands
+
+  // check if it matches exactly one command
+  if (prefix_match(&list, cmds, argv[0]) == -1)
+    errx(1, "prefix_match error");
+
+  if (list[0] == NULL) {
+    // unknown prefix
+    free(list);
+    return UNKNOWN;
+  } else if (list[1] != NULL) {
+    // matches more than one command, print list and return
+    i = 0;
+    while (list[i] != NULL)
+      printf("%s\n", list[i++]);
+    free(list);
+    return UNKNOWN;
+  } else {
+    // matches exactly one command from cmds
+    cmd = list[0];
+    free(list);
+  }
+
+  if (strcmp("databases", cmd) == 0) {
+    *lp = strstr(line, argv[0]) + strlen(argv[0]);
     switch (argc) {
     case 1:
       return LSDBS;
     default:
       return ILLEGAL;
     }
-  } else if (strcmp("colls", argv[i]) == 0) {
-    *lp = strstr(line, "colls") + strlen("colls");
+  } else if (strcmp("collections", cmd) == 0) {
+    *lp = strstr(line, argv[0]) + strlen(argv[0]);
     switch (argc) {
     case 1:
       return LSCOLLS;
     default:
       return ILLEGAL;
     }
-  } else if (strcmp("c", argv[i]) == 0) {
-    *lp = strstr(line, "c") + strlen("c");
+  } else if (strcmp("cd", cmd) == 0) {
+    *lp = strstr(line, argv[0]) + strlen(argv[0]);
     switch (argc) {
     case 1:
       return LSCOLLS;
@@ -347,20 +369,20 @@ int parse_cmd(int argc, const char *argv[], const char *line, char **lp)
     default:
       return ILLEGAL;
     }
-  } else if (strcmp("count", argv[i]) == 0) {
-    *lp = strstr(line, "count") + strlen("count");
+  } else if (strcmp("count", cmd) == 0) {
+    *lp = strstr(line, argv[0]) + strlen(argv[0]);
     return COUNT;
-  } else if (strcmp("update", argv[i]) == 0) {
-    *lp = strstr(line, "update") + strlen("update");
+  } else if (strcmp("update", cmd) == 0) {
+    *lp = strstr(line, argv[0]) + strlen(argv[0]);
     return UPDATE;
-  } else if (strcmp("insert", argv[i]) == 0) {
-    *lp = strstr(line, "insert") + strlen("insert");
+  } else if (strcmp("insert", cmd) == 0) {
+    *lp = strstr(line, argv[0]) + strlen(argv[0]);
     return INSERT;
-  } else if (strcmp("remove", argv[i]) == 0) {
-    *lp = strstr(line, "remove") + strlen("remove");
+  } else if (strcmp("remove", cmd) == 0) {
+    *lp = strstr(line, argv[0]) + strlen(argv[0]);
     return REMOVE;
-  } else if (strcmp("find", argv[i]) == 0) {
-    *lp = strstr(line, "find") + strlen("find");
+  } else if (strcmp("find", cmd) == 0) {
+    *lp = strstr(line, argv[0]) + strlen(argv[0]);
     return FIND;
   } else if (argv[0][0] == '{') {
     *lp = (char *)line;
