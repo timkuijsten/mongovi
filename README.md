@@ -52,39 +52,40 @@ in the Makefile and then compile and install.
 Open database *raboof* and collection *sabar*:
 
     $ ./mongovi raboof sabar
-    /raboof/sabar > 
+    /raboof/sabar> 
 
 List all documents:
 
-    /raboof/sabar > find
+    /raboof/sabar> find
     { "_id" : { "$oid" : "57c6fb00495b576b10996f64" }, "foo" : "bar" }
     { "_id" : { "$oid" : "57c6fb00495b576b10996f65" }, "foo" : "baz" }
-    /raboof/sabar > 
+    /raboof/sabar> 
 
 List all documents with *foo* is *bar*:
 
-    /raboof/sabar > find { foo: "bar" }
+    /raboof/sabar> find { foo: "bar" }
     { "foo" : "bar" }
-    /raboof/sabar > 
+    /raboof/sabar> 
 
 Quick search on object id:
 
-    /raboof/sabar > find 57c6fb00495b576b10996f64
+    /raboof/sabar> find 57c6fb00495b576b10996f64
     { "_id" : { "$oid" : "57c6fb00495b576b10996f64" }, "foo" : "bar" }
-    /raboof/sabar > 
+    /raboof/sabar> 
 
 Use an aggregation query to list all documents without the _id field:
 
-    /raboof/sabar > aggregate [{ $project: { _id: false, foo: true } }]
+    /raboof/sabar> aggregate [{ $project: { _id: false, foo: true } }]
     { "foo" : "bar" }
     { "foo" : "baz" }
-    /raboof/sabar > 
+    /raboof/sabar> 
 
-Same as previous, but filter on documents with *foo* is *bar*:
+Same as previous, but filter on documents with *foo* is *bar* and use short
+command feature:
 
-    /raboof/sabar > aggregate [{ $project: { _id: false, foo: true } }, { $match: { foo: "bar" } }]
+    /raboof/sabar> a [{ $project: { _id: false, foo: true } }, { $match: { foo: "bar" } }]
     { "foo" : "bar" }
-    /raboof/sabar > 
+    /raboof/sabar> 
 
 ### Non-interactive
 
@@ -121,10 +122,10 @@ echo "bind -v" >> ~/.editrc
 * `find selector` query the collection using `selector`, see [query operators]
 * `aggregate [...]` aggregation pipeline, see [aggregation operators]
 
-Any command can be abbreviated as long as it is not ambiguous. So find can also be
-written as "f" since no other command starts with an f.
+Any command can be abbreviated as long as it is not ambiguous. So `find` can also be
+written as `f` since no other command starts with an f.
 
-If selector is not a JSON document it is treated as a shortcut to search on _id
+If `selector` is not a JSON document it is treated as a shortcut to search on _id
 with type string. Hexadecimal strings of 24 characters are treated as object ids.
 
 See [editline(7)] for a list of supported key bindings.
@@ -139,7 +140,7 @@ If this file exists, the first line is read and expected to be a valid mongodb
 ## Wish list
 
 Things that would be nice but are not implemented:
-* edit docs with EDITOR
+* edit docs with $EDITOR
 * tab completion
 
 
