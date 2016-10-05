@@ -108,15 +108,17 @@ static mongoc_collection_t *ccoll; // current collection
 
 void usage(void)
 {
-  printf("usage: %s database collection\n", progname);
+  printf("usage: %s [-ps] database collection\n", progname);
   exit(0);
 }
+
+int pretty = 0;
 
 int main(int argc, char **argv)
 {
   const char *line, **av;
   char linecpy[MAXLINE], *lp;
-  int read, status, ac, cc, co, cmd;
+  int read, status, ac, cc, co, cmd, ch;
   EditLine *e;
   History *h;
   HistEvent he;
@@ -127,16 +129,35 @@ int main(int argc, char **argv)
   if (strlcpy(progname, basename(argv[0]), MAXPROG) > MAXPROG)
     errx(1, "program name too long");
 
-  if (argc != 3)
+  /* default ttys to pretty print */
+  if (isatty(STDIN_FILENO))
+    pretty = 1;
+
+  while ((ch = getopt(argc, argv, "ps")) != -1)
+    switch (ch) {
+    case 'p':
+      pretty = 1;
+      break;
+    case 's':
+      pretty = 0;
+      break;
+    case '?':
+      usage();
+      break;
+    }
+  argc -= optind;
+  argv += optind;
+
+  if (argc != 2)
     usage();
 
-  while (--argc)
+  while (argc--)
     switch (argc) {
-    case 1:
+    case 0:
       if (strlcpy(dbname, argv[argc], MAXDBNAME) > MAXDBNAME)
         errx(1, "can't set database name");
       break;
-    case 2:
+    case 1:
       if (strlcpy(collname, argv[argc], MAXCOLLNAME) > MAXCOLLNAME)
         errx(1, "can't set collection name");
       break;
@@ -659,9 +680,8 @@ int exec_query(mongoc_collection_t *collection, const char *line, int len)
 
   while (mongoc_cursor_next(cursor, &doc)) {
     str = bson_as_json(doc, NULL);
-    // pretty print
-    if (isatty(STDIN_FILENO)) {
-      if (indent(query_doc, MAXDOC, str, strlen(str)) == -1)
+    if (pretty) {
+      if (human_readable(query_doc, MAXDOC, str, strlen(str)) == -1)
         errx(1, "jsonify error");
       printf ("%s\n", query_doc);
     } else {

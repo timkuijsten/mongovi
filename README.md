@@ -106,7 +106,9 @@ echo "bind -v" >> ~/.editrc
 
 ## Command-line options
 
-    usage: mongovi database collection
+    usage: mongovi [-ps] database collection
+    -p    pretty print human readable json, default on a tty
+    -s    single line mongo extended json, default in non-interactive mode
 
 
 ## Commands
