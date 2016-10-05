@@ -24,6 +24,37 @@ static char out[MAXOUTPUT];
 static size_t outsize = MAXOUTPUT;
 
 long
+human_readable(char *dst, size_t dstsize, const char *src, size_t srcsize)
+{
+  size_t i;
+  ssize_t nrtokens;
+  jsmn_parser parser;
+  jsmntok_t tokens[TOKENS];
+
+  if (srcsize > LONG_MAX)
+    return -1;
+
+  jsmn_init(&parser);
+  i = srcsize;
+  nrtokens = jsmn_parse(&parser, src, srcsize, tokens, TOKENS);
+
+  if (nrtokens == 0)
+    return 0;
+  else if (nrtokens < 0)
+    return -1;
+
+  // wipe internal buffer
+  out[0] = '\0';
+  if (iterate(src, tokens, nrtokens, (void (*)(jsmntok_t *, char *, int, int, char *))human_readable_writer) == -1)
+    return -1;
+
+  if (strlcpy(dst, out, dstsize) > dstsize)
+    return -1;
+
+  return i;
+}
+
+long
 relaxed_to_strict(char *dst, size_t dstsize, const char *src, size_t srcsize, int firstonly)
 {
   size_t i;
@@ -55,7 +86,7 @@ relaxed_to_strict(char *dst, size_t dstsize, const char *src, size_t srcsize, in
 
   // wipe internal buffer
   out[0] = '\0';
-  if (iterate(src, tokens, nrtokens, (void (*)(jsmntok_t *, char *, int, int, char *))writer) == -1)
+  if (iterate(src, tokens, nrtokens, (void (*)(jsmntok_t *, char *, int, int, char *))strict_writer) == -1)
     return -1;
 
   if (strlcpy(dst, out, dstsize) > dstsize)
@@ -116,7 +147,7 @@ iterate(const char *src, jsmntok_t *tokens, int nrtokens, void (*iterator)(jsmnt
 }
 
 void
-writer(jsmntok_t *tok, char *key, int depth, int ndepth, char *closesym)
+strict_writer(jsmntok_t *tok, char *key, int depth, int ndepth, char *closesym)
 {
   switch (tok->type) {
   case JSMN_OBJECT:
@@ -160,6 +191,80 @@ writer(jsmntok_t *tok, char *key, int depth, int ndepth, char *closesym)
   // write any closing symbols
   if (strlcat(out, closesym, outsize) > outsize)
     return;
+
+  // if not increasing and not heading to the end of this root
+  if (ndepth && depth >= ndepth)
+    if (!tok->size) // and if not a key
+      if (strlcat(out, ",", outsize) > outsize)
+        return;
+}
+
+/*
+ * Convert json objects to contain two spaces per indent level and newlines
+ * after every key value pair or opening of a new object. Also sprinkle in some
+ * white space in arrays and don't quote keys.
+ */
+void
+human_readable_writer(jsmntok_t *tok, char *key, int depth, int ndepth, char *closesym)
+{
+  size_t i;
+  int j;
+
+  switch (tok->type) {
+  case JSMN_OBJECT:
+    strlcat(out, "{", outsize);
+    break;
+  case JSMN_ARRAY:
+    strlcat(out, "[ ", outsize);
+    break;
+  case JSMN_STRING:
+    if (tok->size) { // this is a key
+      strlcat(out, "\n", outsize);
+      // indent with two spaces per next depth
+      for (i = 0; i < (size_t)ndepth; i++)
+        strlcat(out, "  ", outsize);
+      strlcat(out, key, outsize);
+      strlcat(out, ": ", outsize);
+    } else { // this is a value
+      strlcat(out, "\"" , outsize);
+      strlcat(out, key, outsize);
+      strlcat(out, "\"" , outsize);
+    }
+    break;
+  case JSMN_UNDEFINED:
+  case JSMN_PRIMITIVE:
+    if (tok->size) { // this is a key
+      strlcat(out, "\n", outsize);
+      // indent with two spaces per next depth
+      for (i = 0; i < (size_t)ndepth; i++)
+        strlcat(out, "  ", outsize);
+      strlcat(out, key, outsize);
+      strlcat(out, ": ", outsize);
+    } else { // this is a value
+      strlcat(out, key, outsize);
+    }
+    break;
+  default:
+    warnx("unknown json token type");
+  }
+
+  for (i = 0; i < strlen(closesym); i++) {
+    // indent with two spaces per depth
+    if (closesym[i] == '}') {
+      if (strlcat(out, "\n", outsize) > outsize)
+        return;
+      for (j = 1; (size_t)j < depth - i; j++)
+        strlcat(out, "  ", outsize);
+      if (strlcat(out, "}", outsize) > outsize)
+        return;
+    } else if (closesym[i] == ']') {
+      if (strlcat(out, " ]", outsize) > outsize)
+        return;
+    } else {
+      // unknown character
+      return;
+    }
+  }
 
   // if not increasing and not heading to the end of this root
   if (ndepth && depth >= ndepth)
