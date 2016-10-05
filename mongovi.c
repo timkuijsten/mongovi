@@ -659,7 +659,14 @@ int exec_query(mongoc_collection_t *collection, const char *line, int len)
 
   while (mongoc_cursor_next(cursor, &doc)) {
     str = bson_as_json(doc, NULL);
-    printf ("%s\n", str);
+    // pretty print
+    if (isatty(STDIN_FILENO)) {
+      if (indent(query_doc, MAXDOC, str, strlen(str)) == -1)
+        errx(1, "jsonify error");
+      printf ("%s\n", query_doc);
+    } else {
+      printf ("%s\n", str);
+    }
     bson_free(str);
   }
 
