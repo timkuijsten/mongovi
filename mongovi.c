@@ -662,6 +662,7 @@ int exec_query(mongoc_collection_t *collection, const char *line, int len)
 {
   mongoc_cursor_t *cursor;
   bson_error_t error;
+  size_t rlen;
   const bson_t *doc;
   char *str;
   bson_t query;
@@ -679,9 +680,9 @@ int exec_query(mongoc_collection_t *collection, const char *line, int len)
   cursor = mongoc_collection_find(collection, MONGOC_QUERY_NONE, 0, 0, 0, &query, NULL, NULL);
 
   while (mongoc_cursor_next(cursor, &doc)) {
-    str = bson_as_json(doc, NULL);
+    str = bson_as_json(doc, &rlen);
     if (pretty) {
-      if (human_readable(query_doc, MAXDOC, str, strlen(str)) == -1)
+      if (human_readable(query_doc, MAXDOC, str, rlen) == -1)
         errx(1, "jsonify error");
       printf ("%s\n", query_doc);
     } else {
