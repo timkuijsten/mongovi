@@ -63,7 +63,7 @@ typedef struct {
   char url[MAXMONGOURL];
 } config_t;
 
-enum cmd { ILLEGAL = -1, UNKNOWN, LSDBS, LSCOLLS, CHCOLL, COUNT, UPDATE, INSERT, REMOVE, FIND, AGQUERY, HELP };
+enum cmd { ILLEGAL = -1, UNKNOWN, AMBIGUOUS, LSDBS, LSCOLLS, CHCOLL, COUNT, UPDATE, INSERT, REMOVE, FIND, AGQUERY, HELP };
 
 #define NCMDS (sizeof cmds / sizeof cmds[0])
 
@@ -83,6 +83,7 @@ const char *cmds[] = {
 
 static user_t user;
 static config_t config;
+static char **list_match = NULL; /* contains all ambiguous prefix_match commands */
 
 static char p[MAXPROMPT + 1];
 char *prompt();
@@ -223,16 +224,22 @@ int main(int argc, char **argv)
 
     cmd = parse_cmd(ac, av, linecpy, &lp);
     switch (cmd) {
-    case UNKNOWN:
-      warnx("unknown command");
-      continue;
-      break;
     case ILLEGAL:
       warnx("illegal syntax");
       continue;
       break;
+    case UNKNOWN:
+      warnx("unknown command");
+      continue;
+      break;
+    case AMBIGUOUS:
+      // matches more than one command, print list_match
+      i = 0;
+      while (list_match[i] != NULL)
+        printf("%s\n", list_match[i++]);
+      continue;
+      break;
     case HELP:
-      // matches more than one command, print list and return
       i = 0;
       while (cmds[i] != NULL)
         printf("%s\n", cmds[i++]);
@@ -240,9 +247,8 @@ int main(int argc, char **argv)
       break;
     }
 
-    if (exec_cmd(cmd, av, lp, strlen(lp)) == -1) {
+    if (exec_cmd(cmd, av, lp, strlen(lp)) == -1)
       warnx("execution failed");
-    }
   }
 
   if (read == -1)
@@ -255,6 +261,8 @@ int main(int argc, char **argv)
   tok_end(t);
   history_end(h);
   el_end(e);
+
+  free(list_match);
 
   if (isatty(STDIN_FILENO))
     printf("\n");
@@ -344,32 +352,24 @@ long parse_selector(char *doc, size_t docsize, const char *line, int len)
 // return command code
 int parse_cmd(int argc, const char *argv[], const char *line, char **lp)
 {
-  char **list;
   const char *cmd;
-  int i;
 
   // check if the first token matches one or more commands
-
-  // check if it matches exactly one command
-  if (prefix_match(&list, cmds, argv[0]) == -1)
+  if (prefix_match(&list_match, cmds, argv[0]) == -1)
     errx(1, "prefix_match error");
 
-  if (list[0] == NULL) {
-    // unknown prefix
-    free(list);
+  // unknown prefix
+  if (list_match[0] == NULL) {
     return UNKNOWN;
-  } else if (list[1] != NULL) {
-    // matches more than one command, print list and return
-    i = 0;
-    while (list[i] != NULL)
-      printf("%s\n", list[i++]);
-    free(list);
-    return UNKNOWN;
-  } else {
-    // matches exactly one command from cmds
-    cmd = list[0];
-    free(list);
   }
+
+  // matches more than one command
+  if (list_match[1] != NULL) {
+    return AMBIGUOUS;
+  }
+
+  // matches exactly one command from cmds
+  cmd = list_match[0];
 
   if (strcmp("databases", cmd) == 0) {
     *lp = strstr(line, argv[0]) + strlen(argv[0]);

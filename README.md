@@ -125,8 +125,8 @@ echo "bind -v" >> ~/.editrc
 * `aggregate [...]` aggregation pipeline, see [aggregation operators]
 * `help` print all commands
 
-Any command can be abbreviated as long as it is not ambiguous. So `find` can also be
-written as `f` since no other command starts with an f.
+Any command can be abbreviated to the shortest non-ambiguous form. So `find` can
+also be written as `f` since no other command starts with an f.
 
 If `selector` is not a JSON document it is treated as a shortcut to search on _id
 with type string. Hexadecimal strings of 24 characters are treated as object ids.
