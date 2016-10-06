@@ -63,7 +63,7 @@ typedef struct {
   char url[MAXMONGOURL];
 } config_t;
 
-enum cmd { ILLEGAL = -1, UNKNOWN, LSDBS, LSCOLLS, CHCOLL, COUNT, UPDATE, INSERT, REMOVE, FIND, AGQUERY };
+enum cmd { ILLEGAL = -1, UNKNOWN, LSDBS, LSCOLLS, CHCOLL, COUNT, UPDATE, INSERT, REMOVE, FIND, AGQUERY, HELP };
 
 #define NCMDS (sizeof cmds / sizeof cmds[0])
 
@@ -77,6 +77,7 @@ const char *cmds[] = {
   "remove",       /* REMOVE */
   "find",         /* FIND */
   "aggregate",    /* AGQUERY */
+  "help",         /* print usage */
   NULL            /* nul terminate this list */
 };
 
@@ -118,7 +119,7 @@ int main(int argc, char **argv)
 {
   const char *line, **av;
   char linecpy[MAXLINE], *lp;
-  int read, status, ac, cc, co, cmd, ch;
+  int i, read, status, ac, cc, co, cmd, ch;
   EditLine *e;
   History *h;
   HistEvent he;
@@ -228,6 +229,13 @@ int main(int argc, char **argv)
       break;
     case ILLEGAL:
       warnx("illegal syntax");
+      continue;
+      break;
+    case HELP:
+      // matches more than one command, print list and return
+      i = 0;
+      while (cmds[i] != NULL)
+        printf("%s\n", cmds[i++]);
       continue;
       break;
     }
@@ -405,6 +413,9 @@ int parse_cmd(int argc, const char *argv[], const char *line, char **lp)
   } else if (strcmp("aggregate", cmd) == 0) {
     *lp = strstr(line, argv[0]) + strlen(argv[0]);
     return AGQUERY;
+  } else if (strcmp("help", cmd) == 0) {
+    *lp = strstr(line, argv[0]) + strlen(argv[0]);
+    return HELP;
   }
 
   return UNKNOWN;

@@ -123,6 +123,7 @@ echo "bind -v" >> ~/.editrc
 * `remove selector` remove all documents that match `selector`
 * `find selector` query the collection using `selector`, see [query operators]
 * `aggregate [...]` aggregation pipeline, see [aggregation operators]
+* `help` print all commands
 
 Any command can be abbreviated as long as it is not ambiguous. So `find` can also be
 written as `f` since no other command starts with an f.
