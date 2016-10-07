@@ -342,8 +342,10 @@ long parse_selector(char *doc, size_t docsize, const char *line, int len)
     offset = fnb + snb;
   } else {
     // try to parse as relaxed json and convert to strict json
-    if ((offset = relaxed_to_strict(doc, docsize, line, len, 0)) < 0)
-      errx(1, "jsonify error: %ld", offset);
+    if ((offset = relaxed_to_strict(doc, docsize, line, len, 0)) < 0) {
+      warnx("jsonify error: %ld", offset);
+      return -1;
+    }
   }
 
   return offset;
@@ -580,8 +582,10 @@ int exec_update(mongoc_collection_t *collection, const char *line)
   line += offset;
 
   // read second json object
-  if ((offset = relaxed_to_strict(update_doc, MAXDOC, line, strlen(line), 1)) < 0)
+  if ((offset = relaxed_to_strict(update_doc, MAXDOC, line, strlen(line), 1)) < 0) {
+    warnx("jsonify error: %ld", offset);
     return ILLEGAL;
+  }
   if (offset == 0)
     return ILLEGAL;
 
@@ -694,8 +698,10 @@ int exec_query(mongoc_collection_t *collection, const char *line, int len)
   while (mongoc_cursor_next(cursor, &doc)) {
     str = bson_as_json(doc, &rlen);
     if (pretty) {
-      if ((i = human_readable(query_doc, MAXDOC, str, rlen)) < 0)
-        errx(1, "jsonify error: %ld", i);
+      if ((i = human_readable(query_doc, MAXDOC, str, rlen)) < 0) {
+        warnx("jsonify error: %ld", i);
+        return -1;
+      }
       printf ("%s\n", query_doc);
     } else {
       printf ("%s\n", str);
@@ -727,8 +733,10 @@ int exec_agquery(mongoc_collection_t *collection, const char *line, int len)
   char query_doc[MAXDOC];
 
   // try to parse as relaxed json and convert to strict json
-  if ((i = relaxed_to_strict(query_doc, MAXDOC, line, len, 0)) < 0)
-    errx(1, "jsonify error: %ld", i);
+  if ((i = relaxed_to_strict(query_doc, MAXDOC, line, len, 0)) < 0) {
+    warnx("jsonify error: %ld", i);
+    return -1;
+  }
 
   // try to parse it as json and convert to bson
   if (!bson_init_from_json(&aggr_query, query_doc, -1, &error)) {
