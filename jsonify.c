@@ -23,6 +23,18 @@ static char closesym[MAXSTACK];
 static char out[MAXOUTPUT];
 static size_t outsize = MAXOUTPUT;
 
+/*
+ * return pos in src or < 0 on error
+ *
+ * -10 if srcsize exceed LONG_MAX
+ * -11 if writer failed
+ * -12 if dst too small
+ *
+ * Parse errors:
+ * -1 Not enough tokens were provided
+ * -2 Invalid character inside JSON string
+ * -3 The string is not a full JSON packet, more bytes expected
+ */
 long
 human_readable(char *dst, size_t dstsize, const char *src, size_t srcsize)
 {
@@ -31,48 +43,39 @@ human_readable(char *dst, size_t dstsize, const char *src, size_t srcsize)
   jsmn_parser parser;
   jsmntok_t tokens[TOKENS];
 
-  if (srcsize > LONG_MAX) {
-    warnx("source exceeds LONG_MAX");
-    return -1;
-  }
+  if (srcsize > LONG_MAX)
+    return -10;
 
   jsmn_init(&parser);
   i = srcsize;
   nrtokens = jsmn_parse(&parser, src, srcsize, tokens, TOKENS);
 
-  if (nrtokens == 0)
-    return 0;
-  else if (nrtokens < 0) {
-    switch (nrtokens) {
-    case JSMN_ERROR_NOMEM:
-      warnx("Not enough tokens were provided: %d", TOKENS);
-      break;
-    case JSMN_ERROR_INVAL:
-      warnx("Invalid character inside JSON string");
-      break;
-    case JSMN_ERROR_PART:
-      warnx("The string is not a full JSON packet, more bytes expected");
-      break;
-    default:
-      warnx("unknown JSMN error: %zd", nrtokens);
-      break;
-    }
-    return -1;
-  }
+  if (nrtokens <= 0)
+    return nrtokens;
 
   // wipe internal buffer
   out[0] = '\0';
   if (iterate(src, tokens, nrtokens, (void (*)(jsmntok_t *, char *, int, int, char *))human_readable_writer) == -1)
-    return -1;
+    return -11;
 
-  if (strlcpy(dst, out, dstsize) > dstsize) {
-    warnx("failed to copy into destination");
-    return -1;
-  }
+  if (strlcpy(dst, out, dstsize) > dstsize)
+    return -12;
 
   return i;
 }
 
+/*
+ * return pos in src or < 0 on error
+ *
+ * -10 if srcsize exceed LONG_MAX
+ * -11 if writer failed
+ * -12 if dst too small
+ *
+ * Parse errors:
+ * -1 Not enough tokens were provided
+ * -2 Invalid character inside JSON string
+ * -3 The string is not a full JSON packet, more bytes expected
+ */
 long
 relaxed_to_strict(char *dst, size_t dstsize, const char *src, size_t srcsize, int firstonly)
 {
@@ -81,10 +84,8 @@ relaxed_to_strict(char *dst, size_t dstsize, const char *src, size_t srcsize, in
   jsmn_parser parser;
   jsmntok_t tokens[TOKENS];
 
-  if (srcsize > LONG_MAX) {
-    warnx("source exceeds LONG_MAX");
-    return -1;
-  }
+  if (srcsize > LONG_MAX)
+    return -10;
 
   if (firstonly) {
     // stop after first document (root)
@@ -100,35 +101,16 @@ relaxed_to_strict(char *dst, size_t dstsize, const char *src, size_t srcsize, in
     nrtokens = jsmn_parse(&parser, src, srcsize, tokens, TOKENS);
   }
 
-  if (nrtokens == 0)
-    return 0;
-  else if (nrtokens < 0) {
-    switch (nrtokens) {
-    case JSMN_ERROR_NOMEM:
-      warnx("Not enough tokens were provided: %d", TOKENS);
-      break;
-    case JSMN_ERROR_INVAL:
-      warnx("Invalid character inside JSON string");
-      break;
-    case JSMN_ERROR_PART:
-      warnx("The string is not a full JSON packet, more bytes expected");
-      break;
-    default:
-      warnx("unknown JSMN error: %zd", nrtokens);
-      break;
-    }
-    return -1;
-  }
+  if (nrtokens <= 0)
+    return nrtokens;
 
   // wipe internal buffer
   out[0] = '\0';
   if (iterate(src, tokens, nrtokens, (void (*)(jsmntok_t *, char *, int, int, char *))strict_writer) == -1)
-    return -1;
+    return -11;
 
-  if (strlcpy(dst, out, dstsize) > dstsize) {
-    warnx("failed to copy into destination");
-    return -1;
-  }
+  if (strlcpy(dst, out, dstsize) > dstsize)
+    return -12;
 
   return i;
 }

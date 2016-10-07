@@ -342,8 +342,8 @@ long parse_selector(char *doc, size_t docsize, const char *line, int len)
     offset = fnb + snb;
   } else {
     // try to parse as relaxed json and convert to strict json
-    if ((offset = relaxed_to_strict(doc, docsize, line, len, 0)) == -1)
-      errx(1, "jsonify error");
+    if ((offset = relaxed_to_strict(doc, docsize, line, len, 0)) < 0)
+      errx(1, "jsonify error: %ld", offset);
   }
 
   return offset;
@@ -580,7 +580,7 @@ int exec_update(mongoc_collection_t *collection, const char *line)
   line += offset;
 
   // read second json object
-  if ((offset = relaxed_to_strict(update_doc, MAXDOC, line, strlen(line), 1)) == -1)
+  if ((offset = relaxed_to_strict(update_doc, MAXDOC, line, strlen(line), 1)) < 0)
     return ILLEGAL;
   if (offset == 0)
     return ILLEGAL;
@@ -671,6 +671,7 @@ int exec_remove(mongoc_collection_t *collection, const char *line, int len)
 // return 0 on success, -1 on failure
 int exec_query(mongoc_collection_t *collection, const char *line, int len)
 {
+  long i;
   mongoc_cursor_t *cursor;
   bson_error_t error;
   size_t rlen;
@@ -693,8 +694,8 @@ int exec_query(mongoc_collection_t *collection, const char *line, int len)
   while (mongoc_cursor_next(cursor, &doc)) {
     str = bson_as_json(doc, &rlen);
     if (pretty) {
-      if (human_readable(query_doc, MAXDOC, str, rlen) == -1)
-        errx(1, "jsonify error");
+      if ((i = human_readable(query_doc, MAXDOC, str, rlen)) < 0)
+        errx(1, "jsonify error: %ld", i);
       printf ("%s\n", query_doc);
     } else {
       printf ("%s\n", str);
@@ -717,6 +718,7 @@ int exec_query(mongoc_collection_t *collection, const char *line, int len)
 // return 0 on success, -1 on failure
 int exec_agquery(mongoc_collection_t *collection, const char *line, int len)
 {
+  long i;
   mongoc_cursor_t *cursor;
   bson_error_t error;
   const bson_t *doc;
@@ -725,8 +727,8 @@ int exec_agquery(mongoc_collection_t *collection, const char *line, int len)
   char query_doc[MAXDOC];
 
   // try to parse as relaxed json and convert to strict json
-  if (relaxed_to_strict(query_doc, MAXDOC, line, len, 0) == -1)
-    errx(1, "jsonify error");
+  if ((i = relaxed_to_strict(query_doc, MAXDOC, line, len, 0)) < 0)
+    errx(1, "jsonify error: %ld", i);
 
   // try to parse it as json and convert to bson
   if (!bson_init_from_json(&aggr_query, query_doc, -1, &error)) {
