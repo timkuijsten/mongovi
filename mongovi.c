@@ -32,6 +32,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/ioctl.h>
 
 #define MAXLINE 1024
 #define MAXUSERNAME 100
@@ -683,6 +684,7 @@ int exec_query(mongoc_collection_t *collection, const char *line, int len)
   char *str;
   bson_t query;
   char query_doc[MAXDOC] = "{}"; /* default to all documents */
+  struct winsize w;
 
   if (parse_selector(query_doc, MAXDOC, line, len) == -1)
     return -1;
@@ -695,9 +697,11 @@ int exec_query(mongoc_collection_t *collection, const char *line, int len)
 
   cursor = mongoc_collection_find(collection, MONGOC_QUERY_NONE, 0, 0, 0, &query, NULL, NULL);
 
+  ioctl(0, TIOCGWINSZ, &w);
+
   while (mongoc_cursor_next(cursor, &doc)) {
     str = bson_as_json(doc, &rlen);
-    if (pretty) {
+    if (pretty && strlen(str) > w.ws_col) {
       if ((i = human_readable(query_doc, MAXDOC, str, rlen)) < 0) {
         warnx("jsonify error: %ld", i);
         return -1;
