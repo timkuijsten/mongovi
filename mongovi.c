@@ -50,8 +50,8 @@
 
 static char progname[MAXPROG];
 
-static char dbname[MAXDBNAME];
-static char collname[MAXCOLLNAME];
+static char dbname[MAXDBNAME] = "";
+static char collname[MAXCOLLNAME] = "";
 
 /* shell specific user info */
 typedef struct {
@@ -86,7 +86,7 @@ static user_t user;
 static config_t config;
 static char **list_match = NULL; /* contains all ambiguous prefix_match commands */
 
-static char p[MAXPROMPT + 1];
+static char pmpt[MAXPROMPT + 1];
 char *prompt();
 int init_user(user_t *usr);
 int set_prompt(char *dbname, char *collname);
@@ -769,11 +769,11 @@ int exec_agquery(mongoc_collection_t *collection, const char *line, int len)
 
 char *prompt()
 {
-  return p;
+  return pmpt;
 }
 
 // if too long, shorten first or both components
-// global p should have space for MAXPROMPT + 1 bytes
+// global pmpt should have space for MAXPROMPT + 1 bytes
 int
 set_prompt(char *dbname, char *collname)
 {
@@ -791,7 +791,7 @@ set_prompt(char *dbname, char *collname)
     if (shorten_comps(c1, c2, MAXPROMPT - static_chars) < 0)
       errx(1, "can't initialize prompt");
 
-  snprintf(p, MAXPROMPT + 1, "/%s/%s> ", c1, c2);
+  snprintf(pmpt, MAXPROMPT + 1, "/%s/%s> ", c1, c2);
   return 0;
 }
 
