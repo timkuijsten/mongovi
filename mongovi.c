@@ -721,7 +721,7 @@ int exec_query(mongoc_collection_t *collection, const char *line, int len)
 
   while (mongoc_cursor_next(cursor, &doc)) {
     str = bson_as_json(doc, &rlen);
-    if (pretty && strlen(str) > w.ws_col) {
+    if (pretty && rlen > w.ws_col) {
       if ((i = human_readable(query_doc, MAXDOC, str, rlen)) < 0) {
         warnx("jsonify error: %ld", i);
         return -1;
