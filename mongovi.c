@@ -65,6 +65,7 @@ typedef struct {
 } config_t;
 
 enum cmd { ILLEGAL = -1, UNKNOWN, AMBIGUOUS, LSDBS, LSCOLLS, CHCOLL, COUNT, UPDATE, INSERT, REMOVE, FIND, AGQUERY, HELP };
+enum errors { DBMISSING = 256, COLLMISSING };
 
 #define NCMDS (sizeof cmds / sizeof cmds[0])
 
@@ -86,7 +87,7 @@ static user_t user;
 static config_t config;
 static char **list_match = NULL; /* contains all ambiguous prefix_match commands */
 
-static char pmpt[MAXPROMPT + 1];
+static char pmpt[MAXPROMPT + 1] = "> ";
 char *prompt();
 int init_user(user_t *usr);
 int set_prompt(char *dbname, char *collname);
@@ -111,7 +112,7 @@ static mongoc_collection_t *ccoll; // current collection
 
 void usage(void)
 {
-  printf("usage: %s [-ps] database collection\n", progname);
+  printf("usage: %s [-ps] [/database/collection]\n", progname);
   exit(0);
 }
 
@@ -151,20 +152,8 @@ int main(int argc, char **argv)
   argc -= optind;
   argv += optind;
 
-  if (argc != 2)
+  if (argc > 1)
     usage();
-
-  while (argc--)
-    switch (argc) {
-    case 0:
-      if (strlcpy(dbname, argv[argc], MAXDBNAME) > MAXDBNAME)
-        errx(1, "can't set database name");
-      break;
-    case 1:
-      if (strlcpy(collname, argv[argc], MAXCOLLNAME) > MAXCOLLNAME)
-        errx(1, "can't set collection name");
-      break;
-    }
 
   if (PATH_MAX < 20)
     errx(1, "can't determine PATH_MAX");
@@ -178,8 +167,6 @@ int main(int argc, char **argv)
     if (strlcpy(connect_url, config.url, MAXMONGOURL) > MAXMONGOURL)
       errx(1, "url in config too long");
   // else use default
-
-  set_prompt(dbname, collname);
 
   if ((e = el_init(progname, stdin, stdout, stderr)) == NULL)
     errx(1, "can't initialize editline");
@@ -200,7 +187,9 @@ int main(int argc, char **argv)
   if ((client = mongoc_client_new(connect_url)) == NULL)
     errx(1, "can't connect to mongo");
 
-  ccoll = mongoc_client_get_collection(client, dbname, collname);
+  ccoll = NULL;
+  if (argc == 1)
+    exec_chcoll(client, argv[0]);
 
   while ((line = el_gets(e, &read)) != NULL) {
     if (read > MAXLINE)
@@ -246,6 +235,14 @@ int main(int argc, char **argv)
         printf("%s\n", cmds[i++]);
       continue;
       break;
+    case DBMISSING:
+      warnx("no database selected");
+      continue;
+      break;
+    case COLLMISSING:
+      warnx("no collection selected");
+      continue;
+      break;
     }
 
     if (exec_cmd(cmd, av, lp, strlen(lp)) == -1)
@@ -255,7 +252,8 @@ int main(int argc, char **argv)
   if (read == -1)
     err(1, NULL);
 
-  mongoc_collection_destroy(ccoll);
+  if (ccoll != NULL)
+    mongoc_collection_destroy(ccoll);
   mongoc_client_destroy(client);
   mongoc_cleanup();
 
@@ -398,7 +396,20 @@ int parse_cmd(int argc, const char *argv[], const char *line, char **lp)
     default:
       return ILLEGAL;
     }
-  } else if (strcmp("count", cmd) == 0) {
+  } else if (strcmp("help", cmd) == 0) {
+    *lp = strstr(line, argv[0]) + strlen(argv[0]);
+    return HELP;
+  }
+
+  /* all the other commands need a database and collection
+     to be selected */
+
+  if (!strlen(dbname))
+    return DBMISSING;
+  if (!strlen(collname))
+    return COLLMISSING;
+
+  if (strcmp("count", cmd) == 0) {
     *lp = strstr(line, argv[0]) + strlen(argv[0]);
     return COUNT;
   } else if (strcmp("update", cmd) == 0) {
@@ -416,9 +427,6 @@ int parse_cmd(int argc, const char *argv[], const char *line, char **lp)
   } else if (strcmp("aggregate", cmd) == 0) {
     *lp = strstr(line, argv[0]) + strlen(argv[0]);
     return AGQUERY;
-  } else if (strcmp("help", cmd) == 0) {
-    *lp = strstr(line, argv[0]) + strlen(argv[0]);
-    return HELP;
   }
 
   return UNKNOWN;
@@ -482,6 +490,9 @@ int exec_lscolls(mongoc_client_t *client, char *dbname)
   char **strv;
   int i;
 
+  if (!strlen(dbname))
+    return -1;
+
   db = mongoc_client_get_database(client, dbname);
 
   if ((strv = mongoc_database_get_collection_names(db, &error)) == NULL)
@@ -507,7 +518,8 @@ int exec_chcoll(mongoc_client_t *client, const char *newname)
   Tokenizer *t;
 
   // default to current db
-  strlcpy(newdb, dbname, MAXDBNAME);
+  if (strlcpy(newdb, dbname, MAXDBNAME) > MAXDBNAME)
+    return -1;
 
   // assume newname has no database component
   collp = newname;
@@ -523,15 +535,23 @@ int exec_chcoll(mongoc_client_t *client, const char *newname)
     }
     tok_end(t);
   }
+
+  // ensure there is a known database
+  if (!strlen(newdb))
+    return -1;
+
   if (strlcpy(newcoll, collp, MAXCOLLNAME) > MAXCOLLNAME)
     return -1;
 
-  mongoc_collection_destroy(ccoll);
+  if (ccoll != NULL)
+    mongoc_collection_destroy(ccoll);
   ccoll = mongoc_client_get_collection(client, newdb, newcoll);
 
   // update references
-  strlcpy(dbname, newdb, MAXDBNAME);
-  strlcpy(collname, newcoll, MAXCOLLNAME);
+  if (strlcpy(dbname, newdb, MAXDBNAME) > MAXDBNAME)
+    return -1;
+  if (strlcpy(collname, newcoll, MAXCOLLNAME) > MAXCOLLNAME)
+    return -1;
 
   set_prompt(newdb, newcoll);
 
