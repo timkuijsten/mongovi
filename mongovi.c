@@ -480,6 +480,28 @@ int parse_cmd(int argc, const char *argv[], const char *line, char **lp)
     return HELP;
   }
 
+  /* find works without database and collection as well */
+
+  if (!strlen(path.dbname) && strcmp("find", cmd) == 0) {
+    *lp = strstr(line, argv[0]) + strlen(argv[0]);
+    switch (argc) {
+    case 1:
+      return LSDBS;
+    default:
+      return ILLEGAL;
+    }
+  }
+
+  if (!strlen(path.collname) && strcmp("find", cmd) == 0) {
+    *lp = strstr(line, argv[0]) + strlen(argv[0]);
+    switch (argc) {
+    case 1:
+      return LSCOLLS;
+    default:
+      return ILLEGAL;
+    }
+  }
+
   /* all the other commands need a database and collection
      to be selected */
 
