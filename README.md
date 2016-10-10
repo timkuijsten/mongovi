@@ -119,13 +119,14 @@ echo "bind -v" >> ~/.editrc
 * `cd /db` change to database `db`
 * `cd arg` if a database is selected, change to collection `arg`. if no database
   is selected, change to database `arg`
+* `ls` when no database is selected, list all databases otherwise list all
+  collections in the currently selected database.
 * `count selector` count the number of documents in the current collection
 * `update selector doc` update all documents that match `selector` using `doc`
 * `insert doc` insert given document `doc`
 * `remove selector` remove all documents that match `selector`
-* `find [selector]` when no database or collection is selected, list all databases
-  or collections. otherwise query the selected collection using the optional
-  selector, see [query operators]
+* `find [selector]` query current collection using the optional selector, see
+  [query operators]
 * `aggregate [...]` aggregation pipeline, see [aggregation operators]
 * `help` print all commands
 

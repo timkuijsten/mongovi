@@ -77,6 +77,7 @@ const char *cmds[] = {
   "databases",    /* LSDBS,   list all databases */
   "collections",  /* LSCOLLS, list all collections */
   "cd",           /* CHCOLL,  change database and/or collection */
+  "ls",           /* LSDBS or LSCOLLS */
   "count",        /* COUNT */
   "update",       /* UPDATE */
   "insert",       /* INSERT */
@@ -451,23 +452,7 @@ int parse_cmd(int argc, const char *argv[], const char *line, char **lp)
   // matches exactly one command from cmds
   cmd = list_match[0];
 
-  if (strcmp("databases", cmd) == 0) {
-    *lp = strstr(line, argv[0]) + strlen(argv[0]);
-    switch (argc) {
-    case 1:
-      return LSDBS;
-    default:
-      return ILLEGAL;
-    }
-  } else if (strcmp("collections", cmd) == 0) {
-    *lp = strstr(line, argv[0]) + strlen(argv[0]);
-    switch (argc) {
-    case 1:
-      return LSCOLLS;
-    default:
-      return ILLEGAL;
-    }
-  } else if (strcmp("cd", cmd) == 0) {
+  if (strcmp("cd", cmd) == 0) {
     *lp = strstr(line, argv[0]) + strlen(argv[0]);
     switch (argc) {
     case 2:
@@ -480,9 +465,10 @@ int parse_cmd(int argc, const char *argv[], const char *line, char **lp)
     return HELP;
   }
 
-  /* find works without database and collection as well */
+  /* ls works without a database */
 
-  if (!strlen(path.dbname) && strcmp("find", cmd) == 0) {
+  if (strcmp("databases", cmd) == 0 || (!strlen(path.dbname) && strcmp("ls", cmd) == 0)) {
+    /* "databases" is an alias for ls without selected database */
     *lp = strstr(line, argv[0]) + strlen(argv[0]);
     switch (argc) {
     case 1:
@@ -492,7 +478,15 @@ int parse_cmd(int argc, const char *argv[], const char *line, char **lp)
     }
   }
 
-  if (!strlen(path.collname) && strcmp("find", cmd) == 0) {
+  /* all the other commands need a database to be selected */
+
+  if (!strlen(path.dbname))
+    return DBMISSING;
+
+  /* ls works without a selected collection as well */
+
+  if (strcmp("collections", cmd) == 0 || (!strlen(path.collname) && strcmp("ls", cmd) == 0)) {
+    /* "collections" is an alias for ls with selected database */
     *lp = strstr(line, argv[0]) + strlen(argv[0]);
     switch (argc) {
     case 1:
@@ -502,17 +496,22 @@ int parse_cmd(int argc, const char *argv[], const char *line, char **lp)
     }
   }
 
-  /* all the other commands need a database and collection
-     to be selected */
+  /* all the other commands need a collection to be selected */
 
-  if (!strlen(path.dbname))
-    return DBMISSING;
   if (!strlen(path.collname))
     return COLLMISSING;
 
   if (strcmp("count", cmd) == 0) {
     *lp = strstr(line, argv[0]) + strlen(argv[0]);
     return COUNT;
+  } else if (strcmp("ls", cmd) == 0) {
+    *lp = strstr(line, argv[0]) + strlen(argv[0]);
+    switch (argc) {
+    case 1:
+      return LSCOLLS;
+    default:
+      return ILLEGAL;
+    }
   } else if (strcmp("update", cmd) == 0) {
     *lp = strstr(line, argv[0]) + strlen(argv[0]);
     return UPDATE;
