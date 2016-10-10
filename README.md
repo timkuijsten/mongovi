@@ -51,7 +51,8 @@ in the Makefile and then compile and install.
 
 Open database *raboof* and collection *sabar*:
 
-    $ ./mongovi raboof sabar
+    $ mongovi
+    /> cd /raboof/sabar
     /raboof/sabar> 
 
 List all documents:
@@ -91,7 +92,7 @@ command feature:
 
 Show all documents in *raboof.sabar* with *foo* is *bar*:
 
-    $ echo 'find { foo: "bar" }' | ./mongovi raboof sabar
+    $ echo 'find { foo: "bar" }' | mongovi /raboof/sabar
     { "foo" : "bar" }
     $
 
@@ -106,21 +107,19 @@ echo "bind -v" >> ~/.editrc
 
 ## Command-line options
 
-    usage: mongovi [-ps] database collection
+    usage: mongovi [-ps] [/database/collection]
     -p    pretty print human readable json, default on a tty
     -s    single line mongo extended json, default in non-interactive mode
 
 
 ## Commands
 
-* `databases` list all databases
-* `collections` list all collections in the current database
+* `ls` when no database is selected, list all databases otherwise list all
+  collections in the currently selected database
 * `cd /db/coll` change database to `db` and collection to `coll`
 * `cd /db` change to database `db`
-* `cd arg` if a database is selected, change to collection `arg`. if no database
+* `cd arg` if a database is selected, change to collection `arg`, if no database
   is selected, change to database `arg`
-* `ls` when no database is selected, list all databases otherwise list all
-  collections in the currently selected database.
 * `count selector` count the number of documents in the current collection
 * `update selector doc` update all documents that match `selector` using `doc`
 * `insert doc` insert given document `doc`
@@ -129,12 +128,15 @@ echo "bind -v" >> ~/.editrc
   [query operators]
 * `aggregate [...]` aggregation pipeline, see [aggregation operators]
 * `help` print all commands
+* `databases` list all databases, alias for ls without selected database
+* `collections` list all collections in the current database, alias for ls with
+  selected database
 
 Any command can be abbreviated to the shortest non-ambiguous form. So `find` can
 also be written as `f` since no other command starts with an f.
 
 If `selector` is not a JSON document it is treated as a shortcut to search on _id
-with type string. Hexadecimal strings of 24 characters are treated as object ids.
+of type string. Hexadecimal strings of 24 characters are treated as object ids.
 
 See [editline(7)] for a list of supported key bindings.
 
