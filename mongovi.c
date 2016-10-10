@@ -68,7 +68,7 @@ typedef struct {
 
 static path_t path;
 
-enum cmd { ILLEGAL = -1, UNKNOWN, AMBIGUOUS, LSDBS, LSCOLLS, CHCOLL, COUNT, UPDATE, INSERT, REMOVE, FIND, AGQUERY, HELP };
+enum cmd { ILLEGAL = -1, UNKNOWN, AMBIGUOUS, LSDBS, LSCOLLS, CHCOLL, COUNT, UPDATE, UPSERT, INSERT, REMOVE, FIND, AGQUERY, HELP };
 enum errors { DBMISSING = 256, COLLMISSING };
 
 #define NCMDS (sizeof cmds / sizeof cmds[0])
@@ -80,6 +80,7 @@ const char *cmds[] = {
   "ls",           /* LSDBS or LSCOLLS */
   "count",        /* COUNT */
   "update",       /* UPDATE */
+  "upsert",       /* UPSERT */
   "insert",       /* INSERT */
   "remove",       /* REMOVE */
   "find",         /* FIND */
@@ -107,7 +108,7 @@ int exec_lsdbs(mongoc_client_t *client);
 int exec_lscolls(mongoc_client_t *client, char *dbname);
 int exec_chcoll(mongoc_client_t *client, const path_t newpath);
 int exec_count(mongoc_collection_t *collection, const char *line, int len);
-int exec_update(mongoc_collection_t *collection, const char *line);
+int exec_update(mongoc_collection_t *collection, const char *line, int upsert);
 int exec_insert(mongoc_collection_t *collection, const char *line, int len);
 int exec_remove(mongoc_collection_t *collection, const char *line, int len);
 int exec_query(mongoc_collection_t *collection, const char *line, int len);
@@ -515,6 +516,9 @@ int parse_cmd(int argc, const char *argv[], const char *line, char **lp)
   } else if (strcmp("update", cmd) == 0) {
     *lp = strstr(line, argv[0]) + strlen(argv[0]);
     return UPDATE;
+  } else if (strcmp("upsert", cmd) == 0) {
+    *lp = strstr(line, argv[0]) + strlen(argv[0]);
+    return UPSERT;
   } else if (strcmp("insert", cmd) == 0) {
     *lp = strstr(line, argv[0]) + strlen(argv[0]);
     return INSERT;
@@ -556,7 +560,9 @@ int exec_cmd(const int cmd, const char **argv, const char *line, int linelen)
   case COUNT:
     return exec_count(ccoll, line, linelen);
   case UPDATE:
-    return exec_update(ccoll, line);
+    return exec_update(ccoll, line, 0);
+  case UPSERT:
+    return exec_update(ccoll, line, 1);
   case INSERT:
     return exec_insert(ccoll, line, linelen);
   case REMOVE:
@@ -671,13 +677,17 @@ int exec_count(mongoc_collection_t *collection, const char *line, int len)
 }
 
 // parse update command, expect two json objects, a selector, and an update doc and exec
-int exec_update(mongoc_collection_t *collection, const char *line)
+int exec_update(mongoc_collection_t *collection, const char *line, int upsert)
 {
   long offset;
   char query_doc[MAXDOC];
   char update_doc[MAXDOC];
   bson_error_t error;
   bson_t query, update;
+
+  int opts = MONGOC_UPDATE_MULTI_UPDATE;
+  if (upsert)
+    opts |= MONGOC_UPDATE_UPSERT;
 
   // read first json object
   if ((offset = parse_selector(query_doc, MAXDOC, line, strlen(line))) == -1)
@@ -712,7 +722,7 @@ int exec_update(mongoc_collection_t *collection, const char *line)
   }
 
   // execute update
-  if (!mongoc_collection_update(collection, MONGOC_UPDATE_MULTI_UPDATE, &query, &update, NULL, &error)) {
+  if (!mongoc_collection_update(collection, opts, &query, &update, NULL, &error)) {
     warnx("%s", error.message);
     return -1;
   }

@@ -122,6 +122,8 @@ echo "bind -v" >> ~/.editrc
   is selected, change to database `arg`
 * `count selector` count the number of documents in the current collection
 * `update selector doc` update all documents that match `selector` using `doc`
+* `upsert selector doc` update or insert document that matches `selector` using
+  `doc`
 * `insert doc` insert given document `doc`
 * `remove selector` remove all documents that match `selector`
 * `find [selector]` query current collection using the optional selector, see
