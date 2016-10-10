@@ -50,19 +50,23 @@
 
 static char progname[MAXPROG];
 
-static char dbname[MAXDBNAME] = "";
-static char collname[MAXCOLLNAME] = "";
-
 /* shell specific user info */
 typedef struct {
   char name[MAXUSERNAME];
   char home[PATH_MAX];
 } user_t;
 
+typedef struct {
+  char dbname[MAXDBNAME];
+  char collname[MAXCOLLNAME];
+} path_t;
+
 /* mongo specific db info */
 typedef struct {
   char url[MAXMONGOURL];
 } config_t;
+
+static path_t path;
 
 enum cmd { ILLEGAL = -1, UNKNOWN, AMBIGUOUS, LSDBS, LSCOLLS, CHCOLL, COUNT, UPDATE, INSERT, REMOVE, FIND, AGQUERY, HELP };
 enum errors { DBMISSING = 256, COLLMISSING };
@@ -90,16 +94,17 @@ static char **list_match = NULL; /* contains all ambiguous prefix_match commands
 static char pmpt[MAXPROMPT + 1] = "> ";
 char *prompt();
 int init_user(user_t *usr);
-int set_prompt(char *dbname, char *collname);
+int set_prompt(const char *dbname, const char *collname);
 int read_config(user_t *usr, config_t *cfg);
 int idtosel(char *doc, const size_t docsize, const char *sel, const size_t sellen);
 long parse_selector(char *doc, size_t docsize, const char *line, int len);
+int parse_path(const char *path, path_t *newpath);
 int parse_file(FILE *fp, char *line, config_t *cfg);
 int parse_cmd(int argc, const char *argv[], const char *line, char **lp);
 int exec_cmd(const int cmd, const char **argv, const char *line, int linelen);
 int exec_lsdbs(mongoc_client_t *client);
 int exec_lscolls(mongoc_client_t *client, char *dbname);
-int exec_chcoll(mongoc_client_t *client, const char *newname);
+int exec_chcoll(mongoc_client_t *client, const path_t newpath);
 int exec_count(mongoc_collection_t *collection, const char *line, int len);
 int exec_update(mongoc_collection_t *collection, const char *line);
 int exec_insert(mongoc_collection_t *collection, const char *line, int len);
@@ -108,7 +113,7 @@ int exec_query(mongoc_collection_t *collection, const char *line, int len);
 int exec_agquery(mongoc_collection_t *collection, const char *line, int len);
 
 static mongoc_client_t *client;
-static mongoc_collection_t *ccoll; // current collection
+static mongoc_collection_t *ccoll = NULL; // current collection
 
 void usage(void)
 {
@@ -127,6 +132,7 @@ int main(int argc, char **argv)
   History *h;
   HistEvent he;
   Tokenizer *t;
+  path_t newpath = { "", "" };
 
   char connect_url[MAXMONGOURL] = "mongodb://localhost:27017";
 
@@ -187,9 +193,12 @@ int main(int argc, char **argv)
   if ((client = mongoc_client_new(connect_url)) == NULL)
     errx(1, "can't connect to mongo");
 
-  ccoll = NULL;
-  if (argc == 1)
-    exec_chcoll(client, argv[0]);
+  if (argc == 1) {
+    if (parse_path(argv[0], &newpath) < 0)
+      errx(1, "illegal path spec");
+    if (exec_chcoll(client, newpath) < 0)
+      errx(1, "can't change database or collection");
+  }
 
   while ((line = el_gets(e, &read)) != NULL) {
     if (read > MAXLINE)
@@ -350,6 +359,76 @@ long parse_selector(char *doc, size_t docsize, const char *line, int len)
   return offset;
 }
 
+/*
+ * Parse path that consists of a database name and or a collection name. Support
+ * both absolute and relative paths.
+ * Relative depends on wheter or not a db and collection are set in newpath.
+ * Absolute always starts with a / followed by a database name.
+ * path must be null terminated.
+ * return 0 on success, -1 on failure.
+ */
+int
+parse_path(const char *path, path_t *newpath)
+{
+  int i, ac;
+  const char **av;
+  Tokenizer *t;
+
+  if (!strlen(path))
+    return 0;
+
+  t = tok_init("/");
+  tok_str(t, path, &ac, &av);
+
+  /* check if this is an absolute or a relative path */
+  if (path[0] == '/') {
+    /* absolute */
+    /* reset db and collection selection */
+    if (strlcpy(newpath->dbname, "", MAXDBNAME) > MAXDBNAME)
+      goto cleanupexit;
+    if (strlcpy(newpath->collname, "", MAXCOLLNAME) > MAXCOLLNAME)
+      goto cleanupexit;
+
+    if (ac > 0) {
+      /* use first component as the name of the database */
+      if ((i = strlcpy(newpath->dbname, av[0], MAXDBNAME)) > MAXDBNAME)
+        goto cleanupexit;
+
+      /* use everything after the first component as the name of the collection */
+      if (ac > 1) {
+        /* skip db name and it's leading and trailing slash */
+        if ((i = strlcpy(newpath->collname, (char *)path + 1 + i + 1, MAXCOLLNAME)) > MAXCOLLNAME)
+          goto cleanupexit;
+      }
+    }
+  } else {
+    // relative
+    if (strlen(newpath->collname) || strlen(newpath->dbname)) {
+      /* use whole path as the name of the new collection */
+      if ((i = strlcpy(newpath->collname, path, MAXCOLLNAME)) > MAXCOLLNAME)
+        goto cleanupexit;
+    } else {
+      /* no current dbname or collname set, use first component as the name of the database */
+      if ((i = strlcpy(newpath->dbname, av[0], MAXDBNAME)) > MAXDBNAME)
+        goto cleanupexit;
+
+      /* use everything after the first component as the name of the collection */
+      if (ac > 1) {
+        /* skip db name and it's leading and trailing slash */
+        if ((i = strlcpy(newpath->collname, (char *)path + i + 1, MAXCOLLNAME)) > MAXCOLLNAME)
+          goto cleanupexit;
+      }
+    }
+  }
+
+  tok_end(t);
+  return 0;
+
+cleanupexit:
+  tok_end(t);
+  return -1;
+}
+
 // return command code
 int parse_cmd(int argc, const char *argv[], const char *line, char **lp)
 {
@@ -404,9 +483,9 @@ int parse_cmd(int argc, const char *argv[], const char *line, char **lp)
   /* all the other commands need a database and collection
      to be selected */
 
-  if (!strlen(dbname))
+  if (!strlen(path.dbname))
     return DBMISSING;
-  if (!strlen(collname))
+  if (!strlen(path.collname))
     return COLLMISSING;
 
   if (strcmp("count", cmd) == 0) {
@@ -436,15 +515,23 @@ int parse_cmd(int argc, const char *argv[], const char *line, char **lp)
 // return 0 on success, -1 on failure
 int exec_cmd(const int cmd, const char **argv, const char *line, int linelen)
 {
+  path_t tmppath;
+
   switch (cmd) {
   case LSDBS:
     return exec_lsdbs(client);
   case ILLEGAL:
     break;
   case LSCOLLS:
-    return exec_lscolls(client, dbname);
+    return exec_lscolls(client, path.dbname);
   case CHCOLL:
-    return exec_chcoll(client, argv[1]);
+    if (strlcpy(tmppath.dbname, path.dbname, MAXDBNAME) > MAXDBNAME)
+      return -1;
+    if (strlcpy(tmppath.collname, path.collname, MAXCOLLNAME) > MAXCOLLNAME)
+      return -1;
+    if (parse_path(argv[1], &tmppath) < 0)
+      return -1;
+    return exec_chcoll(client, tmppath);
   case COUNT:
     return exec_count(ccoll, line, linelen);
   case UPDATE:
@@ -507,53 +594,31 @@ int exec_lscolls(mongoc_client_t *client, char *dbname)
   return 0;
 }
 
-// change collection and optionally the database
-// return 0 on success, -1 on failure
-int exec_chcoll(mongoc_client_t *client, const char *newname)
+/*
+ * change dbname and/or collname, set ccoll and update prompt.
+ * return 0 on success, -1 on failure
+ */
+int
+exec_chcoll(mongoc_client_t *client, const path_t newpath)
 {
-  int i, ac;
-  const char **av, *collp;
-  char newdb[MAXDBNAME];
-  char newcoll[MAXCOLLNAME];
-  Tokenizer *t;
-
-  // default to current db
-  if (strlcpy(newdb, dbname, MAXDBNAME) > MAXDBNAME)
-    return -1;
-
-  // assume newname has no database component
-  collp = newname;
-
-  // check if there is a database component
-  if (newname[0] == '/') {
-    t = tok_init("/");
-    tok_str(t, newname, &ac, &av);
-    if (ac > 1) { // use first component as the name of the database
-      if ((i = strlcpy(newdb, av[0], MAXDBNAME)) > MAXDBNAME)
-        return -1;
-      collp += 1 + i + 1; // skip db name and it's leading and trailing slash
-    }
-    tok_end(t);
+  /* unset current collection */
+  if (ccoll != NULL) {
+    mongoc_collection_destroy(ccoll);
+    ccoll = NULL;
   }
 
-  // ensure there is a known database
-  if (!strlen(newdb))
-    return -1;
+  /* if there is a new collection, change to it */
+  if (strlen(newpath.dbname) && strlen(newpath.dbname))
+    ccoll = mongoc_client_get_collection(client, newpath.dbname, newpath.collname);
 
-  if (strlcpy(newcoll, collp, MAXCOLLNAME) > MAXCOLLNAME)
-    return -1;
+  /* update prompt to show whatever we've changed to */
+  set_prompt(newpath.dbname, newpath.collname);
 
-  if (ccoll != NULL)
-    mongoc_collection_destroy(ccoll);
-  ccoll = mongoc_client_get_collection(client, newdb, newcoll);
-
-  // update references
-  if (strlcpy(dbname, newdb, MAXDBNAME) > MAXDBNAME)
+  /* update global references */
+  if (strlcpy(path.dbname, newpath.dbname, MAXDBNAME) > MAXDBNAME)
     return -1;
-  if (strlcpy(collname, newcoll, MAXCOLLNAME) > MAXCOLLNAME)
+  if (strlcpy(path.collname, newpath.collname, MAXCOLLNAME) > MAXCOLLNAME)
     return -1;
-
-  set_prompt(newdb, newcoll);
 
   return 0;
 }
@@ -795,14 +860,16 @@ char *prompt()
 // if too long, shorten first or both components
 // global pmpt should have space for MAXPROMPT + 1 bytes
 int
-set_prompt(char *dbname, char *collname)
+set_prompt(const char *dbname, const char *collname)
 {
   const int static_chars = 4; /* prompt is of the form "/d/c> " */
   char c1[MAXPROMPT + 1], c2[MAXPROMPT + 1];
   int plen;
 
-  strlcpy(c1, dbname, MAXPROMPT);
-  strlcpy(c2, collname, MAXPROMPT);
+  if (strlcpy(c1, dbname, MAXPROMPT) > MAXPROMPT)
+    return -1;
+  if (strlcpy(c2, collname, MAXPROMPT) > MAXPROMPT)
+    return -1;
 
   plen = static_chars + strlen(c1) + strlen(c2);
 
