@@ -91,7 +91,7 @@ static user_t user;
 static config_t config;
 static char **list_match = NULL; /* contains all ambiguous prefix_match commands */
 
-static char pmpt[MAXPROMPT + 1] = "> ";
+static char pmpt[MAXPROMPT + 1] = "/> ";
 char *prompt();
 int init_user(user_t *usr);
 int set_prompt(const char *dbname, const char *collname);
@@ -900,7 +900,13 @@ set_prompt(const char *dbname, const char *collname)
     if (shorten_comps(c1, c2, MAXPROMPT - static_chars) < 0)
       errx(1, "can't initialize prompt");
 
-  snprintf(pmpt, MAXPROMPT + 1, "/%s/%s> ", c1, c2);
+  if (strlen(c1) && strlen(c2))
+    snprintf(pmpt, MAXPROMPT + 1, "/%s/%s> ", c1, c2);
+  else if (strlen(c1))
+    snprintf(pmpt, MAXPROMPT + 1, "/%s> ", c1);
+  else
+    snprintf(pmpt, MAXPROMPT + 1, "/> ");
+
   return 0;
 }
 
