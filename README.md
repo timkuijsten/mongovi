@@ -113,25 +113,25 @@ echo "bind -v" >> ~/.editrc
 
 ## Commands
 
-* `ls` when no database is selected, list all databases otherwise list all
-  collections in the currently selected database
+* `aggregate [...]` aggregation pipeline, see [aggregation operators]
 * `cd /db/coll` change database to `db` and collection to `coll`
 * `cd /db` change to database `db`
 * `cd arg` if a database is selected, change to collection `arg`, if no database
   is selected, change to database `arg`
+* `collections` list all collections in the current database, alias for ls with
+  selected database
 * `count selector` count the number of documents in the current collection
+* `databases` list all databases, alias for ls without selected database
+* `find [selector]` query current collection using the optional selector, see
+  [query operators]
+* `help` print all commands
+* `insert doc` insert given document `doc`
+* `ls` when no database is selected, list all databases otherwise list all
+  collections in the currently selected database
+* `remove selector` remove all documents that match `selector`
 * `update selector doc` update all documents that match `selector` using `doc`
 * `upsert selector doc` update or insert document that matches `selector` using
   `doc`
-* `insert doc` insert given document `doc`
-* `remove selector` remove all documents that match `selector`
-* `find [selector]` query current collection using the optional selector, see
-  [query operators]
-* `aggregate [...]` aggregation pipeline, see [aggregation operators]
-* `help` print all commands
-* `databases` list all databases, alias for ls without selected database
-* `collections` list all collections in the current database, alias for ls with
-  selected database
 
 Any command can be abbreviated to the shortest non-ambiguous form. So `find` can
 also be written as `f` since no other command starts with an f.

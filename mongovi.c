@@ -74,18 +74,18 @@ enum errors { DBMISSING = 256, COLLMISSING };
 #define NCMDS (sizeof cmds / sizeof cmds[0])
 
 const char *cmds[] = {
-  "databases",    /* LSDBS,   list all databases */
-  "collections",  /* LSCOLLS, list all collections */
+  "aggregate",    /* AGQUERY */
   "cd",           /* CHCOLL,  change database and/or collection */
-  "ls",           /* LSDBS or LSCOLLS */
+  "collections",  /* LSCOLLS, list all collections */
   "count",        /* COUNT */
+  "databases",    /* LSDBS,   list all databases */
+  "find",         /* FIND */
+  "help",         /* print usage */
+  "insert",       /* INSERT */
+  "ls",           /* LSDBS or LSCOLLS */
+  "remove",       /* REMOVE */
   "update",       /* UPDATE */
   "upsert",       /* UPSERT */
-  "insert",       /* INSERT */
-  "remove",       /* REMOVE */
-  "find",         /* FIND */
-  "aggregate",    /* AGQUERY */
-  "help",         /* print usage */
   NULL            /* nul terminate this list */
 };
 
