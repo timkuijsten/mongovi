@@ -9,16 +9,18 @@ Status: **alpha**, only use it if you're not afraid to dive into the source code
 * [MongoDB C Driver] 1.4.0
 * [editline(3)] ships with OS X
 
-Only tested with OS X 10.11, Ubuntu 12.04 and 14.04.
+mongovi is primarily developed and tested with OS X 10.11 and Ubuntu 12.04.
 
 
 ## Installation
 
-OS X ships with editline, on Ubuntu you have to manually install this:
+### OS X, Ubuntu 12.04 and 14.04
+
+On Ubuntu you first have to install libedit.
 
     $ sudo apt-get install libedit-dev
 
-On OS X 10.11, Ubuntu 12.04 and Ubuntu 14.04, install the mongoc and bson libraries:
+On both OS X and Ubuntu you have to manually install libmongoc and libbson:
 
     $ curl -LO https://github.com/mongodb/mongo-c-driver/releases/download/1.4.0/mongo-c-driver-1.4.0.tar.gz
     $ sha256sum mongo-c-driver-1.4.0.tar.gz    # only proceed if this checksum matches
@@ -29,19 +31,15 @@ On OS X 10.11, Ubuntu 12.04 and Ubuntu 14.04, install the mongoc and bson librar
     $ make
     $ sudo make install
 
-On Ubuntu 16.04:
-
-I'm currently not testing on Ubuntu 16.04 myself, but since this version ships
-with libmongoc it should be easier in the future to install mongovi.
-
-    $ sudo apt-get install libmongoc-dev libbson-dev
-
-Now download mongovi, remove the local path components to libbson and libmongoc
-in the Makefile and then compile and install.
-
     $ git clone https://github.com/timkuijsten/mongovi.git
     $ cd mongovi
-    $ # edit Makefile
+    $ make
+
+### Ubuntu 16.04
+
+    $ sudo apt-get install libedit-dev libmongoc-dev libbson-dev
+    $ git clone https://github.com/timkuijsten/mongovi.git
+    $ cd mongovi
     $ make
 
 

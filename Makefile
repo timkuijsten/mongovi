@@ -10,7 +10,7 @@ ifeq (${OS},Darwin)
 COMPAT=reallocarray.o
 endif
 
-INCDIR=-I/usr/local/include/libbson-1.0/ -I/usr/local/include/libmongoc-1.0/
+INCDIR=-I/usr/include/libbson-1.0/ -I/usr/include/libmongoc-1.0/ -I/usr/local/include/libbson-1.0/ -I/usr/local/include/libmongoc-1.0/
 
 CFLAGS=-Wall -Wextra ${INCDIR}
 LDFLAGS=-lmongoc-1.0 -lbson-1.0 -ledit
