@@ -2,25 +2,26 @@
 
 mongovi is a cli for MongoDB that uses libedit for line editing and [key bindings].
 
-Status: **alpha**, only use it if you're not afraid to dive into the source code.
+Status: **alpha**, only use it if you have backups and are not afraid to dive
+into the source code.
 
 
 ## Requirements:
 * [MongoDB C Driver] 1.4.0
 * [editline(3)] ships with OS X
 
-mongovi is primarily developed and tested with OS X 10.11 and Ubuntu 12.04.
+mongovi is primarily developed and tested with OS X 10.11, Debian 8 and Ubuntu 12.04.
 
 
 ## Installation
 
-### OS X, Ubuntu 12.04 and 14.04
+### OS X, Debian 8, Ubuntu 12.04 and 14.04
 
-On Ubuntu you first have to install libedit.
+On Debian and Ubuntu first install libedit:
 
     $ sudo apt-get install libedit-dev
 
-On both OS X and Ubuntu you have to manually install libmongoc and libbson:
+On OS X, Debian and Ubuntu install libmongoc and libbson:
 
     $ curl -LO https://github.com/mongodb/mongo-c-driver/releases/download/1.4.0/mongo-c-driver-1.4.0.tar.gz
     $ sha256sum mongo-c-driver-1.4.0.tar.gz    # only proceed if this checksum matches
