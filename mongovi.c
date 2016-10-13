@@ -668,14 +668,14 @@ int exec_count(mongoc_collection_t *collection, const char *line, int len)
 
   // try to parse it as json and convert to bson
   if (!bson_init_from_json(&query, query_doc, -1, &error)) {
-    warnx("%s", error.message);
+    warnx("%d.%d %s", error.domain, error.code, error.message);
     return -1;
   }
 
   if ((count = mongoc_collection_count(collection, MONGOC_QUERY_NONE, &query, 0, 0, NULL, &error)) == -1)
-    warnx("cursor failed: %s", error.message);
+    warnx("cursor failed: %d.%d %s", error.domain, error.code, error.message);
 
-  printf("%ld\n", count);
+  printf("%lld\n", count);
 
   return 0;
 }
@@ -689,7 +689,7 @@ int exec_update(mongoc_collection_t *collection, const char *line, int upsert)
   bson_error_t error;
   bson_t query, update;
 
-  int opts = MONGOC_UPDATE_MULTI_UPDATE;
+  int opts = MONGOC_UPDATE_NONE;
   if (upsert)
     opts |= MONGOC_UPDATE_UPSERT;
 
@@ -715,20 +715,28 @@ int exec_update(mongoc_collection_t *collection, const char *line, int upsert)
 
   // try to parse the query as json and convert to bson
   if (!bson_init_from_json(&query, query_doc, -1, &error)) {
-    warnx("%s", error.message);
+    warnx("%d.%d %s", error.domain, error.code, error.message);
     return -1;
   }
 
   // try to parse the update as json and convert to bson
   if (!bson_init_from_json(&update, update_doc, -1, &error)) {
-    warnx("%s", error.message);
+    warnx("%d.%d %s", error.domain, error.code, error.message);
     return -1;
   }
 
-  // execute update
-  if (!mongoc_collection_update(collection, opts, &query, &update, NULL, &error)) {
-    warnx("%s", error.message);
-    return -1;
+  /* execute update, always try with multi first, and if that fails, without */
+  if (!mongoc_collection_update(collection, opts | MONGOC_UPDATE_MULTI_UPDATE, &query, &update, NULL, &error)) {
+    /* if error is "multi update only works with $ operators", retry without MULTI */
+    if (error.domain == MONGOC_ERROR_COMMAND && error.code == MONGOC_ERROR_CLIENT_TOO_SMALL) {
+      if (!mongoc_collection_update(collection, opts, &query, &update, NULL, &error)) {
+        warnx("%d.%d %s", error.domain, error.code, error.message);
+        return -1;
+      }
+    } else {
+      warnx("%d.%d %s", error.domain, error.code, error.message);
+      return -1;
+    }
   }
 
   return 0;
@@ -750,13 +758,13 @@ int exec_insert(mongoc_collection_t *collection, const char *line, int len)
 
   // try to parse the doc as json and convert to bson
   if (!bson_init_from_json(&doc, insert_doc, -1, &error)) {
-    warnx("%s", error.message);
+    warnx("%d.%d %s", error.domain, error.code, error.message);
     return -1;
   }
 
   // execute insert
   if (!mongoc_collection_insert(collection, MONGOC_INSERT_NONE, &doc, NULL, &error)) {
-    warnx("%s", error.message);
+    warnx("%d.%d %s", error.domain, error.code, error.message);
     return -1;
   }
 
@@ -779,13 +787,13 @@ int exec_remove(mongoc_collection_t *collection, const char *line, int len)
 
   // try to parse the doc as json and convert to bson
   if (!bson_init_from_json(&doc, remove_doc, -1, &error)) {
-    warnx("%s", error.message);
+    warnx("%d.%d %s", error.domain, error.code, error.message);
     return -1;
   }
 
   // execute remove
   if (!mongoc_collection_remove(collection, MONGOC_REMOVE_NONE, &doc, NULL, &error)) {
-    warnx("%s", error.message);
+    warnx("%d.%d %s", error.domain, error.code, error.message);
     return -1;
   }
 
@@ -811,7 +819,7 @@ int exec_query(mongoc_collection_t *collection, const char *line, int len)
 
   // try to parse it as json and convert to bson
   if (!bson_init_from_json(&query, query_doc, -1, &error)) {
-    warnx("%s", error.message);
+    warnx("%d.%d %s", error.domain, error.code, error.message);
     return -1;
   }
 
@@ -834,7 +842,7 @@ int exec_query(mongoc_collection_t *collection, const char *line, int len)
   }
 
   if (mongoc_cursor_error(cursor, &error)) {
-    warnx("cursor failed: %s", error.message);
+    warnx("cursor failed: %d.%d %s", error.domain, error.code, error.message);
     mongoc_cursor_destroy(cursor);
     return -1;
   }
@@ -864,7 +872,7 @@ int exec_agquery(mongoc_collection_t *collection, const char *line, int len)
 
   // try to parse it as json and convert to bson
   if (!bson_init_from_json(&aggr_query, query_doc, -1, &error)) {
-    warnx("%s", error.message);
+    warnx("%d.%d %s", error.domain, error.code, error.message);
     return -1;
   }
 
@@ -877,7 +885,7 @@ int exec_agquery(mongoc_collection_t *collection, const char *line, int len)
   }
 
   if (mongoc_cursor_error(cursor, &error)) {
-    warnx("cursor failed: %s", error.message);
+    warnx("cursor failed: %d.%d %s", error.domain, error.code, error.message);
     mongoc_cursor_destroy(cursor);
     return -1;
   }
