@@ -206,6 +206,9 @@ int main(int argc, char **argv)
     if (read > MAXLINE)
       errx(1, "line too long");
 
+    if (read == 0)
+      goto done; /* happens on Ubuntu 12.04 without tty */
+
     if (line[read - 1] != '\n')
       errx(1, "expected line to end with a newline");
 
@@ -260,6 +263,7 @@ int main(int argc, char **argv)
       warnx("execution failed");
   }
 
+ done:
   if (read == -1)
     err(1, NULL);
 
@@ -671,7 +675,7 @@ int exec_count(mongoc_collection_t *collection, const char *line, int len)
   if ((count = mongoc_collection_count(collection, MONGOC_QUERY_NONE, &query, 0, 0, NULL, &error)) == -1)
     warnx("cursor failed: %s", error.message);
 
-  printf("%lld\n", count);
+  printf("%ld\n", count);
 
   return 0;
 }
