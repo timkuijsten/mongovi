@@ -46,7 +46,7 @@
                          if MAXPROMPT = 12 then "/dbname/collname> " would
                          become "/d..e/c..e> " */
 #define MAXPROG 10
-#define MAXDOC 16 * 10 * 1024      /* maximum size of a json document */
+#define MAXDOC 16 * 100 * 1024      /* maximum size of a json document */
 
 static char progname[MAXPROG];
 
