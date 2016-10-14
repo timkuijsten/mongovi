@@ -148,13 +148,6 @@ If this file exists, the first line is read and expected to be a valid mongodb
 [connection string], possibly containing a username and password.
 
 
-## Wish list
-
-Things that would be nice but are not implemented:
-* edit docs with $EDITOR
-* tab completion
-
-
 ## Tests
 
     $ make test
