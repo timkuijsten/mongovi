@@ -95,6 +95,7 @@ static char **list_match = NULL; /* contains all ambiguous prefix_match commands
 
 static char pmpt[MAXPROMPT + 1] = "/> ";
 char *prompt();
+unsigned char complete(EditLine *e, int ch);
 int init_user(user_t *usr);
 int set_prompt(const char *dbname, const char *collname);
 int read_config(user_t *usr, config_t *cfg);
@@ -188,7 +189,12 @@ int main(int argc, char **argv)
   el_set(e, EL_PROMPT, prompt);
   el_set(e, EL_EDITOR, "emacs");
   el_set(e, EL_TERMINAL, NULL);
+
+  /* load user defaults */
   el_source(e, NULL);
+
+  el_set(e, EL_ADDFN, "complete", "Context sensitive argument completion", complete);
+  el_set(e, EL_BIND, "\t", "complete", NULL);
 
   // setup mongo
   mongoc_init();
@@ -282,6 +288,112 @@ int main(int argc, char **argv)
     printf("\n");
 
   return 0;
+}
+
+/*
+ * tab complete command line
+ *
+ * if empty, print all commands
+ * if matches more than one command, print all
+ * if matches exactly one command and not complete, complete
+ * if command is complete and needs args, look at that
+ */
+unsigned char
+complete(EditLine *e, int ch)
+{
+  const char *cmd;
+  const LineInfo *li;
+  Tokenizer *t;
+  const char **av;
+  int i, ret, ac, cc, co;
+  size_t len, cmdlen;
+
+  /* default exit code to error */
+  ret = CC_ERROR;
+
+  li = el_line(e);
+
+  /* tokenize */
+  t = tok_init(NULL);
+  tok_line(t, li, &ac, &av, &cc, &co);
+
+  if (ac == 0) {
+    i = 0;
+    printf("\n");
+    while (cmds[i] != NULL)
+      printf("%s\n", cmds[i++]);
+    ret = CC_REDISPLAY;
+    goto cleanup;
+  }
+
+  /*
+   * only complete if on the first word, which is a command, ignore arguments
+   * for now
+   */
+  if (cc > 0) {
+    ret = CC_NORM;
+    goto cleanup;
+  }
+
+  /* check if the first token matches one or more commands */
+  if (prefix_match(&list_match, cmds, av[0]) == -1)
+    errx(1, "prefix_match error");
+
+  /* unknown prefix */
+  if (list_match[0] == NULL) {
+    ret = CC_ERROR;
+    goto cleanup;
+  }
+
+  /* matches more than one command, print list_match */
+  if (list_match[1] != NULL) {
+    i = 0;
+    printf("\n");
+    while (list_match[i] != NULL)
+      printf("%s\n", list_match[i++]);
+    ret = CC_REDISPLAY;
+    goto cleanup;
+  }
+
+  /* matches exactly one command from cmds */
+  cmd = list_match[0];
+
+  /* complete the command if it's not complete yet
+   * but only if the cursor is on a blank */
+  cmdlen = strlen(cmd);
+  if (cmdlen > strlen(av[0])) {
+    switch (av[cc][co]) {
+    case ' ':
+    case '\0':
+    case '\n':
+    case '\t':
+      if (el_insertstr(e, cmd + strlen(av[0])) < 0)
+        goto cleanup;
+      if (el_insertstr(e, " ") < 0)
+        goto cleanup;
+      ret = CC_REDISPLAY;
+      goto cleanup;
+    }
+  }
+
+  /* make sure the command is followed by a blank if the cursor is at the end
+   * of the command */
+  if (li->cursor < li->buffer)
+    goto cleanup;
+  len = li->cursor - li->buffer;
+  if (len >= MAXLINE)
+    goto cleanup;
+
+  if (len == cmdlen) {
+    if (el_insertstr(e, " ") < 0)
+      goto cleanup;
+    ret = CC_REDISPLAY;
+  }
+
+ cleanup:
+  tok_end(t);
+
+  return ret;
 }
 
 /*
