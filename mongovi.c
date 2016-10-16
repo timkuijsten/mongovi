@@ -72,6 +72,7 @@ enum cmd { ILLEGAL = -1, UNKNOWN, AMBIGUOUS, LSDBS, LSCOLLS, CHCOLL, COUNT, UPDA
 enum errors { DBMISSING = 256, COLLMISSING };
 
 #define NCMDS (sizeof cmds / sizeof cmds[0])
+#define MAXCMDNAM (sizeof cmds) /* broadly define maximum length of a command name */
 
 const char *cmds[] = {
   "aggregate",    /* AGQUERY */
@@ -96,6 +97,7 @@ static char **list_match = NULL; /* contains all ambiguous prefix_match commands
 static char pmpt[MAXPROMPT + 1] = "/> ";
 char *prompt();
 unsigned char complete(EditLine *e, int ch);
+int complete_cmd(EditLine *e, const char *tok, int co, char *found, size_t foundsize);
 int init_user(user_t *usr);
 int set_prompt(const char *dbname, const char *collname);
 int read_config(user_t *usr, config_t *cfg);
@@ -294,19 +296,23 @@ int main(int argc, char **argv)
  * tab complete command line
  *
  * if empty, print all commands
- * if matches more than one command, print all
+ * if matches more than one command, print all with matching prefix
  * if matches exactly one command and not complete, complete
  * if command is complete and needs args, look at that
  */
 unsigned char
 complete(EditLine *e, int ch)
 {
-  const char *cmd;
+  char cmd[MAXCMDNAM];
   const LineInfo *li;
   Tokenizer *t;
   const char **av;
   int i, ret, ac, cc, co;
   size_t len, cmdlen;
+
+  /* make sure strlen can be run on cmd */
+  cmd[0] = '\0';
+  cmdlen = 0;
 
   /* default exit code to error */
   ret = CC_ERROR;
@@ -317,6 +323,7 @@ complete(EditLine *e, int ch)
   t = tok_init(NULL);
   tok_line(t, li, &ac, &av, &cc, &co);
 
+  /* empty, print all commands */
   if (ac == 0) {
     i = 0;
     printf("\n");
@@ -326,54 +333,20 @@ complete(EditLine *e, int ch)
     goto cleanup;
   }
 
-  /*
-   * only complete if on the first word, which is a command, ignore arguments
-   * for now
-   */
-  if (cc > 0) {
+  switch (cc) {
+  case 0: /* on command */
+    if (complete_cmd(e, av[cc], co, cmd, MAXCMDNAM) < 0)
+      goto cleanup;
+    cmdlen = strlen(cmd);
+    ret = CC_REDISPLAY;
+    break;
+  case 1: /* XXX on argument */
     ret = CC_NORM;
     goto cleanup;
-  }
-
-  /* check if the first token matches one or more commands */
-  if (prefix_match(&list_match, cmds, av[0]) == -1)
-    errx(1, "prefix_match error");
-
-  /* unknown prefix */
-  if (list_match[0] == NULL) {
-    ret = CC_ERROR;
+  default:
+    /* ignore subsequent words */
+    ret = CC_NORM;
     goto cleanup;
-  }
-
-  /* matches more than one command, print list_match */
-  if (list_match[1] != NULL) {
-    i = 0;
-    printf("\n");
-    while (list_match[i] != NULL)
-      printf("%s\n", list_match[i++]);
-    ret = CC_REDISPLAY;
-    goto cleanup;
-  }
-
-  /* matches exactly one command from cmds */
-  cmd = list_match[0];
-
-  /* complete the command if it's not complete yet
-   * but only if the cursor is on a blank */
-  cmdlen = strlen(cmd);
-  if (cmdlen > strlen(av[0])) {
-    switch (av[cc][co]) {
-    case ' ':
-    case '\0':
-    case '\n':
-    case '\t':
-      if (el_insertstr(e, cmd + strlen(av[0])) < 0)
-        goto cleanup;
-      if (el_insertstr(e, " ") < 0)
-        goto cleanup;
-      ret = CC_REDISPLAY;
-      goto cleanup;
-    }
   }
 
   /* make sure the command is followed by a blank if the cursor is at the end
@@ -395,6 +368,80 @@ complete(EditLine *e, int ch)
 
   return ret;
 }
+
+/*
+ * tab complete command
+ *
+ * if matches more than one command, print all
+ * if matches exactly one command and not complete, complete
+ *
+ * if found is not null, and tok matches exactly one command, found is set to it
+ *
+ * return 0 on success or -1 on failure
+ */
+int
+complete_cmd(EditLine *e, const char *tok, int co, char *found, size_t foundsize)
+{
+  const char *cmd; /* completed command */
+  int i;
+  size_t cmdlen;
+
+  /* check if cmd matches one or more commands */
+  if (prefix_match(&list_match, cmds, tok) == -1)
+    errx(1, "prefix_match error");
+
+  /* unknown prefix */
+  if (list_match[0] == NULL)
+    return 0;
+
+  /* matches more than one command, print list_match */
+  if (list_match[1] != NULL) {
+    i = 0;
+    printf("\n");
+    while (list_match[i] != NULL)
+      printf("%s\n", list_match[i++]);
+    return 0;
+  }
+
+  /* matches exactly one command from cmds */
+  cmd = list_match[0];
+
+  if (foundsize > 0)
+    if (strlcpy(found, cmd, foundsize) > foundsize)
+      return -1;
+
+  /* complete the command if it's not complete yet
+   * but only if the cursor is on a blank */
+  cmdlen = strlen(cmd);
+  if (cmdlen > strlen(tok)) {
+    switch (tok[co]) {
+    case ' ':
+    case '\0':
+    case '\n':
+    case '\t':
+      if (el_insertstr(e, cmd + strlen(tok)) < 0)
+        return -1;
+      if (el_insertstr(e, " ") < 0)
+        return -1;
+      break;
+    }
+  }
+
+  return 0;
+}
+
+/*
+ * XXX
+ * tab complete command argument
+ *
+ * if empty, print all arguments
+ * if matches more than one argument, print all with matching prefix
+ * if matches exactly one command and not complete, complete
+ * if command is complete and needs args, look at that
+ *
+ * return 0 on success but no matching command, size of found command if not
+ * ambiguous or -1 on failure
+ */
 
 /*
  * Create a mongo extended JSON id selector document. If selector is 24 hex
