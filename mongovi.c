@@ -839,8 +839,10 @@ int exec_count(mongoc_collection_t *collection, const char *line, int len)
     return -1;
   }
 
-  if ((count = mongoc_collection_count(collection, MONGOC_QUERY_NONE, &query, 0, 0, NULL, &error)) == -1)
+  if ((count = mongoc_collection_count(collection, MONGOC_QUERY_NONE, &query, 0, 0, NULL, &error)) == -1) {
     warnx("cursor failed: %d.%d %s", error.domain, error.code, error.message);
+    return -1;
+  }
 
   printf("%lld\n", count);
 
