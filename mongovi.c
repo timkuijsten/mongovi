@@ -107,7 +107,7 @@ int parse_path(const char *path, path_t *newpath);
 int parse_file(FILE *fp, char *line, config_t *cfg);
 int parse_cmd(int argc, const char *argv[], const char *line, char **lp);
 int exec_cmd(const int cmd, const char **argv, const char *line, int linelen);
-int exec_lsdbs(mongoc_client_t *client);
+int exec_lsdbs(mongoc_client_t *client, const char *prefix);
 int exec_lscolls(mongoc_client_t *client, char *dbname);
 int exec_chcoll(mongoc_client_t *client, const path_t newpath);
 int exec_count(mongoc_collection_t *collection, const char *line, int len);
@@ -707,7 +707,7 @@ int exec_cmd(const int cmd, const char **argv, const char *line, int linelen)
 
   switch (cmd) {
   case LSDBS:
-    return exec_lsdbs(client);
+    return exec_lsdbs(client, NULL);
   case ILLEGAL:
     break;
   case LSCOLLS:
@@ -741,17 +741,25 @@ int exec_cmd(const int cmd, const char **argv, const char *line, int linelen)
 
 // list database for the given client
 // return 0 on success, -1 on failure
-int exec_lsdbs(mongoc_client_t *client)
+int exec_lsdbs(mongoc_client_t *client, const char *prefix)
 {
   bson_error_t error;
   char **strv;
-  int i;
+  int i, prefixlen;
+
+  if (prefix != NULL)
+    prefixlen = strlen(prefix);
 
   if ((strv = mongoc_client_get_database_names(client, &error)) == NULL)
     return -1;
 
   for (i = 0; strv[i]; i++)
-    printf("%s\n", strv[i]);
+    if (prefix == NULL) {
+      printf("%s\n", strv[i]);
+    } else {
+      if (strncmp(prefix, strv[i], prefixlen) == 0)
+        printf("%s\n", strv[i]);
+    }
 
   bson_strfreev(strv);
 
