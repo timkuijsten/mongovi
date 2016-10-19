@@ -750,8 +750,10 @@ int exec_lsdbs(mongoc_client_t *client, const char *prefix)
   if (prefix != NULL)
     prefixlen = strlen(prefix);
 
-  if ((strv = mongoc_client_get_database_names(client, &error)) == NULL)
+  if ((strv = mongoc_client_get_database_names(client, &error)) == NULL) {
+    warnx("cursor failed: %d.%d %s", error.domain, error.code, error.message);
     return -1;
+  }
 
   for (i = 0; strv[i]; i++)
     if (prefix == NULL) {
