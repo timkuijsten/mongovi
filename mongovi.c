@@ -98,6 +98,7 @@ static char pmpt[MAXPROMPT + 1] = "/> ";
 char *prompt();
 unsigned char complete(EditLine *e, int ch);
 int complete_cmd(EditLine *e, const char *tok, int co, char *found, size_t foundsize);
+int complete_path(EditLine *e, const char *tok, int co);
 int init_user(user_t *usr);
 int set_prompt(const char *dbname, const char *collname);
 int read_config(user_t *usr, config_t *cfg);
@@ -310,10 +311,6 @@ complete(EditLine *e, int ch)
   int i, ret, ac, cc, co;
   size_t len, cmdlen;
 
-  /* make sure strlen can be run on cmd */
-  cmd[0] = '\0';
-  cmdlen = 0;
-
   /* default exit code to error */
   ret = CC_ERROR;
 
@@ -333,15 +330,24 @@ complete(EditLine *e, int ch)
     goto cleanup;
   }
 
+  /* init cmd */
+  if (strlcpy(cmd, av[0], MAXCMDNAM) > MAXCMDNAM)
+    goto cleanup;
+
   switch (cc) {
   case 0: /* on command */
-    if (complete_cmd(e, av[cc], co, cmd, MAXCMDNAM) < 0)
+    if (complete_cmd(e, cmd, co, cmd, MAXCMDNAM) < 0)
       goto cleanup;
     cmdlen = strlen(cmd);
     ret = CC_REDISPLAY;
     break;
-  case 1: /* XXX on argument */
-    ret = CC_NORM;
+  case 1: /* on argument, try to complete cd and ls */
+    if (strcmp(cmd, "cd") == 0 || strcmp(cmd, "ls") == 0)
+      if (complete_path(e, ac <= 1 ? "" : av[1], co) < 0) {
+        warnx("complete_path error");
+        goto cleanup;
+      }
+    ret = CC_REDISPLAY;
     goto cleanup;
   default:
     /* ignore subsequent words */
@@ -431,17 +437,193 @@ complete_cmd(EditLine *e, const char *tok, int co, char *found, size_t foundsize
 }
 
 /*
- * XXX
- * tab complete command argument
+ * tab complete path. relative paths depend on current context.
  *
- * if empty, print all arguments
- * if matches more than one argument, print all with matching prefix
- * if matches exactly one command and not complete, complete
- * if command is complete and needs args, look at that
+ * if empty, print all possible arguments
+ * if matches more than one component, print all with matching prefix
+ * if matches exactly one component and not complete, complete
  *
- * return 0 on success but no matching command, size of found command if not
- * ambiguous or -1 on failure
+ * npath is the new path
+ * cp is cursor position in npath
+ * return 0 on success or -1 on failure
  */
+int
+complete_path(EditLine *e, const char *npath, int cp)
+{
+  enum complete { CNONE, CDB, CCOLL };
+  path_t tmppath;
+  char *c, *found;
+  int i;
+  bson_error_t error;
+  char **strv;
+  char **matches = NULL;
+  size_t pathlen;
+  enum complete compl;
+  mongoc_database_t *db;
+
+  if (strlcpy(tmppath.dbname, path.dbname, MAXDBNAME) > MAXDBNAME)
+    return -1;
+  if (strlcpy(tmppath.collname, path.collname, MAXCOLLNAME) > MAXCOLLNAME)
+    return -1;
+
+  if (parse_path(npath, &tmppath) < 0)
+    errx(1, "illegal path spec");
+
+  compl = CNONE;
+
+  /* figure out if either the database or the collection has to be completed */
+  if (npath[0] == '/') {
+    /* complete absolute path
+     * complete db, unless another "/" is found and the cursor is on or after
+     * it.
+     */
+    compl = CDB;
+    if ((c = strchr(npath + 1, '/')) != NULL) {
+      i = c - npath;
+      if (i <= cp)
+        compl = CCOLL;
+    }
+  } else {
+    /* relative path, check current context */
+    if (strlen(path.collname) || strlen(path.dbname)) {
+      compl = CCOLL;
+    } else {
+      /* complete db, unless another "/" is found and the cursor is on or after
+       * it.
+       */
+      compl = CDB;
+      if ((c = strchr(npath, '/')) != NULL) {
+        i = c - npath;
+        if (i <= cp)
+          compl = CCOLL;
+      }
+    }
+  }
+
+  switch (compl) {
+  case CDB: /* complete database */
+    /* if tmppath.dbname is empty, print all databases */
+    if (!strlen(tmppath.dbname)) {
+      printf("\n");
+      return exec_lsdbs(client, NULL);
+    }
+
+    /* otherwise get a list of matching prefixes */
+    if ((strv = mongoc_client_get_database_names(client, &error)) == NULL)
+      errx(1, "%d.%d %s", error.domain, error.code, error.message);
+
+    /* check if this matches one or more entries */
+    if (prefix_match(&matches, strv, tmppath.dbname) == -1)
+      errx(1, "prefix_match error");
+
+    /* unknown prefix */
+    if (matches[0] == NULL)
+      break;
+
+    /* matches more than one entry */
+    if (matches[1] != NULL) {
+      i = 0;
+      printf("\n");
+      while (matches[i] != NULL)
+        printf("%s\n", matches[i++]);
+      break;
+    }
+
+    /* matches exactly one entry */
+    found = matches[0];
+
+    /* complete the entry if it's not complete yet
+     * but only if the cursor is on a blank */
+    pathlen = strlen(found);
+    if (pathlen >= strlen(tmppath.dbname)) {
+      switch (npath[cp]) {
+      case ' ':
+      case '\0':
+      case '\n':
+      case '\t':
+        if (pathlen > strlen(tmppath.dbname)) {
+          if (el_insertstr(e, found + strlen(tmppath.dbname)) < 0) {
+            free(matches);
+            bson_strfreev(strv);
+            return -1;
+          }
+        }
+        if (el_insertstr(e, "/") < 0) {
+          free(matches);
+          bson_strfreev(strv);
+          return -1;
+        }
+        break;
+      }
+    }
+    break;
+  case CCOLL: /* complete collection */
+    /* if tmppath.collname is empty, print all collections */
+    if (!strlen(tmppath.collname)) {
+      printf("\n");
+      return exec_lscolls(client, tmppath.dbname);
+    }
+
+    /* otherwise get a list of matching prefixes */
+    db = mongoc_client_get_database(client, tmppath.dbname);
+
+    if ((strv = mongoc_database_get_collection_names(db, &error)) == NULL)
+      errx(1, "%d.%d %s", error.domain, error.code, error.message);
+
+    mongoc_database_destroy(db);
+
+    /* check if this matches one or more entries */
+    if (prefix_match(&matches, strv, tmppath.collname) == -1)
+      errx(1, "prefix_match error");
+
+    /* unknown prefix */
+    if (matches[0] == NULL)
+      break;
+
+    /* matches more than one entry */
+    if (matches[1] != NULL) {
+      i = 0;
+      printf("\n");
+      while (matches[i] != NULL)
+        printf("%s\n", matches[i++]);
+      break;
+    }
+
+    /* matches exactly one entry */
+    found = matches[0];
+
+    /* complete the entry if it's not complete yet
+     * but only if the cursor is on a blank or '/' */
+    pathlen = strlen(found);
+    if (pathlen >= strlen(tmppath.collname)) {
+      switch (npath[cp]) {
+      case ' ':
+      case '\0':
+      case '\n':
+      case '\t':
+        if (pathlen > strlen(tmppath.collname)) {
+          if (el_insertstr(e, found + strlen(tmppath.collname)) < 0) {
+            free(matches);
+            bson_strfreev(strv);
+            return -1;
+          }
+        }
+        if (el_insertstr(e, " ") < 0) {
+          free(matches);
+          bson_strfreev(strv);
+          return -1;
+        }
+        break;
+      }
+    }
+    break;
+  }
+
+  free(matches);
+  bson_strfreev(strv);
+
+  return 0;
+}
 
 /*
  * Create a mongo extended JSON id selector document. If selector is 24 hex
@@ -527,8 +709,8 @@ long parse_selector(char *doc, size_t docsize, const char *line, int len)
 /*
  * Parse path that consists of a database name and or a collection name. Support
  * both absolute and relative paths.
- * Relative depends on wheter or not a db and collection are set in newpath.
- * Absolute always starts with a / followed by a database name.
+ * Absolute paths always start with a / followed by a database name.
+ * Relative paths depend on the db and collection values in newpath.
  * path must be null terminated.
  * return 0 on success, -1 on failure.
  */
