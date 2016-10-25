@@ -440,7 +440,7 @@ complete_cmd(EditLine *e, const char *tok, int co, char *found, size_t foundsize
  * tab complete path. relative paths depend on current context.
  *
  * if empty, print all possible arguments
- * if matches more than one component, print all with matching prefix
+ * if matches more than one component, print all with matching prefix and zip up
  * if matches exactly one component and not complete, complete
  *
  * npath is the new path
@@ -526,10 +526,13 @@ complete_path(EditLine *e, const char *npath, int cp)
       printf("\n");
       while (matches[i] != NULL)
         printf("%s\n", matches[i++]);
-      break;
+
+      /* ensure path is completed to the longest common prefix */
+      i = common_prefix(matches);
+      matches[0][i] = 0;
     }
 
-    /* matches exactly one entry */
+    /* matches exactly one entry or prefix */
     found = matches[0];
 
     /* complete the entry if it's not complete yet
@@ -548,10 +551,13 @@ complete_path(EditLine *e, const char *npath, int cp)
             return -1;
           }
         }
-        if (el_insertstr(e, "/") < 0) {
-          free(matches);
-          bson_strfreev(strv);
-          return -1;
+        /* append "/" if exactly one command matched */
+        if (matches[1] == NULL) {
+          if (el_insertstr(e, "/") < 0) {
+            free(matches);
+            bson_strfreev(strv);
+            return -1;
+          }
         }
         break;
       }
@@ -586,7 +592,10 @@ complete_path(EditLine *e, const char *npath, int cp)
       printf("\n");
       while (matches[i] != NULL)
         printf("%s\n", matches[i++]);
-      break;
+
+      /* ensure path is completed to the longest common prefix */
+      i = common_prefix(matches);
+      matches[0][i] = 0;
     }
 
     /* matches exactly one entry */
@@ -608,10 +617,13 @@ complete_path(EditLine *e, const char *npath, int cp)
             return -1;
           }
         }
-        if (el_insertstr(e, " ") < 0) {
-          free(matches);
-          bson_strfreev(strv);
-          return -1;
+        /* append " " if exactly one command matched */
+        if (matches[1] == NULL) {
+          if (el_insertstr(e, " ") < 0) {
+            free(matches);
+            bson_strfreev(strv);
+            return -1;
+          }
         }
         break;
       }
