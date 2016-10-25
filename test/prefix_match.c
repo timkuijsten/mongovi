@@ -5,6 +5,7 @@
 #include <string.h>
 
 int test_prefix_match(const char **src, const char *prefix, const char **exp, const int exp_exit);
+int test_common_prefix(const char **src, const char *prefix, const int exp_exit);
 int arrcmp(const char **a1, const char **a2);
 
 int main()
@@ -39,6 +40,37 @@ int main()
   failed += test_prefix_match(src, "b2b", exp1, 0);
   printf("\n");
 
+  printf("test common_prefix:\n");
+
+  const char *src2[] = {
+    "daa",
+    "dab1",
+    "dab2",
+    "dab2a",
+    "dac",
+    NULL
+  };
+
+  failed += test_common_prefix(NULL, "", 0);
+  failed += test_common_prefix(src, "", 0);
+  failed += test_common_prefix(src2, "da", 2);
+
+  const char *src3[] = {
+    "daxb3ab",
+    "daxb2",
+    "daxb2a",
+    NULL
+  };
+  failed += test_common_prefix(src3, "daxb", 4);
+
+  const char *src4[] = {
+    "daxb3ab",
+    "baxb2",
+    "xaxb2a",
+    NULL
+  };
+  failed += test_common_prefix(src4, "", 0);
+
   return failed;
 }
 
@@ -61,6 +93,22 @@ int test_prefix_match(const char **src, const char *prefix, const char **exp, co
   } else {
     warnx("FAIL: %s\n", prefix);
     return 1;
+  }
+
+  return -1;
+}
+
+// return 0 if test passes, 1 if test fails, -1 on internal error
+int test_common_prefix(const char **src, const char *prefix, const int exp_exit)
+{
+  int exit;
+
+  if ((exit = common_prefix(src)) != exp_exit) {
+    warnx("FAIL: %s = exit: %d, expected: %d\n", prefix, exit, exp_exit);
+    return 1;
+  } else {
+    printf("PASS: %s\n", prefix);
+    return 0;
   }
 
   return -1;

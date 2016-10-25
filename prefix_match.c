@@ -46,3 +46,37 @@ prefix_match(char ***dst, const char **src, const char *prefix)
 
   return 0;
 }
+
+/* returns the length of the maximum prefix that is common for each entry in av
+ * excluding any terminating null character, or -1 on error
+ */
+int
+common_prefix(const char **av)
+{
+  int i, j;
+  char c, n; /* current and next character */
+
+  if (av == NULL || av[0] == NULL)
+    return 0;
+
+  i = 0;
+  j = 0;
+  c = av[i][j];
+  n = c;
+
+  while (n == c) {
+    if (av[i]) {
+      n = av[i][j];
+      if (n == 0)
+        return j;
+      i++;
+    } else {
+      i = 0;
+      j++;
+      c = av[i][j];
+      n = c;
+    }
+  }
+
+  return j;
+}
