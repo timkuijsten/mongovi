@@ -336,7 +336,7 @@ complete(EditLine *e, int ch)
 
   switch (cc) {
   case 0: /* on command */
-    if (complete_cmd(e, cmd, co, cmd, MAXCMDNAM) < 0)
+    if (complete_cmd(e, cmd, co, av[0], MAXCMDNAM) < 0)
       goto cleanup;
     cmdlen = strlen(cmd);
     ret = CC_REDISPLAY;
@@ -353,20 +353,6 @@ complete(EditLine *e, int ch)
     /* ignore subsequent words */
     ret = CC_NORM;
     goto cleanup;
-  }
-
-  /* make sure the command is followed by a blank if the cursor is at the end
-   * of the command */
-  if (li->cursor < li->buffer)
-    goto cleanup;
-  len = li->cursor - li->buffer;
-  if (len >= MAXLINE)
-    goto cleanup;
-
-  if (len == cmdlen) {
-    if (el_insertstr(e, " ") < 0)
-      goto cleanup;
-    ret = CC_REDISPLAY;
   }
 
  cleanup:
