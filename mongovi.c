@@ -722,6 +722,10 @@ parse_path(const char *path, path_t *newpath)
   if (!strlen(path))
     return 0;
 
+  /* trim leading blanks */
+  while (*path == ' ' || *path == '\t' || *path == '\n')
+    path++;
+
   t = tok_init("/");
   tok_str(t, path, &ac, &av);
 
