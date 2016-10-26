@@ -788,14 +788,12 @@ int parse_cmd(int argc, const char *argv[], const char *line, char **lp)
     errx(1, "prefix_match error");
 
   // unknown prefix
-  if (list_match[0] == NULL) {
+  if (list_match[0] == NULL)
     return UNKNOWN;
-  }
 
   // matches more than one command
-  if (list_match[1] != NULL) {
+  if (list_match[1] != NULL)
     return AMBIGUOUS;
-  }
 
   // matches exactly one command from cmds
   cmd = list_match[0];
