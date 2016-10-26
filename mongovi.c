@@ -68,7 +68,7 @@ typedef struct {
 
 static path_t path;
 
-enum cmd { ILLEGAL = -1, UNKNOWN, AMBIGUOUS, LSDBS, LSCOLLS, LSARG, CHCOLL, COUNT, UPDATE, UPSERT, INSERT, REMOVE, FIND, AGQUERY, HELP };
+enum cmd { ILLEGAL = -1, UNKNOWN, AMBIGUOUS, LSDBS, LSCOLLS, LSARG, LSIDS, CHCOLL, COUNT, UPDATE, UPSERT, INSERT, REMOVE, FIND, AGQUERY, HELP };
 enum errors { DBMISSING = 256, COLLMISSING };
 
 #define NCMDS (sizeof cmds / sizeof cmds[0])
@@ -83,7 +83,7 @@ const char *cmds[] = {
   "find",         /* FIND */
   "help",         /* print usage */
   "insert",       /* INSERT */
-  "ls",           /* LSARG, LSDBS or LSCOLLS */
+  "ls",           /* LSARG, LSDBS, LSCOLLS or LSIDS */
   "remove",       /* REMOVE */
   "update",       /* UPDATE */
   "upsert",       /* UPSERT */
@@ -116,7 +116,7 @@ int exec_count(mongoc_collection_t *collection, const char *line, int len);
 int exec_update(mongoc_collection_t *collection, const char *line, int upsert);
 int exec_insert(mongoc_collection_t *collection, const char *line, int len);
 int exec_remove(mongoc_collection_t *collection, const char *line, int len);
-int exec_query(mongoc_collection_t *collection, const char *line, int len);
+int exec_query(mongoc_collection_t *collection, const char *line, int len, int idsonly);
 int exec_agquery(mongoc_collection_t *collection, const char *line, int len);
 
 static mongoc_client_t *client;
@@ -627,7 +627,9 @@ complete_path(EditLine *e, const char *npath, int cp)
 int
 exec_lsarg(const char *npath)
 {
+  int ret;
   path_t tmppath;
+  mongoc_collection_t *ccoll;
 
   if (strlcpy(tmppath.dbname, path.dbname, MAXDBNAME) > MAXDBNAME)
     return -1;
@@ -637,9 +639,12 @@ exec_lsarg(const char *npath)
   if (parse_path(npath, &tmppath) < 0)
     errx(1, "illegal path spec");
 
-  if (strlen(tmppath.collname)) /* todo print all document ids */
-    return exec_lscolls(client, tmppath.dbname);
-  else if (strlen(tmppath.dbname))
+  if (strlen(tmppath.collname)) { /* print all document ids */
+    ccoll = mongoc_client_get_collection(client, tmppath.dbname, tmppath.collname);
+    ret = exec_query(ccoll, "{}", 2, 1);
+    mongoc_collection_destroy(ccoll);
+    return ret;
+  } else if (strlen(tmppath.dbname))
     return exec_lscolls(client, tmppath.dbname);
   else
     return exec_lsdbs(client, NULL);
@@ -938,7 +943,7 @@ int exec_cmd(const int cmd, const char **argv, const char *line, int linelen)
   case REMOVE:
     return exec_remove(ccoll, line, linelen);
   case FIND:
-    return exec_query(ccoll, line, linelen);
+    return exec_query(ccoll, line, linelen, 0);
   case AGQUERY:
     return exec_agquery(ccoll, line, linelen);
   }
@@ -1180,7 +1185,7 @@ int exec_remove(mongoc_collection_t *collection, const char *line, int len)
 
 // execute a query
 // return 0 on success, -1 on failure
-int exec_query(mongoc_collection_t *collection, const char *line, int len)
+int exec_query(mongoc_collection_t *collection, const char *line, int len, int idsonly)
 {
   long i;
   mongoc_cursor_t *cursor;
@@ -1188,7 +1193,7 @@ int exec_query(mongoc_collection_t *collection, const char *line, int len)
   size_t rlen;
   const bson_t *doc;
   char *str;
-  bson_t query;
+  bson_t query, fields;
   char query_doc[MAXDOC] = "{}"; /* default to all documents */
   struct winsize w;
 
@@ -1201,7 +1206,13 @@ int exec_query(mongoc_collection_t *collection, const char *line, int len)
     return -1;
   }
 
-  cursor = mongoc_collection_find(collection, MONGOC_QUERY_NONE, 0, 0, 0, &query, NULL, NULL);
+  if (idsonly)
+    if (!bson_init_from_json(&fields, "{ \"_id\": true }", -1, &error)) {
+      warnx("%d.%d %s", error.domain, error.code, error.message);
+      return -1;
+    }
+
+  cursor = mongoc_collection_find(collection, MONGOC_QUERY_NONE, 0, 0, 0, &query, idsonly ? &fields : NULL, NULL);
 
   ioctl(0, TIOCGWINSZ, &w);
 
