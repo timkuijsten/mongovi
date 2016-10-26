@@ -68,7 +68,7 @@ typedef struct {
 
 static path_t path;
 
-enum cmd { ILLEGAL = -1, UNKNOWN, AMBIGUOUS, LSDBS, LSCOLLS, CHCOLL, COUNT, UPDATE, UPSERT, INSERT, REMOVE, FIND, AGQUERY, HELP };
+enum cmd { ILLEGAL = -1, UNKNOWN, AMBIGUOUS, LSDBS, LSCOLLS, LSARG, CHCOLL, COUNT, UPDATE, UPSERT, INSERT, REMOVE, FIND, AGQUERY, HELP };
 enum errors { DBMISSING = 256, COLLMISSING };
 
 #define NCMDS (sizeof cmds / sizeof cmds[0])
@@ -83,7 +83,7 @@ const char *cmds[] = {
   "find",         /* FIND */
   "help",         /* print usage */
   "insert",       /* INSERT */
-  "ls",           /* LSDBS or LSCOLLS */
+  "ls",           /* LSARG, LSDBS or LSCOLLS */
   "remove",       /* REMOVE */
   "update",       /* UPDATE */
   "upsert",       /* UPSERT */
@@ -108,6 +108,7 @@ int parse_path(const char *path, path_t *newpath);
 int parse_file(FILE *fp, char *line, config_t *cfg);
 int parse_cmd(int argc, const char *argv[], const char *line, char **lp);
 int exec_cmd(const int cmd, const char **argv, const char *line, int linelen);
+int exec_lsarg(const char *npath);
 int exec_lsdbs(mongoc_client_t *client, const char *prefix);
 int exec_lscolls(mongoc_client_t *client, char *dbname);
 int exec_chcoll(mongoc_client_t *client, const path_t newpath);
@@ -623,6 +624,27 @@ complete_path(EditLine *e, const char *npath, int cp)
   return 0;
 }
 
+int
+exec_lsarg(const char *npath)
+{
+  path_t tmppath;
+
+  if (strlcpy(tmppath.dbname, path.dbname, MAXDBNAME) > MAXDBNAME)
+    return -1;
+  if (strlcpy(tmppath.collname, path.collname, MAXCOLLNAME) > MAXCOLLNAME)
+    return -1;
+
+  if (parse_path(npath, &tmppath) < 0)
+    errx(1, "illegal path spec");
+
+  if (strlen(tmppath.collname)) /* todo print all document ids */
+    return exec_lscolls(client, tmppath.dbname);
+  else if (strlen(tmppath.dbname))
+    return exec_lscolls(client, tmppath.dbname);
+  else
+    return exec_lsdbs(client, NULL);
+}
+
 /*
  * Create a mongo extended JSON id selector document. If selector is 24 hex
  * digits treat it as an object id, otherwise as a literal.
@@ -811,10 +833,20 @@ int parse_cmd(int argc, const char *argv[], const char *line, char **lp)
     return HELP;
   }
 
+  if (strcmp("ls", cmd) == 0) {
+    *lp = strstr(line, argv[0]) + strlen(argv[0]);
+    switch (argc) {
+    case 1:
+    case 2:
+      return LSARG;
+    default:
+      return ILLEGAL;
+    }
+  }
+
   /* ls works without a database */
 
-  if (strcmp("databases", cmd) == 0 || (!strlen(path.dbname) && strcmp("ls", cmd) == 0)) {
-    /* "databases" is an alias for ls without selected database */
+  if (strcmp("databases", cmd) == 0) {
     *lp = strstr(line, argv[0]) + strlen(argv[0]);
     switch (argc) {
     case 1:
@@ -831,8 +863,7 @@ int parse_cmd(int argc, const char *argv[], const char *line, char **lp)
 
   /* ls works without a selected collection as well */
 
-  if (strcmp("collections", cmd) == 0 || (!strlen(path.collname) && strcmp("ls", cmd) == 0)) {
-    /* "collections" is an alias for ls with selected database */
+  if (strcmp("collections", cmd) == 0) {
     *lp = strstr(line, argv[0]) + strlen(argv[0]);
     switch (argc) {
     case 1:
@@ -850,14 +881,6 @@ int parse_cmd(int argc, const char *argv[], const char *line, char **lp)
   if (strcmp("count", cmd) == 0) {
     *lp = strstr(line, argv[0]) + strlen(argv[0]);
     return COUNT;
-  } else if (strcmp("ls", cmd) == 0) {
-    *lp = strstr(line, argv[0]) + strlen(argv[0]);
-    switch (argc) {
-    case 1:
-      return LSCOLLS;
-    default:
-      return ILLEGAL;
-    }
   } else if (strcmp("update", cmd) == 0) {
     *lp = strstr(line, argv[0]) + strlen(argv[0]);
     return UPDATE;
@@ -888,6 +911,8 @@ int exec_cmd(const int cmd, const char **argv, const char *line, int linelen)
   path_t tmppath;
 
   switch (cmd) {
+  case LSARG:
+    return exec_lsarg(line);
   case LSDBS:
     return exec_lsdbs(client, NULL);
   case ILLEGAL:
