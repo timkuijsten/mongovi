@@ -1,3 +1,6 @@
+#ifndef MONGOVI_H
+#define MONGOVI_H
+
 /**
  * Copyright (c) 2016 Tim Kuijsten
  *
@@ -67,25 +70,8 @@ typedef struct {
 enum cmd { ILLEGAL = -1, UNKNOWN, AMBIGUOUS, LSDBS, LSCOLLS, LSARG, LSIDS, CHCOLL, COUNT, UPDATE, UPSERT, INSERT, REMOVE, FIND, AGQUERY, HELP };
 enum errors { DBMISSING = 256, COLLMISSING };
 
-#define NCMDS (sizeof cmds / sizeof cmds[0])
-#define MAXCMDNAM (sizeof cmds) /* broadly define maximum length of a command name */
-
-const char *cmds[] = {
-  "aggregate",    /* AGQUERY */
-  "cd",           /* CHCOLL,  change database and/or collection */
-  "collections",  /* LSCOLLS, list all collections */
-  "count",        /* COUNT */
-  "databases",    /* LSDBS,   list all databases */
-  "find",         /* FIND */
-  "help",         /* print usage */
-  "insert",       /* INSERT */
-  "ls",           /* LSARG, LSDBS, LSCOLLS or LSIDS */
-  "remove",       /* REMOVE */
-  "update",       /* UPDATE */
-  "upsert",       /* UPSERT */
-  NULL            /* nul terminate this list */
-};
-
+void usage(void);
+int main_init(int argc, char **argv);
 char *prompt();
 unsigned char complete(EditLine *e, int ch);
 int complete_cmd(EditLine *e, const char *tok, int co, char *found, size_t foundsize);
@@ -109,3 +95,5 @@ int exec_insert(mongoc_collection_t *collection, const char *line, int len);
 int exec_remove(mongoc_collection_t *collection, const char *line, int len);
 int exec_query(mongoc_collection_t *collection, const char *line, int len, int idsonly);
 int exec_agquery(mongoc_collection_t *collection, const char *line, int len);
+
+#endif

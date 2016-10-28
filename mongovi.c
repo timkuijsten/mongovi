@@ -31,13 +31,34 @@ static mongoc_collection_t *ccoll = NULL; // current collection
 
 int pretty = 0;
 
-void usage(void)
+#define NCMDS (sizeof cmds / sizeof cmds[0])
+#define MAXCMDNAM (sizeof cmds) /* broadly define maximum length of a command name */
+
+const char *cmds[] = {
+  "aggregate",    /* AGQUERY */
+  "cd",           /* CHCOLL,  change database and/or collection */
+  "collections",  /* LSCOLLS, list all collections */
+  "count",        /* COUNT */
+  "databases",    /* LSDBS,   list all databases */
+  "find",         /* FIND */
+  "help",         /* print usage */
+  "insert",       /* INSERT */
+  "ls",           /* LSARG, LSDBS, LSCOLLS or LSIDS */
+  "remove",       /* REMOVE */
+  "update",       /* UPDATE */
+  "upsert",       /* UPSERT */
+  NULL            /* nul terminate this list */
+};
+
+void
+usage(void)
 {
   printf("usage: %s [-ps] [/database/collection]\n", progname);
   exit(0);
 }
 
-int main(int argc, char **argv)
+int
+main_init(int argc, char **argv)
 {
   const char *line, **av;
   char linecpy[MAXLINE], *lp;

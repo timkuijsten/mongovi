@@ -14,7 +14,7 @@ INCDIR=-I/usr/include/libbson-1.0/ -I/usr/include/libmongoc-1.0/ -I/usr/local/in
 
 CFLAGS=-Wall -Wextra ${INCDIR}
 LDFLAGS=-lmongoc-1.0 -lbson-1.0 -ledit
-OBJ=jsmn.o jsonify.o mongovi.o shorten.o prefix_match.o
+OBJ=jsmn.o jsonify.o main.o mongovi.o shorten.o prefix_match.o
 
 mongovi: ${OBJ} ${COMPAT}
 	$(CC) ${CFLAGS} -o $@ ${OBJ} ${COMPAT} ${LDFLAGS}
