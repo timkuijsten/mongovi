@@ -8,7 +8,7 @@ dst should be freed after usage
 return 0 on success, -1 on error.
 */
 int
-prefix_match(char ***dst, const char **src, const char *prefix)
+prefix_match(const char ***dst, const char **src, const char *prefix)
 {
   int i, j, listsize, prefsize;
 
@@ -40,7 +40,7 @@ prefix_match(char ***dst, const char **src, const char *prefix)
       free(*dst);
       return -1;
     }
-    (*dst)[listsize - 2] = (char *)src[i];
+    (*dst)[listsize - 2] = src[i];
     (*dst)[listsize - 1] = NULL;
   }
 

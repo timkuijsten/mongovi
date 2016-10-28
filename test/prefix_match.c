@@ -78,7 +78,7 @@ int main()
 int test_prefix_match(const char **src, const char *prefix, const char **exp, const int exp_exit)
 {
   int exit;
-  char **dst;
+  const char **dst;
 
   if ((exit = prefix_match(&dst, src, prefix)) != exp_exit) {
     warnx("FAIL: %s = exit: %d, expected: %d\n", prefix, exit, exp_exit);
@@ -87,7 +87,7 @@ int test_prefix_match(const char **src, const char *prefix, const char **exp, co
     return 1;
   }
 
-  if (arrcmp((const char**)dst, exp) == 0) {
+  if (arrcmp(dst, exp) == 0) {
     printf("PASS: %s\n", prefix);
     return 0;
   } else {

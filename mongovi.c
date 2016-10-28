@@ -308,7 +308,7 @@ complete_cmd(EditLine *e, const char *tok, int co, char *found, size_t foundsize
   size_t cmdlen;
 
   /* check if cmd matches one or more commands */
-  if (prefix_match(&list_match, cmds, tok) == -1)
+  if (prefix_match((const char ***)&list_match, cmds, tok) == -1)
     errx(1, "prefix_match error");
 
   /* unknown prefix */
@@ -428,7 +428,7 @@ complete_path(EditLine *e, const char *npath, int cp)
       errx(1, "%d.%d %s", error.domain, error.code, error.message);
 
     /* check if this matches one or more entries */
-    if (prefix_match(&matches, strv, tmppath.dbname) == -1)
+    if (prefix_match((const char ***)&matches, (const char **)strv, tmppath.dbname) == -1)
       errx(1, "prefix_match error");
 
     /* unknown prefix */
@@ -443,7 +443,7 @@ complete_path(EditLine *e, const char *npath, int cp)
         printf("%s\n", matches[i++]);
 
       /* ensure path is completed to the longest common prefix */
-      i = common_prefix(matches);
+      i = common_prefix((const char **)matches);
       matches[0][i] = 0;
     }
 
@@ -494,7 +494,7 @@ complete_path(EditLine *e, const char *npath, int cp)
     mongoc_database_destroy(db);
 
     /* check if this matches one or more entries */
-    if (prefix_match(&matches, strv, tmppath.collname) == -1)
+    if (prefix_match((const char ***)&matches, (const char **)strv, tmppath.collname) == -1)
       errx(1, "prefix_match error");
 
     /* unknown prefix */
@@ -509,7 +509,7 @@ complete_path(EditLine *e, const char *npath, int cp)
         printf("%s\n", matches[i++]);
 
       /* ensure path is completed to the longest common prefix */
-      i = common_prefix(matches);
+      i = common_prefix((const char **)matches);
       matches[0][i] = 0;
     }
 
@@ -739,7 +739,7 @@ int parse_cmd(int argc, const char *argv[], const char *line, char **lp)
   const char *cmd;
 
   // check if the first token matches one or more commands
-  if (prefix_match(&list_match, cmds, argv[0]) == -1)
+  if (prefix_match((const char ***)&list_match, cmds, argv[0]) == -1)
     errx(1, "prefix_match error");
 
   // unknown prefix
