@@ -238,7 +238,7 @@ complete(EditLine *e, int ch)
   Tokenizer *t;
   const char **av;
   int i, ret, ac, cc, co;
-  size_t len, cmdlen;
+  size_t cmdlen;
 
   /* default exit code to error */
   ret = CC_ERROR;
@@ -544,6 +544,9 @@ complete_path(EditLine *e, const char *npath, int cp)
       }
     }
     break;
+  case CNONE:
+  default:
+    errx(1, "unexpected completion");
   }
 
   free(matches);
