@@ -653,7 +653,7 @@ long parse_selector(char *doc, size_t docsize, const char *line, int len)
     offset = fnb + snb;
   } else {
     // try to parse as relaxed json and convert to strict json
-    if ((offset = relaxed_to_strict(doc, docsize, line, len, 0)) < 0) {
+    if ((offset = relaxed_to_strict(doc, docsize, line, len, 1)) < 0) {
       warnx("jsonify error: %ld", offset);
       return -1;
     }
