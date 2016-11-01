@@ -265,7 +265,7 @@ complete(EditLine *e, int ch)
 
   switch (cc) {
   case 0: /* on command */
-    if (complete_cmd(e, cmd, co, av[0], MAXCMDNAM) < 0)
+    if (complete_cmd(e, cmd, co) < 0)
       goto cleanup;
     cmdlen = strlen(cmd);
     ret = CC_REDISPLAY;
@@ -296,12 +296,10 @@ complete(EditLine *e, int ch)
  * if matches more than one command, print all
  * if matches exactly one command and not complete, complete
  *
- * if found is not null, and tok matches exactly one command, found is set to it
- *
  * return 0 on success or -1 on failure
  */
 int
-complete_cmd(EditLine *e, const char *tok, int co, char *found, size_t foundsize)
+complete_cmd(EditLine *e, const char *tok, int co)
 {
   const char *cmd; /* completed command */
   int i;
@@ -326,10 +324,6 @@ complete_cmd(EditLine *e, const char *tok, int co, char *found, size_t foundsize
 
   /* matches exactly one command from cmds */
   cmd = list_match[0];
-
-  if (foundsize > 0)
-    if (strlcpy(found, cmd, foundsize) > foundsize)
-      return -1;
 
   /* complete the command if it's not complete yet
    * but only if the cursor is on a blank */

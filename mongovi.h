@@ -74,7 +74,7 @@ void usage(void);
 int main_init(int argc, char **argv);
 char *prompt();
 unsigned char complete(EditLine *e, int ch);
-int complete_cmd(EditLine *e, const char *tok, int co, char *found, size_t foundsize);
+int complete_cmd(EditLine *e, const char *tok, int co);
 int complete_path(EditLine *e, const char *tok, int co);
 int init_user(user_t *usr);
 int set_prompt(const char *dbname, const char *collname);
