@@ -30,7 +30,9 @@ test: ${OBJ} ${COMPAT}
 	./shorten-test
 	$(CC) $(CFLAGS) prefix_match.c compat/reallocarray.c test/prefix_match.c -o prefix_match-test
 	./prefix_match-test
+	$(CC) $(CFLAGS) mongovi.c prefix_match.c test/parse_path.c -o mongovi-test jsmn.o jsonify.o shorten.o ${COMPAT} ${LDFLAGS}
+	./mongovi-test
 
 .PHONY: clean 
 clean:
-	rm -f mongovi ${OBJ} shorten-test prefix_match-test
+	rm -f mongovi ${OBJ} shorten-test prefix_match-test mongovi-test
