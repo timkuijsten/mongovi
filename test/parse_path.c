@@ -18,22 +18,22 @@ int main()
 
   /* list of expectations */
   struct expfmt exps[] = {
-    { "/db/coll",   { "", "" },         { "db", "coll" } },
-    { "/db/coll/",  { "", "" },         { "db", "coll/" } },
-    { "db/coll",    { "", "" },         { "db", "coll" } },
-    { "bar/coll",   { "foo", "" },      { "foo", "bar/coll" } },
-    { "bar/coll",   { "foo", "some" },  { "foo", "bar/coll" } },
-    { "bar/../baz/coll",   { "", "" },  { "baz", "coll" } },
-    { "bar/../baz/coll",   { "", "" },  { "baz", "coll" } },
-    { "bar/../baz/../foo/raboof", { "", "" },  { "foo", "raboof" } },
-    { "../../bar/../baz/../foo/raboof", { "", "" },  { "foo", "raboof" } },
-    { "/some/coll/../some", { "", "" },  { "some", "coll/../some" } },
-    { "../other", { "foo", "bar" },  { "foo", "other" } },
-    { "../other", { "foo", "" },  { "other", "" } },
-    { "../other/coll", { "foo", "" },  { "other", "coll" } },
-    { "/some/coll/../some", { "foo", "bar" },  { "some", "coll/../some" } },
-    { "some/coll/../some", { "foo", "bar" },  { "foo", "some/coll/../some" } },
-    { "../som/../some", { "foo", "bar" },  { "foo", "som/../some" } }
+    { "/db/coll",                        { "", "" },         { "db", "coll" } },
+    { "/db/coll/",                       { "", "" },         { "db", "coll/" } },
+    { "db/coll",                         { "", "" },         { "db", "coll" } },
+    { "bar/coll",                        { "foo", "" },      { "foo", "bar/coll" } },
+    { "bar/coll",                        { "foo", "some" },  { "foo", "bar/coll" } },
+    { "bar/../baz/coll",                 { "", "" },         { "baz", "coll" } },
+    { "bar/../baz/coll",                 { "", "" },         { "baz", "coll" } },
+    { "bar/../baz/../foo/raboof",        { "", "" },         { "foo", "raboof" } },
+    { "../../bar/../baz/../foo/raboof",  { "", "" },         { "foo", "raboof" } },
+    { "/some/coll/../some",              { "", "" },         { "some", "coll/../some" } },
+    { "../other",                        { "foo", "bar" },   { "foo", "other" } },
+    { "../other",                        { "foo", "" },      { "other", "" } },
+    { "../other/coll",                   { "foo", "" },      { "other", "coll" } },
+    { "/some/coll/../some",              { "foo", "bar" },   { "some", "coll/../some" } },
+    { "some/coll/../some",               { "foo", "bar" },   { "foo", "some/coll/../some" } },
+    { "../som/../some",                  { "foo", "bar" },   { "foo", "som/../some" } }
   };
   /* current expectation */
   struct expfmt *cexp;
