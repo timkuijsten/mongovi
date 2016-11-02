@@ -721,6 +721,7 @@ parse_path(const char *path, path_t *newpath)
       break;
     case LDB:
       if (strcmp(av[i], "..") == 0) { /* go up */
+        newpath->dbname[0] = '\0';
         level = LNONE;
         j += 2 + 1;
       } else {
@@ -734,6 +735,7 @@ parse_path(const char *path, path_t *newpath)
       break;
     case LCOLL:
       if (strcmp(av[i], "..") == 0) { /* go up */
+        newpath->collname[0] = '\0';
         level = LDB;
         j += 2 + 1;
       } else {
