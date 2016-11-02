@@ -8,28 +8,35 @@ int test_parse_path(const char *path, path_t *newpath, const path_t *exp, const 
 
 int main()
 {
+  /* list of expectations */
+  const path_t exps[] = {
+    { "db", "coll" },
+    { "db", "coll/" },
+    { "db", "coll" },
+    { "foo", "bar/coll" },
+    { "foo", "bar/coll" }
+  };
+  /* current expectation */
+  const path_t *cexp;
+
   int failed = 0;
+  cexp = exps;
   printf("test parse_path:\n");
 
-  const path_t exp1 = { "db", "coll" };
   path_t np1 = { "", "" };
-  failed += test_parse_path("/db/coll", &np1, &exp1, 0);
+  failed += test_parse_path("/db/coll", &np1, cexp++, 0);
 
-  const path_t exp2 = { "db", "coll/" };
   path_t np2 = { "", "" };
-  failed += test_parse_path("/db/coll/", &np2, &exp2, 0);
+  failed += test_parse_path("/db/coll/", &np2, cexp++, 0);
 
-  const path_t exp3 = { "db", "coll" };
   path_t np3 = { "", "" };
-  failed += test_parse_path("db/coll", &np3, &exp3, 0);
+  failed += test_parse_path("db/coll", &np3, cexp++, 0);
 
-  const path_t exp4 = { "foo", "bar/coll" };
   path_t np4 = { "foo", "" };
-  failed += test_parse_path("bar/coll", &np4, &exp4, 0);
+  failed += test_parse_path("bar/coll", &np4, cexp++, 0);
 
-  const path_t exp5 = { "foo", "bar/coll" };
   path_t np5 = { "foo", "some" };
-  failed += test_parse_path("bar/coll", &np5, &exp5, 0);
+  failed += test_parse_path("bar/coll", &np5, cexp++, 0);
 
   return failed;
 }
