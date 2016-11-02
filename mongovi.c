@@ -663,12 +663,18 @@ long parse_selector(char *doc, size_t docsize, const char *line, int len)
  * Absolute paths always start with a / followed by a database name.
  * Relative paths depend on the db and collection values in newpath.
  * path must be null terminated.
- * return 0 on success, -1 on failure.
+ * ".." is supported as a way to go up, but only if it does not follow a
+ * collection name, since "/" and ".." are valid characters for a collection and
+ * are thus treated as part of the collection name.
+ *
+ * Return 0 on success, -1 on failure.
  */
 int
 parse_path(const char *path, path_t *newpath)
 {
-  int i, ac;
+  enum levels { LNONE, LDB, LCOLL };
+  int i, j, ac;
+  enum levels level;
   const char **av;
   Tokenizer *t;
 
@@ -679,54 +685,77 @@ parse_path(const char *path, path_t *newpath)
   while (*path == ' ' || *path == '\t' || *path == '\n')
     path++;
 
+  /* before we start parsing, determine current depth level */
+  if (path[0] == '/') { /* absolute path */
+    level = LNONE; /* not in db or collection */
+  } else { /* relative path */
+    if (strlen(newpath->collname))
+      level = LCOLL; /* in collection (and thus db) */
+    else if (strlen(newpath->dbname))
+      level = LDB; /* in db */
+    else
+      level = LNONE; /* no db or collection set */
+  }
+
   t = tok_init("/");
   tok_str(t, path, &ac, &av);
 
-  /* check if this is an absolute or a relative path */
-  if (path[0] == '/') {
-    /* absolute */
-    /* reset db and collection selection */
-    if (strlcpy(newpath->dbname, "", MAXDBNAME) > MAXDBNAME)
-      goto cleanupexit;
-    if (strlcpy(newpath->collname, "", MAXCOLLNAME) > MAXCOLLNAME)
-      goto cleanupexit;
-
-    if (ac > 0) {
-      /* use first component as the name of the database */
-      if ((i = strlcpy(newpath->dbname, av[0], MAXDBNAME)) > MAXDBNAME)
-        goto cleanupexit;
-
-      /* use everything after the first component as the name of the collection */
-      if (ac > 1) {
-        /* skip db name and it's leading and trailing slash */
-        if ((i = strlcpy(newpath->collname, (char *)path + 1 + i + 1, MAXCOLLNAME)) > MAXCOLLNAME)
-          goto cleanupexit;
+  /* now start parsing path */
+  i = 0, j = 0;
+  /* track the number of characters parsed */
+  if (path[0] == '/') /* increment index */
+    j++;
+  while (i < ac) {
+    switch (level) {
+    case LNONE:
+      if (strcmp(av[i], "..") == 0) {
+        /* skip and keep tracking the parse index */
+        j += 2 + 1;
+      } else {
+        /* use component as database name */
+        if (strlcpy(newpath->dbname, av[i], MAXDBNAME) > MAXDBNAME)
+          goto cleanuperr;
+        j += strlen(av[i]) + 1;
+        level = LDB;
       }
-    }
-  } else {
-    // relative
-    if (strlen(newpath->collname) || strlen(newpath->dbname)) {
-      /* use whole path as the name of the new collection */
-      if ((i = strlcpy(newpath->collname, path, MAXCOLLNAME)) > MAXCOLLNAME)
-        goto cleanupexit;
-    } else {
-      /* no current dbname or collname set, use first component as the name of the database */
-      if ((i = strlcpy(newpath->dbname, av[0], MAXDBNAME)) > MAXDBNAME)
-        goto cleanupexit;
-
-      /* use everything after the first component as the name of the collection */
-      if (ac > 1) {
-        /* skip db name and it's leading and trailing slash */
-        if ((i = strlcpy(newpath->collname, (char *)path + i + 1, MAXCOLLNAME)) > MAXCOLLNAME)
-          goto cleanupexit;
+      break;
+    case LDB:
+      if (strcmp(av[i], "..") == 0) { /* go up */
+        level = LNONE;
+        j += 2 + 1;
+      } else {
+        /* use all remaining tokens as the name of the collection: */
+        if ((strlcpy(newpath->collname, path + j, MAXCOLLNAME)) > MAXCOLLNAME)
+          goto cleanuperr;
+        j += strlen(av[i]) + 1;
+        /* we're done */
+        i = ac;
       }
+      break;
+    case LCOLL:
+      if (strcmp(av[i], "..") == 0) { /* go up */
+        level = LDB;
+        j += 2 + 1;
+      } else {
+        /* use all remaining tokens as the name of the collection: */
+        if ((strlcpy(newpath->collname, path + j, MAXCOLLNAME)) > MAXCOLLNAME)
+          goto cleanuperr;
+        j += strlen(av[i]) + 1;
+        /* we're done */
+        i = ac;
+      }
+      break;
+    default:
+      errx(1, "unexpected level %d while parsing \"%s\"", level, path);
     }
+    i++;
   }
 
   tok_end(t);
+
   return 0;
 
-cleanupexit:
+cleanuperr:
   tok_end(t);
   return -1;
 }
