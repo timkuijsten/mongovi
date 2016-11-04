@@ -134,7 +134,7 @@ main_init(int argc, char **argv)
     errx(1, "can't connect to mongo");
 
   if (argc == 1) {
-    if (parse_path(argv[0], &newpath) < 0)
+    if (parse_path(argv[0], &newpath, NULL, NULL) < 0)
       errx(1, "illegal path spec");
     if (exec_chcoll(client, newpath) < 0)
       errx(1, "can't change database or collection");
@@ -376,7 +376,7 @@ complete_path(EditLine *e, const char *npath, int cp)
   if (strlcpy(tmppath.collname, path.collname, MAXCOLLNAME) > MAXCOLLNAME)
     return -1;
 
-  if (parse_path(npath, &tmppath) < 0)
+  if (parse_path(npath, &tmppath, NULL, NULL) < 0)
     errx(1, "illegal path spec");
 
   compl = CNONE;
@@ -562,7 +562,7 @@ exec_lsarg(const char *npath)
   if (strlcpy(tmppath.collname, path.collname, MAXCOLLNAME) > MAXCOLLNAME)
     return -1;
 
-  if (parse_path(npath, &tmppath) < 0)
+  if (parse_path(npath, &tmppath, NULL, NULL) < 0)
     errx(1, "illegal path spec");
 
   if (strlen(tmppath.collname)) { /* print all document ids */
@@ -667,13 +667,17 @@ long parse_selector(char *doc, size_t docsize, const char *line, int len)
  * collection name, since "/" and ".." are valid characters for a collection and
  * are thus treated as part of the collection name.
  *
+ * if dbstart is not NULL the index is set to the start of the database component
+ * if collstart is not NULL the index is set to the start of the collection component
+ * both are -1 if not in paths
+ *
  * Return 0 on success, -1 on failure.
  */
 int
-parse_path(const char *paths, path_t *newpath)
+parse_path(const char *paths, path_t *newpath, int *dbstart, int *collstart)
 {
   enum levels { LNONE, LDB, LCOLL };
-  int i, ac;
+  int i, ac, ds, cs;
   enum levels level;
   const char **av;
   Tokenizer *t;
@@ -707,6 +711,8 @@ parse_path(const char *paths, path_t *newpath)
   i = 0;
   if (path[0] == '/')
     path++;
+  ds = -1; /* dbstart index */
+  cs = -1; /* collstart index */
   while (i < ac) {
     switch (level) {
     case LNONE:
@@ -716,6 +722,7 @@ parse_path(const char *paths, path_t *newpath)
         /* use component as database name */
         if (strlcpy(newpath->dbname, av[i], MAXDBNAME) > MAXDBNAME)
           goto cleanuperr;
+        ds = path - paths;
         path += strlen(av[i]) + 1;
         level = LDB;
       }
@@ -723,12 +730,13 @@ parse_path(const char *paths, path_t *newpath)
     case LDB:
       if (strcmp(av[i], "..") == 0) { /* go up */
         newpath->dbname[0] = '\0';
-        level = LNONE;
         path += 2 + 1;
+        level = LNONE;
       } else {
         /* use all remaining tokens as the name of the collection: */
         if ((strlcpy(newpath->collname, path, MAXCOLLNAME)) > MAXCOLLNAME)
           goto cleanuperr;
+        cs = path - paths;
         path += strlen(av[i]) + 1;
         /* we're done */
         i = ac;
@@ -737,13 +745,16 @@ parse_path(const char *paths, path_t *newpath)
     case LCOLL:
       if (strcmp(av[i], "..") == 0) { /* go up */
         newpath->collname[0] = '\0';
-        level = LDB;
+        ds = path - paths;
         path += 2 + 1;
+        level = LDB;
       } else {
         /* use all remaining tokens as the name of the collection: */
         if ((strlcpy(newpath->collname, path, MAXCOLLNAME)) > MAXCOLLNAME)
           goto cleanuperr;
+        cs = path - paths;
         path += strlen(av[i]) + 1;
+        level = LDB;
         /* we're done */
         i = ac;
       }
@@ -753,6 +764,13 @@ parse_path(const char *paths, path_t *newpath)
     }
     i++;
   }
+
+  /* update indices on request */
+  if (dbstart != NULL)
+    *dbstart = ds;
+
+  if (collstart != NULL)
+    *dbstart = cs;
 
   tok_end(t);
 
@@ -891,7 +909,7 @@ int exec_cmd(const int cmd, const char **argv, const char *line, int linelen)
       return -1;
     if (strlcpy(tmppath.collname, path.collname, MAXCOLLNAME) > MAXCOLLNAME)
       return -1;
-    if (parse_path(argv[1], &tmppath) < 0)
+    if (parse_path(argv[1], &tmppath, NULL, NULL) < 0)
       return -1;
     return exec_chcoll(client, tmppath);
   case COUNT:

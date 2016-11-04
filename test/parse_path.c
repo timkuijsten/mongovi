@@ -61,7 +61,7 @@ test_parse_path(const char *path, path_t *newpath, const path_t *exp, const int 
 {
   int exit;
 
-  if ((exit = parse_path(path, newpath)) != exp_exit) {
+  if ((exit = parse_path(path, newpath, NULL, NULL)) != exp_exit) {
     warnx("FAIL: %s = exit: %d, expected: %d\n", path, exit, exp_exit);
     return 1;
   }
