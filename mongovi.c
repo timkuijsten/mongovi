@@ -670,13 +670,16 @@ long parse_selector(char *doc, size_t docsize, const char *line, int len)
  * Return 0 on success, -1 on failure.
  */
 int
-parse_path(const char *path, path_t *newpath)
+parse_path(const char *paths, path_t *newpath)
 {
   enum levels { LNONE, LDB, LCOLL };
-  int i, j, ac;
+  int i, ac;
   enum levels level;
   const char **av;
   Tokenizer *t;
+  const char *path;
+
+  path = paths;
 
   if (!strlen(path))
     return 0;
@@ -701,21 +704,19 @@ parse_path(const char *path, path_t *newpath)
   tok_str(t, path, &ac, &av);
 
   /* now start parsing path */
-  i = 0, j = 0;
-  /* track the number of characters parsed */
-  if (path[0] == '/') /* increment index */
-    j++;
+  i = 0;
+  if (path[0] == '/')
+    path++;
   while (i < ac) {
     switch (level) {
     case LNONE:
-      if (strcmp(av[i], "..") == 0) {
-        /* skip and keep tracking the parse index */
-        j += 2 + 1;
-      } else {
+      if (strcmp(av[i], "..") == 0) /* skip */
+        path += 2 + 1;
+      else {
         /* use component as database name */
         if (strlcpy(newpath->dbname, av[i], MAXDBNAME) > MAXDBNAME)
           goto cleanuperr;
-        j += strlen(av[i]) + 1;
+        path += strlen(av[i]) + 1;
         level = LDB;
       }
       break;
@@ -723,12 +724,12 @@ parse_path(const char *path, path_t *newpath)
       if (strcmp(av[i], "..") == 0) { /* go up */
         newpath->dbname[0] = '\0';
         level = LNONE;
-        j += 2 + 1;
+        path += 2 + 1;
       } else {
         /* use all remaining tokens as the name of the collection: */
-        if ((strlcpy(newpath->collname, path + j, MAXCOLLNAME)) > MAXCOLLNAME)
+        if ((strlcpy(newpath->collname, path, MAXCOLLNAME)) > MAXCOLLNAME)
           goto cleanuperr;
-        j += strlen(av[i]) + 1;
+        path += strlen(av[i]) + 1;
         /* we're done */
         i = ac;
       }
@@ -737,12 +738,12 @@ parse_path(const char *path, path_t *newpath)
       if (strcmp(av[i], "..") == 0) { /* go up */
         newpath->collname[0] = '\0';
         level = LDB;
-        j += 2 + 1;
+        path += 2 + 1;
       } else {
         /* use all remaining tokens as the name of the collection: */
-        if ((strlcpy(newpath->collname, path + j, MAXCOLLNAME)) > MAXCOLLNAME)
+        if ((strlcpy(newpath->collname, path, MAXCOLLNAME)) > MAXCOLLNAME)
           goto cleanuperr;
-        j += strlen(av[i]) + 1;
+        path += strlen(av[i]) + 1;
         /* we're done */
         i = ac;
       }

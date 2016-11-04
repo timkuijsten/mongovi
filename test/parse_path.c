@@ -36,7 +36,8 @@ int main()
     { "../other/coll",                   { "foo", "" },      { "other", "coll" } },
     { "/some/coll/../some",              { "foo", "bar" },   { "some", "coll/../some" } },
     { "some/coll/../some",               { "foo", "bar" },   { "foo", "some/coll/../some" } },
-    { "../som/../some",                  { "foo", "bar" },   { "foo", "som/../some" } }
+    { "../som/../some",                  { "foo", "bar" },   { "foo", "som/../some" } },
+    { "../../../baz/../some",            { "foo", "bar" },   { "some", "" } }
   };
   /* current expectation */
   struct expfmt *cexp;
