@@ -716,9 +716,9 @@ parse_path(const char *paths, path_t *newpath, int *dbstart, int *collstart)
   while (i < ac) {
     switch (level) {
     case LNONE:
-      if (strcmp(av[i], "..") == 0) /* skip */
+      if (strcmp(av[i], "..") == 0) { /* skip */
         path += 2 + 1;
-      else {
+      } else {
         /* use component as database name */
         if (strlcpy(newpath->dbname, av[i], MAXDBNAME) > MAXDBNAME)
           goto cleanuperr;
@@ -731,6 +731,7 @@ parse_path(const char *paths, path_t *newpath, int *dbstart, int *collstart)
       if (strcmp(av[i], "..") == 0) { /* go up */
         newpath->dbname[0] = '\0';
         path += 2 + 1;
+        ds = -1;
         level = LNONE;
       } else {
         /* use all remaining tokens as the name of the collection: */
@@ -745,8 +746,8 @@ parse_path(const char *paths, path_t *newpath, int *dbstart, int *collstart)
     case LCOLL:
       if (strcmp(av[i], "..") == 0) { /* go up */
         newpath->collname[0] = '\0';
-        ds = path - paths;
         path += 2 + 1;
+        cs = -1;
         level = LDB;
       } else {
         /* use all remaining tokens as the name of the collection: */
@@ -770,7 +771,7 @@ parse_path(const char *paths, path_t *newpath, int *dbstart, int *collstart)
     *dbstart = ds;
 
   if (collstart != NULL)
-    *dbstart = cs;
+    *collstart = cs;
 
   tok_end(t);
 
