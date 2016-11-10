@@ -731,7 +731,7 @@ cleanupexit:
   return -1;
 }
 
-// return command code
+/* return command code */
 int parse_cmd(int argc, const char *argv[], const char *line, char **lp)
 {
   const char *cmd;
@@ -744,15 +744,15 @@ int parse_cmd(int argc, const char *argv[], const char *line, char **lp)
   if (prefix_match((const char ***)&list_match, cmds, argv[0]) == -1)
     errx(1, "prefix_match error");
 
-  // unknown prefix
+  /* unknown prefix */
   if (list_match[0] == NULL)
     return UNKNOWN;
 
-  // matches more than one command
+  /* matches more than one command */
   if (list_match[1] != NULL)
     return AMBIGUOUS;
 
-  // matches exactly one command from cmds
+  /* matches exactly one command from cmds */
   cmd = list_match[0];
 
   if (strcmp("cd", cmd) == 0) {
