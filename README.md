@@ -31,6 +31,8 @@ On OS X, Debian and Ubuntu install libmongoc and libbson:
     $ ./configure --enable-man-pages=yes
     $ make
     $ sudo make install
+    $ ldconfig
+    $ cd
 
     $ git clone https://github.com/timkuijsten/mongovi.git
     $ cd mongovi
