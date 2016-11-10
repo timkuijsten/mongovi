@@ -12,7 +12,7 @@ endif
 
 INCDIR=-I/usr/include/libbson-1.0/ -I/usr/include/libmongoc-1.0/ -I/usr/local/include/libbson-1.0/ -I/usr/local/include/libmongoc-1.0/
 
-CFLAGS=-Wall -Wextra ${INCDIR}
+CFLAGS=-Wall -Wextra -pedantic-errors -g ${INCDIR}
 LDFLAGS=-lmongoc-1.0 -lbson-1.0 -ledit
 OBJ=jsmn.o jsonify.o main.o mongovi.o shorten.o prefix_match.o
 
@@ -25,7 +25,10 @@ mongovi: ${OBJ} ${COMPAT}
 %.o: compat/%.c
 	$(CC) ${CFLAGS} -c $<
 
-test: ${OBJ} ${COMPAT}
+%.o: test/%.c
+	$(CC) ${CFLAGS} -c $<
+
+test: test/parse_path.c ${OBJ} ${COMPAT}
 	$(CC) $(CFLAGS) mongovi.c prefix_match.c test/parse_path.c -o mongovi-test jsmn.o jsonify.o shorten.o ${COMPAT} ${LDFLAGS}
 	./mongovi-test
 
@@ -40,4 +43,4 @@ depend:
 
 .PHONY: clean 
 clean:
-	rm -f ${OBJ} mongovi shorten-test prefix_match-test mongovi-test
+	rm -f ${OBJ} ${COMPAT} mongovi shorten-test prefix_match-test mongovi-test
