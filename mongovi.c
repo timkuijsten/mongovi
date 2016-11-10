@@ -152,7 +152,8 @@ main_init(int argc, char **argv)
 
     // tokenize
     tok_reset(t);
-    tok_line(t, el_line(e), &ac, &av, &cc, &co);
+    if (tok_line(t, el_line(e), &ac, &av, &cc, &co) != 0)
+      errx(1, "can't tokenize line");
 
     if (ac == 0)
       continue;
@@ -735,7 +736,11 @@ int parse_cmd(int argc, const char *argv[], const char *line, char **lp)
 {
   const char *cmd;
 
-  // check if the first token matches one or more commands
+  /* debian calls parse_cmd on startup and "optimizes out" argc */
+  if (line == NULL)
+    return UNKNOWN;
+
+  /* check if the first token matches one or more commands */
   if (prefix_match((const char ***)&list_match, cmds, argv[0]) == -1)
     errx(1, "prefix_match error");
 
