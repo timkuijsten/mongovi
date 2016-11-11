@@ -662,10 +662,10 @@ long parse_selector(char *doc, size_t docsize, const char *line, int len)
  * both absolute and relative paths.
  * Absolute paths always start with a / followed by a database name.
  * Relative paths depend on the db and collection values in newpath.
- * path must be null terminated.
+ * paths must be null terminated.
  * ".." is supported as a way to go up, but only if it does not follow a
  * collection name, since "/" and ".." are valid characters for a collection and
- * are thus treated as part of the collection name.
+ * are thus treated as part of that collection name.
  *
  * if dbstart is not NULL the index is set to the start of the database component
  * if collstart is not NULL the index is set to the start of the collection component
@@ -707,12 +707,19 @@ parse_path(const char *paths, path_t *newpath, int *dbstart, int *collstart)
   t = tok_init("/");
   tok_str(t, path, &ac, &av);
 
+  /* special case if path is "/" then ac is 0 */
+  if (ac == 0 && paths[0] == '/') {
+    newpath->dbname[0] = '\0';
+    newpath->collname[0] = '\0';
+  }
+
   /* now start parsing path */
   i = 0;
   if (path[0] == '/')
     path++;
   ds = -1; /* dbstart index */
   cs = -1; /* collstart index */
+
   while (i < ac) {
     switch (level) {
     case LNONE:
