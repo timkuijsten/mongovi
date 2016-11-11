@@ -360,10 +360,10 @@ complete_cmd(EditLine *e, const char *tok, int co)
 int
 complete_path(EditLine *e, const char *npath, int cp)
 {
-  enum complete { CNONE, CDB, CCOLL };
+  enum complete { CDB, CCOLL };
   path_t tmppath;
   char *c, *found;
-  int i;
+  int i, j, k;
   bson_error_t error;
   char **strv;
   char **matches = NULL;
@@ -376,38 +376,28 @@ complete_path(EditLine *e, const char *npath, int cp)
   if (strlcpy(tmppath.collname, path.collname, MAXCOLLNAME) > MAXCOLLNAME)
     return -1;
 
-  if (parse_path(npath, &tmppath, NULL, NULL) < 0)
+  if (parse_path(npath, &tmppath, &j, &k) < 0)
     errx(1, "illegal path spec");
 
-  compl = CNONE;
+  if (strlen(tmppath.collname))
+    compl = CCOLL;
+  else if (strlen(tmppath.dbname)) {
+    /* complete collection, unless there is a dbname in npath (not ..) and the cursor is on it */
+    compl = CCOLL;
 
-  /* figure out if either the database or the collection has to be completed */
-  if (npath[0] == '/') {
-    /* complete absolute path
-     * complete db, unless another "/" is found and the cursor is on or after
-     * it.
-     */
-    compl = CDB;
-    if ((c = strchr(npath + 1, '/')) != NULL) {
-      i = c - npath;
-      if (i <= cp)
-        compl = CCOLL;
-    }
-  } else {
-    /* relative path, check current context */
-    if (strlen(path.collname) || strlen(path.dbname)) {
-      compl = CCOLL;
-    } else {
-      /* complete db, unless another "/" is found and the cursor is on or after
-       * it.
-       */
-      compl = CDB;
-      if ((c = strchr(npath, '/')) != NULL) {
+    if (j >= 0) { /* there is a dbname in npath */
+      /* find second "/" if any */
+      if ((c = strchr(npath + j, '/')) != NULL) {
         i = c - npath;
-        if (i <= cp)
-          compl = CCOLL;
+        if (i > cp)
+          compl = CDB;
+      } else {
+        /* cursor is still on db name component */
+        compl = CDB;
       }
     }
+  } else {
+    compl = CDB;
   }
 
   switch (compl) {
@@ -539,7 +529,6 @@ complete_path(EditLine *e, const char *npath, int cp)
       }
     }
     break;
-  case CNONE:
   default:
     errx(1, "unexpected completion");
   }
