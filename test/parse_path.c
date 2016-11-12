@@ -27,11 +27,12 @@ int main()
     { "bar/coll",                        { "foo", "some" },  { "foo", "bar/coll" },           -1,  0 },
     { "/",                               { "", "" },         { "", "" },                      -1, -1 },
     { "/",                               { "foo", "" },      { "", "" },                      -1, -1 },
-    { " /",                              { "foo", "" },      { "", "" },                      -1, -1 },
-    { "/ ",                              { "foo", "" },      { "", "" },                      -1, -1 },
-    { "/some ",                          { "foo", "" },      { "some", "" },                   1, -1 },
-    { "/some/o ",                        { "foo", "" },      { "some", "o" },                  1,  6 },
-    { "/some",                           { "foo", "bar" },   { "some", "" },                   1, -1 },
+    { " /",                              { "foo", "" },      { "", "" },                      -1, -1 }, /* test if leading blank is removed from absolute path */
+    { "/ ",                              { "foo", "" },      { "", "" },                      -1, -1 }, /* test if trailing blank is removed from absolute path */
+    { "/some ",                          { "foo", "" },      { "some", "" },                   1, -1 }, /* test if trailing blank is removed from database */
+    { "/some/o ",                        { "foo", "" },      { "some", "o" },                  1,  6 }, /* test if trailing blank is removed from collection */
+    { "/some",                           { "foo", "bar" },   { "some", "" },                   1, -1 }, /* test if collection is cleared */
+    { "  /some",                         { "foo", "bar" },   { "some", "" },                   3, -1 }, /* test if index includes blanks */
     { "/",                               { "foo", "some" },  { "", "" },                      -1, -1 },
     { "bar/../baz/coll",                 { "", "" },         { "baz", "coll" },                7, 11 },
     { "bar/../baz/coll",                 { "", "" },         { "baz", "coll" },                7, 11 },
