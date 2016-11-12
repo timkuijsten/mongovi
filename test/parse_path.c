@@ -20,6 +20,7 @@ int main()
 
   /* list of expectations */
   struct expfmt exps[] = {
+    { "",                                { "", "" },         { "", "" },                      -1, -1 },
     { "/db/coll",                        { "", "" },         { "db", "coll" },                 1,  4 },
     { "/db/coll/",                       { "", "" },         { "db", "coll/" },                1,  4 },
     { "db/coll",                         { "", "" },         { "db", "coll" },                 0,  3 },

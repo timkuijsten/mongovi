@@ -724,6 +724,16 @@ parse_path(const char *paths, path_t *newpath, int *dbstart, int *collstart)
   Tokenizer *t;
   char *path, *cp;
 
+  ds = -1; /* dbstart index */
+  cs = -1; /* collstart index */
+
+  /* init indices on request */
+  if (dbstart != NULL)
+    *dbstart = ds;
+
+  if (collstart != NULL)
+    *collstart = cs;
+
   i = strlen(paths);
   if (!i)
     return 0;
@@ -762,8 +772,6 @@ parse_path(const char *paths, path_t *newpath, int *dbstart, int *collstart)
   i = 0;
   if (cp[0] == '/')
     cp++;
-  ds = -1; /* dbstart index */
-  cs = -1; /* collstart index */
 
   while (i < ac) {
     switch (level) {
