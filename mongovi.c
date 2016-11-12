@@ -352,7 +352,7 @@ complete_cmd(EditLine *e, const char *tok, int co)
  * if matches more than one component, print all with matching prefix and zip up
  * if matches exactly one component and not complete, complete
  *
- * npath is the new path
+ * npath is the new path, it should not contain any blanks
  * cp is cursor position in npath
  * return 0 on success or -1 on failure
  */
@@ -395,7 +395,9 @@ complete_path(EditLine *e, const char *npath, int cp)
         if (i < cp)
           compl = CCOLL;
       }
-    } else if (cp > 0 && npath[cp -1] == '/') { /* implicit dbname */
+    } else if (cp == 0 && npath[cp] == '\0') { /* npath is empty */
+      compl = CCOLL;
+    } else if (cp > 0 && npath[cp - 1] == '/') { /* implicit dbname */
       compl = CCOLL;
     }
   } else
