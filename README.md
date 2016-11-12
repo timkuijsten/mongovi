@@ -116,8 +116,8 @@ echo "bind -v" >> ~/.editrc
 ## Commands
 
 * `aggregate [...]` aggregation pipeline, see [aggregation operators]
-* `cd /db/coll` change database to `db` and collection to `coll`
-* `cd /db` change to database `db`
+* `cd [path]` change to database or collection in path. Supports ".." to go up
+  one level.
 * `cd arg` if a database is selected, change to collection `arg`, if no database
   is selected, change to database `arg`
 * `count selector` count the number of documents in the current collection
