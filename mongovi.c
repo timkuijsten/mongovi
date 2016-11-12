@@ -41,7 +41,7 @@ const char *cmds[] = {
   "find",         /* FIND */
   "help",         /* print usage */
   "insert",       /* INSERT */
-  "ls",           /* LSARG, LSDBS, LSCOLLS or LSIDS */
+  "ls",           /* LS */
   "remove",       /* REMOVE */
   "update",       /* UPDATE */
   "upsert",       /* UPSERT */
@@ -538,7 +538,7 @@ complete_path(EditLine *e, const char *npath, int cp)
 }
 
 int
-exec_lsarg(const char *npath)
+exec_ls(const char *npath)
 {
   int ret;
   path_t tmppath;
@@ -818,7 +818,7 @@ int parse_cmd(int argc, const char *argv[], const char *line, char **lp)
     switch (argc) {
     case 1:
     case 2:
-      return LSARG;
+      return LS;
     default:
       return ILLEGAL;
     }
@@ -863,14 +863,10 @@ int exec_cmd(const int cmd, const char **argv, const char *line, int linelen)
   path_t tmppath;
 
   switch (cmd) {
-  case LSARG:
-    return exec_lsarg(line);
-  case LSDBS:
-    return exec_lsdbs(client, NULL);
+  case LS:
+    return exec_ls(line);
   case ILLEGAL:
     break;
-  case LSCOLLS:
-    return exec_lscolls(client, path.dbname);
   case CHCOLL:
     if (strlcpy(tmppath.dbname, path.dbname, MAXDBNAME) > MAXDBNAME)
       return -1;
