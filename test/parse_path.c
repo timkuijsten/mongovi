@@ -27,6 +27,10 @@ int main()
     { "bar/coll",                        { "foo", "some" },  { "foo", "bar/coll" },           -1,  0 },
     { "/",                               { "", "" },         { "", "" },                      -1, -1 },
     { "/",                               { "foo", "" },      { "", "" },                      -1, -1 },
+    { " /",                              { "foo", "" },      { "", "" },                      -1, -1 },
+    { "/ ",                              { "foo", "" },      { "", "" },                      -1, -1 },
+    { "/some ",                          { "foo", "" },      { "some", "" },                   1, -1 },
+    { "/some/o ",                        { "foo", "" },      { "some", "o" },                  1,  6 },
     { "/",                               { "foo", "some" },  { "", "" },                      -1, -1 },
     { "bar/../baz/coll",                 { "", "" },         { "baz", "coll" },                7, 11 },
     { "bar/../baz/coll",                 { "", "" },         { "baz", "coll" },                7, 11 },
@@ -68,7 +72,7 @@ test_parse_path(const char *path, path_t *newpath, int dsi, int csi, const path_
 
   int i, j;
   if ((exit = parse_path(path, newpath, &i, &j)) != exp_exit) {
-    warnx("FAIL: %s = exit: %d, expected: %d\n", path, exit, exp_exit);
+    warnx("FAIL: \"%s\" = exit: %d, expected: %d\n", path, exit, exp_exit);
     return 1;
   }
 
@@ -76,7 +80,7 @@ test_parse_path(const char *path, path_t *newpath, int dsi, int csi, const path_
     printf("PASS: %s\n", path);
     return 0;
   } else {
-    warnx("FAIL: %s, db: %s (%d), coll: %s (%d)\n", path, newpath->dbname, i, newpath->collname, j);
+    warnx("FAIL: \"%s\", db: \"%s\" (%d), coll: \"%s\" (%d)\n", path, newpath->dbname, i, newpath->collname, j);
     return 1;
   }
 

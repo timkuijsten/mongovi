@@ -669,19 +669,27 @@ parse_path(const char *paths, path_t *newpath, int *dbstart, int *collstart)
   enum levels level;
   const char **av;
   Tokenizer *t;
-  const char *path;
+  char *path, *cp;
 
-  path = paths;
-
-  if (!strlen(path))
+  i = strlen(paths);
+  if (!i)
     return 0;
 
+  if ((path = strdup(paths)) == NULL)
+    err(1, "parse_path");
+
+  cp = path;
+
+  /* trim trailing blanks */
+  while (cp[i - 1] == ' ' || cp[i - 1] == '\t' || cp[i - 1] == '\n')
+    cp[--i] = '\0';
+
   /* trim leading blanks */
-  while (*path == ' ' || *path == '\t' || *path == '\n')
-    path++;
+  while (*cp == ' ' || *cp == '\t' || *cp == '\n')
+    cp++;
 
   /* before we start parsing, determine current depth level */
-  if (path[0] == '/') { /* absolute path */
+  if (cp[0] == '/') { /* absolute path */
     level = LNONE; /* not in db or collection */
   } else { /* relative path */
     if (strlen(newpath->collname))
@@ -693,18 +701,18 @@ parse_path(const char *paths, path_t *newpath, int *dbstart, int *collstart)
   }
 
   t = tok_init("/");
-  tok_str(t, path, &ac, &av);
+  tok_str(t, cp, &ac, &av);
 
   /* special case if path is "/" then ac is 0 */
-  if (ac == 0 && path[0] == '/') {
+  if (ac == 0 && cp[0] == '/') {
     newpath->dbname[0] = '\0';
     newpath->collname[0] = '\0';
   }
 
   /* now start parsing path */
   i = 0;
-  if (path[0] == '/')
-    path++;
+  if (cp[0] == '/')
+    cp++;
   ds = -1; /* dbstart index */
   cs = -1; /* collstart index */
 
@@ -712,28 +720,28 @@ parse_path(const char *paths, path_t *newpath, int *dbstart, int *collstart)
     switch (level) {
     case LNONE:
       if (strcmp(av[i], "..") == 0) { /* skip */
-        path += 2 + 1;
+        cp += 2 + 1;
       } else {
         /* use component as database name */
         if (strlcpy(newpath->dbname, av[i], MAXDBNAME) > MAXDBNAME)
           goto cleanuperr;
-        ds = path - paths;
-        path += strlen(av[i]) + 1;
+        ds = cp - path;
+        cp += strlen(av[i]) + 1;
         level = LDB;
       }
       break;
     case LDB:
       if (strcmp(av[i], "..") == 0) { /* go up */
         newpath->dbname[0] = '\0';
-        path += 2 + 1;
+        cp += 2 + 1;
         ds = -1;
         level = LNONE;
       } else {
         /* use all remaining tokens as the name of the collection: */
-        if ((strlcpy(newpath->collname, path, MAXCOLLNAME)) > MAXCOLLNAME)
+        if ((strlcpy(newpath->collname, cp, MAXCOLLNAME)) > MAXCOLLNAME)
           goto cleanuperr;
-        cs = path - paths;
-        path += strlen(av[i]) + 1;
+        cs = cp - path;
+        cp += strlen(av[i]) + 1;
         /* we're done */
         i = ac;
       }
@@ -741,22 +749,22 @@ parse_path(const char *paths, path_t *newpath, int *dbstart, int *collstart)
     case LCOLL:
       if (strcmp(av[i], "..") == 0) { /* go up */
         newpath->collname[0] = '\0';
-        path += 2 + 1;
+        cp += 2 + 1;
         cs = -1;
         level = LDB;
       } else {
         /* use all remaining tokens as the name of the collection: */
-        if ((strlcpy(newpath->collname, path, MAXCOLLNAME)) > MAXCOLLNAME)
+        if ((strlcpy(newpath->collname, cp, MAXCOLLNAME)) > MAXCOLLNAME)
           goto cleanuperr;
-        cs = path - paths;
-        path += strlen(av[i]) + 1;
+        cs = cp - path;
+        cp += strlen(av[i]) + 1;
         level = LDB;
         /* we're done */
         i = ac;
       }
       break;
     default:
-      errx(1, "unexpected level %d while parsing \"%s\"", level, path);
+      errx(1, "unexpected level %d while parsing \"%s\"", level, cp);
     }
     i++;
   }
@@ -769,11 +777,14 @@ parse_path(const char *paths, path_t *newpath, int *dbstart, int *collstart)
     *collstart = cs;
 
   tok_end(t);
+  free(path);
 
   return 0;
 
 cleanuperr:
   tok_end(t);
+  free(path);
+
   return -1;
 }
 
