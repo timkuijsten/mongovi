@@ -544,6 +544,7 @@ exec_ls(const char *npath)
   path_t tmppath;
   mongoc_collection_t *ccoll;
 
+  /* copy current context */
   if (strlcpy(tmppath.dbname, path.dbname, MAXDBNAME) > MAXDBNAME)
     return -1;
   if (strlcpy(tmppath.collname, path.collname, MAXCOLLNAME) > MAXCOLLNAME)
@@ -695,7 +696,7 @@ parse_path(const char *paths, path_t *newpath, int *dbstart, int *collstart)
   tok_str(t, path, &ac, &av);
 
   /* special case if path is "/" then ac is 0 */
-  if (ac == 0 && paths[0] == '/') {
+  if (ac == 0 && path[0] == '/') {
     newpath->dbname[0] = '\0';
     newpath->collname[0] = '\0';
   }
