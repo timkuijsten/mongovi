@@ -270,8 +270,8 @@ complete(EditLine *e, int ch)
     cmdlen = strlen(cmd);
     ret = CC_REDISPLAY;
     break;
-  case 1: /* on argument, try to complete cd and ls */
-    if (strcmp(cmd, "cd") == 0 || strcmp(cmd, "ls") == 0)
+  case 1: /* on argument, try to complete all commands that support a path parameter */
+    if (strcmp(cmd, "cd") == 0 || strcmp(cmd, "ls") == 0 || strcmp(cmd, "drop") == 0)
       if (complete_path(e, ac <= 1 ? "" : av[1], co) < 0) {
         warnx("complete_path error");
         goto cleanup;
