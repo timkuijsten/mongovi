@@ -362,7 +362,7 @@ complete_path(EditLine *e, const char *npath, int cp)
   enum complete { CDB, CCOLL };
   path_t tmppath;
   char *c, *found;
-  int i, j, k;
+  int i, j, k, ret;
   bson_error_t error;
   char **strv;
   char **matches = NULL;
@@ -370,6 +370,7 @@ complete_path(EditLine *e, const char *npath, int cp)
   enum complete compl;
   mongoc_database_t *db;
 
+  /* copy current context */
   if (strlcpy(tmppath.dbname, path.dbname, MAXDBNAME) > MAXDBNAME)
     return -1;
   if (strlcpy(tmppath.collname, path.collname, MAXCOLLNAME) > MAXCOLLNAME)
@@ -381,30 +382,36 @@ complete_path(EditLine *e, const char *npath, int cp)
   if (strlen(tmppath.collname))
     compl = CCOLL;
   else if (strlen(tmppath.dbname)) {
-    /* complete collection, unless there is a dbname in npath (not ..) and the cursor is on it */
-    compl = CCOLL;
+    /*
+     * Complete db, unless there is a dbname, followed by a "/" and the cursor
+     * is beyond it.
+     */
+    compl = CDB;
 
-    if (j >= 0) { /* there is a dbname in npath */
-      /* find second "/" if any */
+    if (j >= 0) { /* explicit dbname in npath */
+      /* check if a "/" terminates the dbname */
       if ((c = strchr(npath + j, '/')) != NULL) {
         i = c - npath;
-        if (i > cp)
-          compl = CDB;
-      } else {
-        /* cursor is still on db name component */
-        compl = CDB;
+        if (i < cp)
+          compl = CCOLL;
       }
+    } else if (cp > 0 && npath[cp -1] == '/') { /* implicit dbname */
+      compl = CCOLL;
     }
-  } else {
+  } else
     compl = CDB;
-  }
 
   switch (compl) {
   case CDB: /* complete database */
     /* if tmppath.dbname is empty, print all databases */
     if (!strlen(tmppath.dbname)) {
       printf("\n");
-      return exec_lsdbs(client, NULL);
+      ret = exec_lsdbs(client, NULL);
+      /* ensure a trailing "/" */
+      if (cp > 0 && npath[cp -1] != '/')
+        if (el_insertstr(e, "/") < 0)
+          return -1;
+      return ret;
     }
 
     /* otherwise get a list of matching prefixes */
@@ -431,7 +438,7 @@ complete_path(EditLine *e, const char *npath, int cp)
       matches[0][i] = 0;
     }
 
-    /* matches exactly one entry or prefix */
+    /* matches exactly one entry or common prefix */
     found = matches[0];
 
     /* complete the entry if it's not complete yet
@@ -450,13 +457,14 @@ complete_path(EditLine *e, const char *npath, int cp)
             return -1;
           }
         }
-        /* append "/" if exactly one command matched */
+        /* if exactly one entry matched, ensure dbname ends with "/" */
         if (matches[1] == NULL) {
-          if (el_insertstr(e, "/") < 0) {
-            free(matches);
-            bson_strfreev(strv);
-            return -1;
-          }
+          if (cp > 0 && npath[cp -1] != '/')
+            if (el_insertstr(e, "/") < 0) {
+              free(matches);
+              bson_strfreev(strv);
+              return -1;
+            }
         }
         break;
       }
@@ -518,11 +526,12 @@ complete_path(EditLine *e, const char *npath, int cp)
         }
         /* append " " if exactly one command matched */
         if (matches[1] == NULL) {
-          if (el_insertstr(e, " ") < 0) {
-            free(matches);
-            bson_strfreev(strv);
-            return -1;
-          }
+          if (cp > 0 && npath[cp -1] != '/')
+            if (el_insertstr(e, " ") < 0) {
+              free(matches);
+              bson_strfreev(strv);
+              return -1;
+            }
         }
         break;
       }
