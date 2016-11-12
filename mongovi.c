@@ -733,8 +733,10 @@ parse_path(const char *paths, path_t *newpath, int *dbstart, int *collstart)
     cp++;
 
   /* before we start parsing, determine current depth level */
-  if (cp[0] == '/') { /* absolute path */
+  if (cp[0] == '/') { /* absolute path, reset db and collection */
     level = LNONE; /* not in db or collection */
+    newpath->dbname[0] = '\0';
+    newpath->collname[0] = '\0';
   } else { /* relative path */
     if (strlen(newpath->collname))
       level = LCOLL; /* in collection (and thus db) */
@@ -747,13 +749,7 @@ parse_path(const char *paths, path_t *newpath, int *dbstart, int *collstart)
   t = tok_init("/");
   tok_str(t, cp, &ac, &av);
 
-  /* special case if path is "/" then ac is 0 */
-  if (ac == 0 && cp[0] == '/') {
-    newpath->dbname[0] = '\0';
-    newpath->collname[0] = '\0';
-  }
-
-  /* now start parsing path */
+  /* now start parsing cp */
   i = 0;
   if (cp[0] == '/')
     cp++;
