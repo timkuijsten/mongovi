@@ -39,7 +39,6 @@ const char *cmds[] = {
   "cd",           /* CHCOLL,  change database and/or collection */
   "collections",  /* LSCOLLS, list all collections */
   "count",        /* COUNT */
-  "databases",    /* LSDBS,   list all databases */
   "find",         /* FIND */
   "help",         /* print usage */
   "insert",       /* INSERT */
@@ -821,18 +820,6 @@ int parse_cmd(int argc, const char *argv[], const char *line, char **lp)
     case 1:
     case 2:
       return LSARG;
-    default:
-      return ILLEGAL;
-    }
-  }
-
-  /* ls works without a database */
-
-  if (strcmp("databases", cmd) == 0) {
-    *lp = strstr(line, argv[0]) + strlen(argv[0]);
-    switch (argc) {
-    case 1:
-      return LSDBS;
     default:
       return ILLEGAL;
     }

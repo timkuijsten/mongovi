@@ -123,7 +123,6 @@ echo "bind -v" >> ~/.editrc
 * `collections` list all collections in the current database, alias for ls with
   selected database
 * `count selector` count the number of documents in the current collection
-* `databases` list all databases, alias for ls without selected database
 * `find [selector]` query current collection using the optional selector, see
   [query operators]
 * `help` print all commands
