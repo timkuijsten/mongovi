@@ -38,6 +38,7 @@ const char *cmds[] = {
   "aggregate",    /* AGQUERY */
   "cd",           /* CHCOLL,  change database and/or collection */
   "count",        /* COUNT */
+  "drop",         /* DROP */
   "find",         /* FIND */
   "help",         /* print usage */
   "insert",       /* INSERT */
@@ -564,6 +565,49 @@ exec_ls(const char *npath)
     return exec_lsdbs(client, NULL);
 }
 
+int
+exec_drop(const char *npath)
+{
+  path_t tmppath;
+  mongoc_collection_t *coll;
+  mongoc_database_t *db;
+  bson_error_t error;
+
+  /* copy current context */
+  if (strlcpy(tmppath.dbname, path.dbname, MAXDBNAME) > MAXDBNAME)
+    return -1;
+  if (strlcpy(tmppath.collname, path.collname, MAXCOLLNAME) > MAXCOLLNAME)
+    return -1;
+
+  if (parse_path(npath, &tmppath, NULL, NULL) < 0)
+    errx(1, "illegal path spec");
+
+  if (strlen(tmppath.collname)) { /* drop collection */
+    coll = mongoc_client_get_collection(client, tmppath.dbname, tmppath.collname);
+    if (!mongoc_collection_drop(coll, &error)) {
+      warnx("cursor failed: %d.%d %s", error.domain, error.code, error.message);
+      mongoc_collection_destroy(coll);
+      return -1;
+    }
+    mongoc_collection_destroy(coll);
+    printf("dropped /%s/%s\n", tmppath.dbname, tmppath.collname);
+  } else if (strlen(tmppath.dbname)) {
+    db = mongoc_client_get_database(client, tmppath.dbname);
+    if (!mongoc_database_drop(db, &error)) {
+      warnx("cursor failed: %d.%d %s", error.domain, error.code, error.message);
+      mongoc_database_destroy(db);
+      return -1;
+    }
+    mongoc_database_destroy(db);
+    printf("dropped %s\n", tmppath.dbname);
+  } else {
+    /* illegal context */
+    return -1;
+  }
+
+  return 0;
+}
+
 /*
  * Create a mongo extended JSON id selector document. If selector is 24 hex
  * digits treat it as an object id, otherwise as a literal.
@@ -836,6 +880,17 @@ int parse_cmd(int argc, const char *argv[], const char *line, char **lp)
     }
   }
 
+  if (strcmp("drop", cmd) == 0) {
+    *lp = strstr(line, argv[0]) + strlen(argv[0]);
+    switch (argc) {
+    case 1:
+    case 2:
+      return DROP;
+    default:
+      return ILLEGAL;
+    }
+  }
+
   /* all the other commands need a database and collection to be selected */
   if (!strlen(path.dbname))
     return DBMISSING;
@@ -877,6 +932,8 @@ int exec_cmd(const int cmd, const char **argv, const char *line, int linelen)
   switch (cmd) {
   case LS:
     return exec_ls(line);
+  case DROP:
+    return exec_drop(line);
   case ILLEGAL:
     break;
   case CHCOLL:

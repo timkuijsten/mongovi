@@ -67,7 +67,7 @@ typedef struct {
   char url[MAXMONGOURL];
 } config_t;
 
-enum cmd { ILLEGAL = -1, UNKNOWN, AMBIGUOUS, LS, CHCOLL, COUNT, UPDATE, UPSERT, INSERT, REMOVE, FIND, AGQUERY, HELP };
+enum cmd { ILLEGAL = -1, UNKNOWN, AMBIGUOUS, DROP, LS, CHCOLL, COUNT, UPDATE, UPSERT, INSERT, REMOVE, FIND, AGQUERY, HELP };
 enum errors { DBMISSING = 256, COLLMISSING };
 
 void usage(void);
@@ -85,7 +85,8 @@ int parse_path(const char *paths, path_t *newpath, int *dbstart, int *collstart)
 int parse_file(FILE *fp, char *line, config_t *cfg);
 int parse_cmd(int argc, const char *argv[], const char *line, char **lp);
 int exec_cmd(const int cmd, const char **argv, const char *line, int linelen);
-int exec_lsarg(const char *npath);
+int exec_drop(const char *npath);
+int exec_ls(const char *npath);
 int exec_lsdbs(mongoc_client_t *client, const char *prefix);
 int exec_lscolls(mongoc_client_t *client, char *dbname);
 int exec_chcoll(mongoc_client_t *client, const path_t newpath);

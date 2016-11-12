@@ -125,8 +125,10 @@ echo "bind -v" >> ~/.editrc
   [query operators]
 * `help` print all commands
 * `insert doc` insert given document `doc`
-* `ls` when no database is selected, list all databases otherwise list all
-  collections in the currently selected database
+* `ls [path]` without path, if no database is selected, list all databases
+  otherwise list all collections in the currently selected database. Or use
+  path. Supports ".." to go up one level.
+* `drop [path]` drop current database or collection or drop path
 * `remove selector` remove all documents that match `selector`
 * `update selector doc` update all documents that match `selector` using `doc`
 * `upsert selector doc` update or insert document that matches `selector` using
