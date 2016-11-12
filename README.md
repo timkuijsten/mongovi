@@ -120,8 +120,6 @@ echo "bind -v" >> ~/.editrc
 * `cd /db` change to database `db`
 * `cd arg` if a database is selected, change to collection `arg`, if no database
   is selected, change to database `arg`
-* `collections` list all collections in the current database, alias for ls with
-  selected database
 * `count selector` count the number of documents in the current collection
 * `find [selector]` query current collection using the optional selector, see
   [query operators]

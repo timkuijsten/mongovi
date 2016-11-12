@@ -37,7 +37,6 @@ int pretty = 0;
 const char *cmds[] = {
   "aggregate",    /* AGQUERY */
   "cd",           /* CHCOLL,  change database and/or collection */
-  "collections",  /* LSCOLLS, list all collections */
   "count",        /* COUNT */
   "find",         /* FIND */
   "help",         /* print usage */
@@ -825,25 +824,9 @@ int parse_cmd(int argc, const char *argv[], const char *line, char **lp)
     }
   }
 
-  /* all the other commands need a database to be selected */
-
+  /* all the other commands need a database and collection to be selected */
   if (!strlen(path.dbname))
     return DBMISSING;
-
-  /* ls works without a selected collection as well */
-
-  if (strcmp("collections", cmd) == 0) {
-    *lp = strstr(line, argv[0]) + strlen(argv[0]);
-    switch (argc) {
-    case 1:
-      return LSCOLLS;
-    default:
-      return ILLEGAL;
-    }
-  }
-
-  /* all the other commands need a collection to be selected */
-
   if (!strlen(path.collname))
     return COLLMISSING;
 
