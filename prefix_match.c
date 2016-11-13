@@ -23,7 +23,7 @@ prefix_match(const char ***dst, const char **src, const char *prefix)
   if (prefsize == 0)
     return 0;
 
-  // check all strings that start with the given prefix
+  /* check all strings that start with the given prefix */
   for (i = 0; src[i] != NULL; i++) {
     for (j = 0; j < prefsize; j++) {
       if (src[i][j] == '\0')
@@ -34,7 +34,7 @@ prefix_match(const char ***dst, const char **src, const char *prefix)
     if (j != prefsize)
       continue;
 
-    // match, allocate a new pointer
+    /* match, allocate a new pointer */
     listsize++;
     if ((*dst = reallocarray(*dst, listsize, sizeof(char **))) == NULL) {
       free(*dst);

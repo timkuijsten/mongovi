@@ -32,7 +32,7 @@ shorten(char *str, int maxlen)
 {
   int half, i, len, offset;
 
-  if (maxlen < MINSHORTENED) // need at least four chars
+  if (maxlen < MINSHORTENED) /* need at least four chars */
     return -1;
 
   len = strlen(str);
@@ -41,7 +41,7 @@ shorten(char *str, int maxlen)
   if (offset <= 0)
     return len;
 
-  // len > maxlen >= MINSHORTENED
+  /* len > maxlen >= MINSHORTENED */
 
   half = maxlen / 2;
   str[half - 1] = '.';
@@ -63,7 +63,6 @@ shorten(char *str, int maxlen)
 int
 shorten_comps(char *c1, char *c2, int maxlen)
 {
-  //const int comps = 2; // number of components
   int len, nlen, totlen, overflow;
   char *comp[] = { c1, c2, NULL };
   char **compp;
@@ -82,7 +81,7 @@ shorten_comps(char *c1, char *c2, int maxlen)
     len = strlen(*compp);
     nlen = len - overflow;
     if (nlen < MINSHORTENED)
-      nlen = MINSHORTENED; // never shorten more than MINSHORTENED
+      nlen = MINSHORTENED; /* never shorten more than MINSHORTENED */
 
     if ((nlen = shorten(*compp, nlen)) < 0)
       return -1;

@@ -27,7 +27,7 @@ static char **list_match = NULL; /* contains all ambiguous prefix_match commands
 static char pmpt[MAXPROMPT + 1] = "/> ";
 
 static mongoc_client_t *client;
-static mongoc_collection_t *ccoll = NULL; // current collection
+static mongoc_collection_t *ccoll = NULL; /* current collection */
 
 int pretty = 0;
 
@@ -106,7 +106,7 @@ main_init(int argc, char **argv)
   else if (status > 0)
     if (strlcpy(connect_url, config.url, MAXMONGOURL) > MAXMONGOURL)
       errx(1, "url in config too long");
-  // else use default
+  /* else use default */
 
   if ((e = el_init(progname, stdin, stdout, stderr)) == NULL)
     errx(1, "can't initialize editline");
@@ -127,7 +127,7 @@ main_init(int argc, char **argv)
   el_set(e, EL_ADDFN, "complete", "Context sensitive argument completion", complete);
   el_set(e, EL_BIND, "\t", "complete", NULL);
 
-  // setup mongo
+  /* setup mongo */
   mongoc_init();
   if ((client = mongoc_client_new(connect_url)) == NULL)
     errx(1, "can't connect to mongo");
@@ -149,7 +149,7 @@ main_init(int argc, char **argv)
     if (line[read - 1] != '\n')
       errx(1, "expected line to end with a newline");
 
-    // tokenize
+    /* tokenize */
     tok_reset(t);
     if (tok_line(t, el_line(e), &ac, &av, &cc, &co) != 0)
       errx(1, "can't tokenize line");
@@ -157,7 +157,7 @@ main_init(int argc, char **argv)
     if (ac == 0)
       continue;
 
-    // copy without newline
+    /* copy without newline */
     if (strlcpy(linecpy, line, read) > (size_t)read)
       errx(1, "could not copy line");
 
@@ -175,7 +175,7 @@ main_init(int argc, char **argv)
       continue;
       break;
     case AMBIGUOUS:
-      // matches more than one command, print list_match
+      /* matches more than one command, print list_match */
       i = 0;
       while (list_match[i] != NULL)
         printf("%s\n", list_match[i++]);
@@ -695,7 +695,7 @@ int idtosel(char *doc, const size_t docsize, const char *sel, const size_t selle
   if (strlcpy(doc, start, docsize) > docsize)
     return -1;
   strncat(doc, sel, sellen);
-  doc[strlen(start) + sellen] = '\0'; // ensure NUL termination
+  doc[strlen(start) + sellen] = '\0'; /* ensure NUL termination */
   if (strlcat(doc, end, docsize) > docsize)
     return -1;
 
@@ -726,7 +726,7 @@ long parse_selector(char *doc, size_t docsize, const char *line, int len)
     idtosel(doc, docsize, ids, snb);
     offset = fnb + snb;
   } else {
-    // try to parse as relaxed json and convert to strict json
+    /* try to parse as relaxed json and convert to strict json */
     if ((offset = relaxed_to_strict(doc, docsize, line, len, 1)) < 0) {
       warnx("jsonify error: %ld", offset);
       return -1;
@@ -974,8 +974,9 @@ int parse_cmd(int argc, const char *argv[], const char *line, char **lp)
   return UNKNOWN;
 }
 
-// execute command with given arguments
-// return 0 on success, -1 on failure
+/* execute command with given arguments
+ * return 0 on success, -1 on failure
+ */
 int exec_cmd(const int cmd, const char **argv, const char *line, int linelen)
 {
   path_t tmppath;
@@ -1014,8 +1015,9 @@ int exec_cmd(const int cmd, const char **argv, const char *line, int linelen)
   return -1;
 }
 
-// list database for the given client
-// return 0 on success, -1 on failure
+/* list database for the given client
+ * return 0 on success, -1 on failure
+ */
 int exec_lsdbs(mongoc_client_t *client, const char *prefix)
 {
   bson_error_t error;
@@ -1043,8 +1045,9 @@ int exec_lsdbs(mongoc_client_t *client, const char *prefix)
   return 0;
 }
 
-// list collections for the given database
-// return 0 on success, -1 on failure
+/* list collections for the given database
+ * return 0 on success, -1 on failure
+ */
 int exec_lscolls(mongoc_client_t *client, char *dbname)
 {
   bson_error_t error;
@@ -1098,8 +1101,9 @@ exec_chcoll(mongoc_client_t *client, const path_t newpath)
   return 0;
 }
 
-// count number of documents in collection
-// return 0 on success, -1 on failure
+/* count number of documents in collection
+ * return 0 on success, -1 on failure
+ */
 int exec_count(mongoc_collection_t *collection, const char *line, int len)
 {
   bson_error_t error;
@@ -1110,7 +1114,7 @@ int exec_count(mongoc_collection_t *collection, const char *line, int len)
   if (parse_selector(query_doc, MAXDOC, line, len) == -1)
     return -1;
 
-  // try to parse it as json and convert to bson
+  /* try to parse it as json and convert to bson */
   if (!bson_init_from_json(&query, query_doc, -1, &error)) {
     warnx("%d.%d %s", error.domain, error.code, error.message);
     return -1;
@@ -1126,7 +1130,7 @@ int exec_count(mongoc_collection_t *collection, const char *line, int len)
   return 0;
 }
 
-// parse update command, expect two json objects, a selector, and an update doc and exec
+/* parse update command, expect two json objects, a selector, and an update doc and exec */
 int exec_update(mongoc_collection_t *collection, const char *line, int upsert)
 {
   long offset;
@@ -1139,16 +1143,16 @@ int exec_update(mongoc_collection_t *collection, const char *line, int upsert)
   if (upsert)
     opts |= MONGOC_UPDATE_UPSERT;
 
-  // read first json object
+  /* read first json object */
   if ((offset = parse_selector(query_doc, MAXDOC, line, strlen(line))) == -1)
     return ILLEGAL;
   if (offset == 0)
     return ILLEGAL;
 
-  // shorten line
+  /* shorten line */
   line += offset;
 
-  // read second json object
+  /* read second json object */
   if ((offset = relaxed_to_strict(update_doc, MAXDOC, line, strlen(line), 1)) < 0) {
     warnx("jsonify error: %ld", offset);
     return ILLEGAL;
@@ -1156,16 +1160,16 @@ int exec_update(mongoc_collection_t *collection, const char *line, int upsert)
   if (offset == 0)
     return ILLEGAL;
 
-  // shorten line
+  /* shorten line */
   line += offset;
 
-  // try to parse the query as json and convert to bson
+  /* try to parse the query as json and convert to bson */
   if (!bson_init_from_json(&query, query_doc, -1, &error)) {
     warnx("%d.%d %s", error.domain, error.code, error.message);
     return -1;
   }
 
-  // try to parse the update as json and convert to bson
+  /* try to parse the update as json and convert to bson */
   if (!bson_init_from_json(&update, update_doc, -1, &error)) {
     warnx("%d.%d %s", error.domain, error.code, error.message);
     return -1;
@@ -1188,7 +1192,7 @@ int exec_update(mongoc_collection_t *collection, const char *line, int upsert)
   return 0;
 }
 
-// parse insert command, expect one json objects, the insert doc and exec
+/* parse insert command, expect one json objects, the insert doc and exec */
 int exec_insert(mongoc_collection_t *collection, const char *line, int len)
 {
   long offset;
@@ -1196,19 +1200,19 @@ int exec_insert(mongoc_collection_t *collection, const char *line, int len)
   bson_error_t error;
   bson_t doc;
 
-  // read first json object
+  /* read first json object */
   if ((offset = parse_selector(insert_doc, MAXDOC, line, len)) == -1)
     return ILLEGAL;
   if (offset == 0)
     return ILLEGAL;
 
-  // try to parse the doc as json and convert to bson
+  /* try to parse the doc as json and convert to bson */
   if (!bson_init_from_json(&doc, insert_doc, -1, &error)) {
     warnx("%d.%d %s", error.domain, error.code, error.message);
     return -1;
   }
 
-  // execute insert
+  /* execute insert */
   if (!mongoc_collection_insert(collection, MONGOC_INSERT_NONE, &doc, NULL, &error)) {
     warnx("%d.%d %s", error.domain, error.code, error.message);
     return -1;
@@ -1217,7 +1221,7 @@ int exec_insert(mongoc_collection_t *collection, const char *line, int len)
   return 0;
 }
 
-// parse remove command, expect one selector
+/* parse remove command, expect one selector */
 int exec_remove(mongoc_collection_t *collection, const char *line, int len)
 {
   long offset;
@@ -1225,19 +1229,19 @@ int exec_remove(mongoc_collection_t *collection, const char *line, int len)
   bson_error_t error;
   bson_t doc;
 
-  // read first json object
+  /* read first json object */
   if ((offset = parse_selector(remove_doc, MAXDOC, line, len)) == -1)
     return ILLEGAL;
   if (offset == 0)
     return ILLEGAL;
 
-  // try to parse the doc as json and convert to bson
+  /* try to parse the doc as json and convert to bson */
   if (!bson_init_from_json(&doc, remove_doc, -1, &error)) {
     warnx("%d.%d %s", error.domain, error.code, error.message);
     return -1;
   }
 
-  // execute remove
+  /* execute remove */
   if (!mongoc_collection_remove(collection, MONGOC_REMOVE_NONE, &doc, NULL, &error)) {
     warnx("%d.%d %s", error.domain, error.code, error.message);
     return -1;
@@ -1246,8 +1250,9 @@ int exec_remove(mongoc_collection_t *collection, const char *line, int len)
   return 0;
 }
 
-// execute a query
-// return 0 on success, -1 on failure
+/* execute a query
+ * return 0 on success, -1 on failure
+ */
 int exec_query(mongoc_collection_t *collection, const char *line, int len, int idsonly)
 {
   long i;
@@ -1263,7 +1268,7 @@ int exec_query(mongoc_collection_t *collection, const char *line, int len, int i
   if (parse_selector(query_doc, MAXDOC, line, len) == -1)
     return -1;
 
-  // try to parse it as json and convert to bson
+  /* try to parse it as json and convert to bson */
   if (!bson_init_from_json(&query, query_doc, -1, &error)) {
     warnx("%d.%d %s", error.domain, error.code, error.message);
     return -1;
@@ -1304,8 +1309,9 @@ int exec_query(mongoc_collection_t *collection, const char *line, int len, int i
   return 0;
 }
 
-// execute an aggregation pipeline
-// return 0 on success, -1 on failure
+/* execute an aggregation pipeline
+ * return 0 on success, -1 on failure
+ */
 int exec_agquery(mongoc_collection_t *collection, const char *line, int len)
 {
   long i;
@@ -1316,13 +1322,13 @@ int exec_agquery(mongoc_collection_t *collection, const char *line, int len)
   bson_t aggr_query;
   char query_doc[MAXDOC];
 
-  // try to parse as relaxed json and convert to strict json
+  /* try to parse as relaxed json and convert to strict json */
   if ((i = relaxed_to_strict(query_doc, MAXDOC, line, len, 0)) < 0) {
     warnx("jsonify error: %ld", i);
     return -1;
   }
 
-  // try to parse it as json and convert to bson
+  /* try to parse it as json and convert to bson */
   if (!bson_init_from_json(&aggr_query, query_doc, -1, &error)) {
     warnx("%d.%d %s", error.domain, error.code, error.message);
     return -1;
@@ -1352,8 +1358,9 @@ char *prompt()
   return pmpt;
 }
 
-// if too long, shorten first or both components
-// global pmpt should have space for MAXPROMPT + 1 bytes
+/* if too long, shorten first or both components
+ * global pmpt should have space for MAXPROMPT + 1 bytes
+ */
 int
 set_prompt(const char *dbname, const char *collname)
 {
@@ -1368,7 +1375,7 @@ set_prompt(const char *dbname, const char *collname)
 
   plen = static_chars + strlen(c1) + strlen(c2);
 
-  // ensure prompt fits
+  /* ensure prompt fits */
   if (plen - MAXPROMPT > 0)
     if (shorten_comps(c1, c2, MAXPROMPT - static_chars) < 0)
       errx(1, "can't initialize prompt");
@@ -1383,25 +1390,27 @@ set_prompt(const char *dbname, const char *collname)
   return 0;
 }
 
-// set username and home dir
-// return 0 on success or -1 on failure.
+/* set username and home dir
+ * return 0 on success or -1 on failure.
+ */
 int
 init_user(user_t *usr)
 {
   struct passwd *pw;
 
   if ((pw = getpwuid(getuid())) == NULL)
-    return -1; // user not found
+    return -1; /* user not found */
   if (strlcpy(usr->name, pw->pw_name, MAXUSERNAME) >= MAXUSERNAME)
-    return -1; // username truncated
+    return -1; /* username truncated */
   if (strlcpy(usr->home, pw->pw_dir, PATH_MAX) >= PATH_MAX)
-    return -1; // home dir truncated
+    return -1; /* home dir truncated */
 
   return 0;
 }
 
-// try to read ~/.mongovi and set cfg
-// return 1 if config is read and set, 0 if no config is found or -1 on failure.
+/* try to read ~/.mongovi and set cfg
+ * return 1 if config is read and set, 0 if no config is found or -1 on failure.
+ */
 int
 read_config(user_t *usr, config_t *cfg)
 {
@@ -1437,22 +1446,23 @@ read_config(user_t *usr, config_t *cfg)
   return 1;
 }
 
-// read the credentials from a users config file
-// return 0 on success or -1 on failure.
+/* read the credentials from a users config file
+ * return 0 on success or -1 on failure.
+ */
 int
 parse_file(FILE *fp, char *line, config_t *cfg)
 {
   size_t linesize = 0;
   ssize_t linelen = 0;
 
-  // expect url on first line
+  /* expect url on first line */
   if ((linelen = getline(&line, &linesize, fp)) < 0)
     return -1;
   if (linelen > MAXMONGOURL)
     return -1;
   if (strlcpy(cfg->url, line, MAXMONGOURL) >= MAXMONGOURL)
     return -1;
-  cfg->url[linelen - 1] = '\0'; // trim newline
+  cfg->url[linelen - 1] = '\0'; /* trim newline */
 
   return 0;
 }
