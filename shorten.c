@@ -64,8 +64,12 @@ int
 shorten_comps(char *c1, char *c2, int maxlen)
 {
   int len, nlen, totlen, overflow;
-  char *comp[] = { c1, c2, NULL };
+  char *comp[3];
   char **compp;
+
+  comp[0] = c1;
+  comp[1] = c2;
+  comp[2] = NULL;
 
   totlen = 0;
   compp = comp;
