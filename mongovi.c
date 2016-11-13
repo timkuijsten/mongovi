@@ -301,7 +301,7 @@ complete(EditLine *e, int ch)
 int
 complete_cmd(EditLine *e, const char *tok, int co)
 {
-  const char *cmd; /* completed command */
+  char *cmd; /* completed command */
   int i;
   size_t cmdlen;
 
