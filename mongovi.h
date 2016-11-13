@@ -52,6 +52,10 @@
 #define MAXPROG 10
 #define MAXDOC 16 * 100 * 1024      /* maximum size of a json document */
 
+#ifndef PATH_MAX
+#define PATH_MAX 1024
+#endif
+
 /* shell specific user info */
 typedef struct {
   char name[MAXUSERNAME];
