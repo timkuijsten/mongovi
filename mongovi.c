@@ -1415,10 +1415,8 @@ int
 read_config(user_t *usr, config_t *cfg)
 {
   const char *file = ".mongovi";
-  char tmppath[PATH_MAX + 1], *line;
+  char tmppath[PATH_MAX + 1];
   FILE *fp;
-
-  line = NULL;
 
   if (strlcpy(tmppath, usr->home, PATH_MAX) >= PATH_MAX)
     return -1;
@@ -1434,14 +1432,11 @@ read_config(user_t *usr, config_t *cfg)
     return -1;
   }
 
-  if (parse_file(fp, line, cfg) < 0) {
-    if (line != NULL)
-      free(line);
+  if (mv_parse_file(fp, cfg) < 0) {
     fclose(fp);
     return -1;
   }
 
-  free(line);
   fclose(fp);
   return 1;
 }
@@ -1450,19 +1445,22 @@ read_config(user_t *usr, config_t *cfg)
  * return 0 on success or -1 on failure.
  */
 int
-parse_file(FILE *fp, char *line, config_t *cfg)
+mv_parse_file(FILE *fp, config_t *cfg)
 {
-  size_t linesize = 0;
-  ssize_t linelen = 0;
+  char line[MAXMONGOURL + 1];
 
   /* expect url on first line */
-  if ((linelen = getline(&line, &linesize, fp)) < 0)
+  if (fgets(line, sizeof(line), fp) == NULL) {
+    if (ferror(fp))
+      err(1, "mv_parse_file");
+    return 0; /* empty line */
+  }
+
+  /* trim newline if any */
+  line[strcspn(line, "\n")] = '\0';
+
+  if (strlcpy(cfg->url, line, MAXMONGOURL) > MAXMONGOURL)
     return -1;
-  if (linelen > MAXMONGOURL)
-    return -1;
-  if (strlcpy(cfg->url, line, MAXMONGOURL) >= MAXMONGOURL)
-    return -1;
-  cfg->url[linelen - 1] = '\0'; /* trim newline */
 
   return 0;
 }

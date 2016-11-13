@@ -83,7 +83,7 @@ int read_config(user_t *usr, config_t *cfg);
 int idtosel(char *doc, const size_t docsize, const char *sel, const size_t sellen);
 long parse_selector(char *doc, size_t docsize, const char *line, int len);
 int parse_path(const char *paths, path_t *newpath, int *dbstart, int *collstart);
-int parse_file(FILE *fp, char *line, config_t *cfg);
+int mv_parse_file(FILE *fp, config_t *cfg);
 int mv_parse_cmd(int argc, const char *argv[], const char *line, char **lp);
 int exec_cmd(const int cmd, const char **argv, const char *line, int linelen);
 int exec_drop(const char *npath);
