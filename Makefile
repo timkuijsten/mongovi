@@ -12,7 +12,7 @@ endif
 
 INCDIR=-I/usr/include/libbson-1.0/ -I/usr/include/libmongoc-1.0/ -I/usr/local/include/libbson-1.0/ -I/usr/local/include/libmongoc-1.0/
 
-CFLAGS=-Wall -Wextra -pedantic -g ${INCDIR}
+CFLAGS=-Wall -Wextra -std=c99 -pedantic -g ${INCDIR}
 LDFLAGS=-lmongoc-1.0 -lbson-1.0 -ledit
 OBJ=jsmn.o jsonify.o main.o mongovi.o shorten.o prefix_match.o
 
