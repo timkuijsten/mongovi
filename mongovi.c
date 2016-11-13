@@ -170,7 +170,7 @@ main_init(int argc, char **argv)
     if (history(h, &he, H_ENTER, linecpy) == -1)
       errx(1, "can't enter history");
 
-    cmd = parse_cmd(ac, av, linecpy, &lp);
+    cmd = mv_parse_cmd(ac, av, linecpy, &lp);
     switch (cmd) {
     case ILLEGAL:
       warnx("illegal syntax");
@@ -888,13 +888,9 @@ cleanuperr:
 }
 
 /* return command code */
-int parse_cmd(int argc, const char *argv[], const char *line, char **lp)
+int mv_parse_cmd(int argc, const char *argv[], const char *line, char **lp)
 {
   const char *cmd;
-
-  /* debian calls parse_cmd on startup and "optimizes out" argc */
-  if (line == NULL)
-    return UNKNOWN;
 
   /* check if the first token matches one or more commands */
   if (prefix_match((const char ***)&list_match, cmds, argv[0]) == -1)
