@@ -124,6 +124,12 @@ main_init(int argc, char **argv)
   /* load user defaults */
   el_source(e, NULL);
 
+  if (el_get(e, EL_EDITMODE, &i) != 0)
+    errx(1, "can't determine editline status");
+
+  if (i == 0)
+    errx(1, "editline disabled");
+
   el_set(e, EL_ADDFN, "complete", "Context sensitive argument completion", complete);
   el_set(e, EL_BIND, "\t", "complete", NULL);
 
@@ -234,7 +240,6 @@ unsigned char
 complete(EditLine *e, int ch)
 {
   char cmd[MAXCMDNAM];
-  const LineInfo *li;
   Tokenizer *t;
   const char **av;
   int i, ret, ac, cc, co;
@@ -243,11 +248,10 @@ complete(EditLine *e, int ch)
   /* default exit code to error */
   ret = CC_ERROR;
 
-  li = el_line(e);
-
   /* tokenize */
   t = tok_init(NULL);
-  tok_line(t, li, &ac, &av, &cc, &co);
+  if (tok_line(t, el_line(e), &ac, &av, &cc, &co) != 0)
+    errx(1, "can't tokenize line");
 
   /* empty, print all commands */
   if (ac == 0) {
