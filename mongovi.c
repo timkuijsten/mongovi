@@ -319,29 +319,41 @@ complete_cmd(EditLine *e, const char *tok, int co)
     printf("\n");
     while (list_match[i] != NULL)
       printf("%s\n", list_match[i++]);
-    return 0;
+
+    /* ensure path is completed to the longest common prefix */
+    i = common_prefix((const char **)list_match);
+    cmd = strndup(list_match[0], i);
+  } else {
+    cmd = strdup(list_match[0]);
   }
 
-  /* matches exactly one command from cmds */
-  cmd = list_match[0];
+  /* matches one command from cmds or has a common prefix */
 
   /* complete the command if it's not complete yet
    * but only if the cursor is on a blank */
   cmdlen = strlen(cmd);
-  if (cmdlen > strlen(tok)) {
+  if (cmdlen >= strlen(tok)) {
     switch (tok[co]) {
     case ' ':
     case '\0':
     case '\n':
     case '\t':
-      if (el_insertstr(e, cmd + strlen(tok)) < 0)
-        return -1;
-      if (el_insertstr(e, " ") < 0)
-        return -1;
+      if (cmdlen > strlen(tok))
+        if (el_insertstr(e, cmd + strlen(tok)) < 0) {
+          free(cmd);
+          return -1;
+        }
+      /* append " " if exactly one command matched */
+      if (list_match[1] == NULL)
+        if (el_insertstr(e, " ") < 0) {
+          free(cmd);
+          return -1;
+        }
       break;
     }
   }
 
+  free(cmd);
   return 0;
 }
 
