@@ -346,7 +346,7 @@ complete_cmd(EditLine *e, const char *tok, int co)
 }
 
 /*
- * tab complete path. relative paths depend on current context.
+ * Tab complete path. relative paths depend on current context.
  *
  * if empty, print all possible arguments
  * if matches more than one component, print all with matching prefix and zip up
@@ -397,7 +397,7 @@ complete_path(EditLine *e, const char *npath, int cp)
       }
     } else if (cp == 0 && npath[cp] == '\0') { /* npath is empty */
       compl = CCOLL;
-    } else if (cp > 0 && npath[cp - 1] == '/') { /* implicit dbname */
+    } else if (cp > 0 && npath[cp - 1] == '/') { /* implicit dbname, possibly via "../" */
       compl = CCOLL;
     }
   } else
