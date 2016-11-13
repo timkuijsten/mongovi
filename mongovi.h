@@ -31,6 +31,7 @@
 #include <unistd.h>
 #include <histedit.h>
 #include <libgen.h>
+#include <limits.h>
 #include <pwd.h>
 #include <stdio.h>
 #include <stdlib.h>
