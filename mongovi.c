@@ -395,10 +395,27 @@ complete_path(EditLine *e, const char *npath, int cp)
         if (i < cp)
           compl = CCOLL;
       }
-    } else if (cp == 0 && npath[cp] == '\0') { /* npath is empty */
-      compl = CCOLL;
-    } else if (cp > 0 && npath[cp - 1] == '/') { /* implicit dbname, possibly via "../" */
-      compl = CCOLL;
+    } else { /* implicit dbname in npath */
+      /* if the cursor is on a blank and npath is either empty or follows a ..
+       * or /, complete collection
+       */
+      switch (npath[cp]) {
+      case ' ':
+      case '\0':
+      case '\n':
+      case '\t':
+        if (cp == 0 && npath[cp] == '\0') { /* npath is empty */
+          compl = CCOLL;
+        } else if (cp > 0 && npath[cp - 1] == '/') { /* implicit dbname, possibly via "../" */
+          compl = CCOLL;
+        } else if (cp > 1 && npath[cp - 2] == '.' && npath[cp - 1] == '.') {
+          compl = CCOLL;
+          /* ensure a trailing "/" */
+          if (el_insertstr(e, "/") < 0)
+            return -1;
+        }
+        break;
+      }
     }
   } else
     compl = CDB;
@@ -459,7 +476,7 @@ complete_path(EditLine *e, const char *npath, int cp)
             return -1;
           }
         }
-        /* if exactly one entry matched, ensure dbname ends with "/" */
+        /* if exactly one entry matched, ensure dbname ends with "/" and print collections */
         if (matches[1] == NULL) {
           if (cp > 0 && npath[cp -1] != '/')
             if (el_insertstr(e, "/") < 0) {
@@ -467,6 +484,13 @@ complete_path(EditLine *e, const char *npath, int cp)
               bson_strfreev(strv);
               return -1;
             }
+          /* and print all collections */
+          printf("\n");
+          if (exec_lscolls(client, found) == -1) {
+            free(matches);
+            bson_strfreev(strv);
+            return -1;
+          }
         }
         break;
       }
