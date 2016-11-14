@@ -22,6 +22,7 @@ static char closesym[MAXSTACK];
 
 static char out[MAXOUTPUT];
 static size_t outsize = MAXOUTPUT;
+static size_t outidx = 0;
 
 /*
  * return pos in src or < 0 on error
@@ -55,6 +56,7 @@ human_readable(char *dst, size_t dstsize, const char *src, size_t srcsize)
 
   // wipe internal buffer
   out[0] = '\0';
+  outidx = 0;
   if (iterate(src, tokens, nrtokens, (void (*)(jsmntok_t *, char *, int, int, char *))human_readable_writer) == -1)
     return -11;
 
@@ -106,6 +108,7 @@ relaxed_to_strict(char *dst, size_t dstsize, const char *src, size_t srcsize, in
 
   // wipe internal buffer
   out[0] = '\0';
+  outidx = 0;
   if (iterate(src, tokens, nrtokens, (void (*)(jsmntok_t *, char *, int, int, char *))strict_writer) == -1)
     return -11;
 
@@ -161,7 +164,11 @@ iterate(const char *src, jsmntok_t *tokens, int nrtokens, void (*iterator)(jsmnt
     }
     *cp = '\0';
 
-    iterator(tok, key, depth, ndepth, closesym);
+    if (outidx < outsize)
+      iterator(tok, key, depth, ndepth, closesym);
+    else
+      return -1;
+
     depth = ndepth;
 
     free(key);
@@ -236,36 +243,36 @@ human_readable_writer(jsmntok_t *tok, char *key, int depth, int ndepth, char *cl
 
   switch (tok->type) {
   case JSMN_OBJECT:
-    strlcat(out, "{", outsize);
+    addout("{", 1);
     break;
   case JSMN_ARRAY:
-    strlcat(out, "[", outsize);
+    addout("[", 1);
     break;
   case JSMN_STRING:
     if (tok->size) { // this is a key
-      strlcat(out, "\n", outsize);
+      addout("\n", 1);
       // indent with two spaces per next depth
       for (i = 0; i < (size_t)ndepth; i++)
-        strlcat(out, "  ", outsize);
-      strlcat(out, key, outsize);
-      strlcat(out, ": ", outsize);
+        addout("  ", 2);
+      addout(key, strlen(key));
+      addout(": ", 2);
     } else { // this is a value
-      strlcat(out, "\"" , outsize);
-      strlcat(out, key, outsize);
-      strlcat(out, "\"" , outsize);
+      addout("\"" , 1);
+      addout(key, strlen(key));
+      addout("\"" , 1);
     }
     break;
   case JSMN_UNDEFINED:
   case JSMN_PRIMITIVE:
     if (tok->size) { // this is a key
-      strlcat(out, "\n", outsize);
+      addout("\n", 1);
       // indent with two spaces per next depth
       for (i = 0; i < (size_t)ndepth; i++)
-        strlcat(out, "  ", outsize);
-      strlcat(out, key, outsize);
-      strlcat(out, ": ", outsize);
+        addout("  ", 2);
+      addout(key, strlen(key));
+      addout(": ", 2);
     } else { // this is a value
-      strlcat(out, key, outsize);
+      addout(key, strlen(key));
     }
     break;
   default:
@@ -276,15 +283,15 @@ human_readable_writer(jsmntok_t *tok, char *key, int depth, int ndepth, char *cl
     // indent with two spaces per depth
     if (closesym[i] == '}') {
       if (ndepth < depth)
-        if (strlcat(out, "\n", outsize) > outsize)
+        if (addout("\n", 1) < 0)
           return;
       for (j = 1; (size_t)j < depth - i; j++)
-        strlcat(out, "  ", outsize);
+        addout("  ", 2);
 
-      if (strlcat(out, "}", outsize) > outsize)
+      if (addout("}", 1) < 0)
         return;
     } else if (closesym[i] == ']') {
-      if (strlcat(out, "]", outsize) > outsize)
+      if (addout("]", 1) < 0)
         return;
     } else {
       // unknown character
@@ -295,8 +302,19 @@ human_readable_writer(jsmntok_t *tok, char *key, int depth, int ndepth, char *cl
   // if not increasing and not heading to the end of this root
   if (ndepth && depth >= ndepth)
     if (!tok->size) // and if not a key
-      if (strlcat(out, ",", outsize) > outsize)
+      if (addout(",", 1) < 0)
         return;
+}
+
+static int
+addout(char *src, size_t size)
+{
+  if (outidx + size >= outsize)
+    return -1;
+  memcpy(out + outidx, src, size);
+  outidx += size;
+  out[outidx] = '\0';
+  return 0;
 }
 
 // pop item from the stack
