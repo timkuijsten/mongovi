@@ -166,8 +166,10 @@ iterate(const char *src, jsmntok_t *tokens, int nrtokens, void (*iterator)(jsmnt
 
     if (outidx < outsize)
       iterator(tok, key, depth, ndepth, closesym);
-    else
+    else {
+      free(key);
       return -1;
+    }
 
     depth = ndepth;
 
