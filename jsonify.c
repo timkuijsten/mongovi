@@ -180,53 +180,57 @@ iterate(const char *src, jsmntok_t *tokens, int nrtokens, void (*iterator)(jsmnt
 void
 strict_writer(jsmntok_t *tok, char *key, int depth, int ndepth, char *closesym)
 {
+  size_t keylen;
+
   switch (tok->type) {
   case JSMN_OBJECT:
-    strlcat(out, "{", outsize);
+    addout("{", 1);
     break;
   case JSMN_ARRAY:
-    strlcat(out, "[", outsize);
+    addout("[", 1);
     break;
   case JSMN_UNDEFINED:
     if (tok->size) { // quote keys
-      strlcat(out, "\"undefined\":", outsize);
+      addout("\"undefined\":", 11);
     } else { // don't quote values
-      strlcat(out, key, outsize);
+      addout(key, strlen(key));
     }
     break;
   case JSMN_STRING:
-    strlcat(out, "\"", outsize);
-    strlcat(out, key, outsize);
-    strlcat(out, "\"", outsize);
+    keylen = strlen(key);
+    addout("\"", 1);
+    addout(key, keylen);
+    addout("\"", 1);
     if (tok->size) // this is a key
-      strlcat(out, ":", outsize);
+      addout(":", 1);
     break;
   case JSMN_PRIMITIVE:
+    keylen = strlen(key);
     // convert single quotes at beginning and end of string
     if (key[0] == '\'')
       key[0] = '"';
-    if (key[strlen(key) - 1] == '\'')
-      key[strlen(key) - 1] = '"';
+    if (key[keylen - 1] == '\'')
+      key[keylen - 1] = '"';
 
     if (tok->size) { // quote keys
-      strlcat(out, "\"", outsize);
-      strlcat(out, key, outsize);
-      strlcat(out, "\":", outsize);
+      addout("\"", 1);
+      addout(key, keylen);
+      addout("\":", 2);
     } else // don't quote values
-      strlcat(out, key, outsize);
+      addout(key, keylen);
     break;
   default:
     warnx("unknown json token type");
   }
 
   // write any closing symbols
-  if (strlcat(out, closesym, outsize) > outsize)
+  if (addout(closesym, strlen(closesym)) < 0)
     return;
 
   // if not increasing and not heading to the end of this root
   if (ndepth && depth >= ndepth)
     if (!tok->size) // and if not a key
-      if (strlcat(out, ",", outsize) > outsize)
+      if (addout(",", 1) < 0)
         return;
 }
 
