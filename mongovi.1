@@ -1,0 +1,146 @@
+.Dd Nov 15, 2016
+.Dt MONGOVI 1
+.Os
+.Sh NAME
+.Nm mongovi
+.Nd command line interface for MongoDB
+.Sh SYNOPSIS
+.Nm
+.Op Fl p
+.Op Fl s
+.Op Ar path
+.Sh DESCRIPTION
+.Nm
+is a cli for MongoDB that uses
+.Xr editline 3
+for line editing and key bindings.
+.Pp 
+.Bl -tag -width Ds
+.It Fl p
+Make JSON documents human readable by using newlines and indent. This is the default when stdin is connected to a terminal.
+.It Fl s
+Put each JSON document on a single line. This is the default when stdin is not connected to a terminal.
+.It Ar path
+Open a specific database and collection. A
+.Ar path
+is a
+.Qq /
+delimited list of a database and collection name.
+.El
+.Pp
+The default key bindings are Emacs-like.
+.Xr vi 1 Ns -like
+key bindings can be enabled by putting
+.Qq bind -v
+into your
+.Xr editrc 5
+file.
+.Sh BUILTIN COMMANDS
+The following commands are supported:
+.Bl -tag -widith Ds
+.It Ic find Op Ar selector
+List all documents in the currently selected collection. Each document is output in MongoDB Extended JSON format.
+.It Ic count Op Ar selector
+Count all documents in the currently selected collection.
+.It Ic remove Ar selector
+Remove all documents in the currently selected collection that match the selector.
+.It Ic update Ar selector Ar doc
+Update all documents that match the selector using the provided update document.
+.It Ic upsert Ar selector Ar doc
+Update or insert a document that matches the selector using the provided document.
+.It Ic insert Ar doc
+Insert
+.Ar doc
+into the currently selected collection.
+.Ar doc
+is parsed as MongoDB Extended JSON.
+.It Ic aggregate Op Ar pipeline
+Run an aggregation query using the given pipeline.
+.It Ic cd Ar path
+Change the currently selected database and collection to
+.Ar path .
+The database and collection name should be separated by a
+.Qq / .
+A path that starts with a leading
+.Qq /
+is treated as an absolute path and should always be followed by a database name.
+.Pp 
+.Qq ..
+is supported as a way to traverse up one level.
+.Pp 
+If
+.Qq /
+or
+.Qq ..
+follow a collection name, these will be treated as part of that collection and won't be used for traversal.
+.It Ic ls Op Ar path
+List the contents of
+.Ar path
+or if path is omitted, the currently selected path.
+.It Ic drop Op Ar path
+drop a collection or database depending on
+.Ar path
+or the currently selected path.
+.It Ic help
+Print the list of commands.
+.El
+.Pp
+Any command can be abbreviated to the shortest non-ambiguous form. So
+.Ar find
+can also be written as
+.Ar f
+since no other command starts with an f.
+.Pp
+If selector is not a JSON document it is treated as a shortcut to search on _id of type string. Hexadecimal strings of 24 characters are treated as object ids.
+.Sh EXAMPLES
+Open database
+.Qq foo
+and collection
+.Qq bar :
+.Bd -literal -offset 4n
+$ mongovi /foo/bar
+/foo/bar>
+.Ed
+.Pp
+Change the currently selected collection to
+.Qq sabar :
+.Bd -literal -offset 4n
+/foo/bar> cd ../sabar
+/foo/sabar>
+.Ed
+.Pp
+List documents where
+.Qq foo
+is
+.Qq bar :
+.Bd -literal -offset 4n
+/foo/bar> find { foo: "bar" }
+.Ed
+.Pp
+Quick search on Object ID:
+.Bd -literal -offset 4n
+/foo/bar> find 57c6fb00495b576b10996f64
+.Ed
+.Pp
+Use an aggregation query to filter on documents where
+.Qq foo
+is
+.Qq bar .
+Note that
+.Ar aggregate
+is abbreviated to
+.Ar a :
+.Bd -literal -offset 4n
+/foo/bar> a [{ $project: { foo: true } }, { $match: { foo: "bar" } }]
+.Ed
+.Sh SEE ALSO
+.Xr editline 7 ,
+.Xr editrc 5
+.Sh EXIT STATUS
+.Ex -std 
+.Sh BUGS
+.Nm
+does currently not support UTF-8.
+.Sh AUTHORS
+.An -nosplit
+.An Tim Kuijsten Aq Mt tim@netsend.nl
