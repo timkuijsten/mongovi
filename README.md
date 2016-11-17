@@ -1,6 +1,7 @@
 # mongovi
 
-mongovi is a cli for MongoDB that uses libedit for line editing and [key bindings].
+mongovi is a cli for MongoDB. Both emacs and vi [key bindings] are supported via
+libedit.
 
 Status: **beta**, only use it if you have backups and want to help testing.
 
@@ -9,7 +10,8 @@ Status: **beta**, only use it if you have backups and want to help testing.
 * [MongoDB C Driver] 1.4.0
 * [editline(3)] ships with OS X
 
-mongovi is primarily developed and tested with OS X 10.11, Debian 8 and Ubuntu 12.04.
+mongovi is primarily developed and tested with OS X 10.11, Debian 8 and Ubuntu
+12.04.
 
 
 ## Installation
@@ -47,7 +49,7 @@ On OS X, Debian and Ubuntu install libmongoc and libbson:
 
 ## Documentation
 
-For full documentation please refer to the manpage: `nroff -mandoc mongovi.1`.
+For documentation please refer to the manpage: `nroff -mandoc mongovi.1`.
 
 
 ## Usage examples
@@ -82,10 +84,14 @@ Use an aggregation query to filter on documents where *foo* is *bar*. Note that
 
 ### Non-interactive
 
-Show all documents in database *raboof* and collection *qux* where *foo* is *bar*:
+List all databases:
 
-    $ echo 'find { foo: "bar" }' | mongovi /raboof/qux
-    { "foo" : "bar" }
+    $ echo ls | mongovi
+    raboof
+
+Copy some documents from */raboof/qux* to */raboof/baz*:
+
+    $ echo 'find { foo: "bar" }' | mongovi /raboof/qux | mongovi -i /raboof/baz
 
 ### vi key bindings
 
