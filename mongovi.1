@@ -71,14 +71,21 @@ A path that starts with a leading
 .Qq /
 is treated as an absolute path and should always be followed by a database name.
 .Pp 
+If
+.Ar path
+is
+.Qq -
+the previously selected path will be selected again.
+If a path component is
 .Qq ..
-is supported as a way to traverse up one level.
+it's interpreted as a way to traverse up.
 .Pp 
 If
-.Qq /
+.Qq / ,
+.Qq -
 or
 .Qq ..
-follow a collection name, these will be treated as part of that collection and won't be used for traversal.
+follow a collection name, these will be treated as part of that collection and won't have the special meaning described before.
 .It Ic ls Op Ar path
 List the contents of
 .Ar path

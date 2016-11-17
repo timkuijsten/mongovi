@@ -18,7 +18,7 @@
 
 static char progname[MAXPROG];
 
-static path_t path;
+static path_t path, prevpath;
 
 /* use as temporary one-time storage while building a query or query  results */
 static char tmpdoc[16 * 1024 * 1024];
@@ -992,12 +992,20 @@ int exec_cmd(const int cmd, const char **argv, const char *line, int linelen)
   case ILLEGAL:
     break;
   case CHCOLL:
-    if (strlcpy(tmppath.dbname, path.dbname, MAXDBNAME) > MAXDBNAME)
-      return -1;
-    if (strlcpy(tmppath.collname, path.collname, MAXCOLLNAME) > MAXCOLLNAME)
-      return -1;
-    if (parse_path(argv[1], &tmppath, NULL, NULL) < 0)
-      return -1;
+    /* special case "cd -" */
+    if (argv[1][0] == '-' && argv[1][1] == '\0') {
+      if (strlcpy(tmppath.dbname, prevpath.dbname, MAXDBNAME) > MAXDBNAME)
+        return -1;
+      if (strlcpy(tmppath.collname, prevpath.collname, MAXCOLLNAME) > MAXCOLLNAME)
+        return -1;
+    } else {
+      if (strlcpy(tmppath.dbname, path.dbname, MAXDBNAME) > MAXDBNAME)
+        return -1;
+      if (strlcpy(tmppath.collname, path.collname, MAXCOLLNAME) > MAXCOLLNAME)
+        return -1;
+      if (parse_path(argv[1], &tmppath, NULL, NULL) < 0)
+        return -1;
+    }
     return exec_chcoll(client, tmppath);
   case COUNT:
     return exec_count(ccoll, line, linelen);
@@ -1096,6 +1104,10 @@ exec_chcoll(mongoc_client_t *client, const path_t newpath)
   set_prompt(newpath.dbname, newpath.collname);
 
   /* update global references */
+  if (strlcpy(prevpath.dbname, path.dbname, MAXDBNAME) > MAXDBNAME)
+    return -1;
+  if (strlcpy(prevpath.collname, path.collname, MAXCOLLNAME) > MAXCOLLNAME)
+    return -1;
   if (strlcpy(path.dbname, newpath.dbname, MAXDBNAME) > MAXDBNAME)
     return -1;
   if (strlcpy(path.collname, newpath.collname, MAXCOLLNAME) > MAXCOLLNAME)
