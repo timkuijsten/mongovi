@@ -56,7 +56,7 @@ human_readable(char *dst, size_t dstsize, const char *src, size_t srcsize)
   if (nrtokens <= 0)
     return nrtokens;
 
-  // wipe buffer
+  /* wipe buffer */
   out = dst;
   outsize = dstsize;
   out[0] = '\0';
@@ -93,7 +93,7 @@ relaxed_to_strict(char *dst, size_t dstsize, const char *src, size_t srcsize, in
     return -11;
 
   if (firstonly) {
-    // stop after first document (root)
+    /* stop after first document (root) */
     i = 0;
     do {
       jsmn_init(&parser);
@@ -109,7 +109,7 @@ relaxed_to_strict(char *dst, size_t dstsize, const char *src, size_t srcsize, in
   if (nrtokens <= 0)
     return nrtokens;
 
-  // wipe internal buffer
+  /* wipe internal buffer */
   out = dst;
   outsize = dstsize;
   out[0] = '\0';
@@ -197,9 +197,9 @@ strict_writer(jsmntok_t *tok, char *key, int depth, int ndepth, char *closesym)
     addout("[", 1);
     break;
   case JSMN_UNDEFINED:
-    if (tok->size) { // quote keys
+    if (tok->size) { /* quote keys */
       addout("\"undefined\":", 11);
-    } else { // don't quote values
+    } else { /* don't quote values */
       addout(key, strlen(key));
     }
     break;
@@ -208,35 +208,35 @@ strict_writer(jsmntok_t *tok, char *key, int depth, int ndepth, char *closesym)
     addout("\"", 1);
     addout(key, keylen);
     addout("\"", 1);
-    if (tok->size) // this is a key
+    if (tok->size) /* this is a key */
       addout(":", 1);
     break;
   case JSMN_PRIMITIVE:
     keylen = strlen(key);
-    // convert single quotes at beginning and end of string
+    /* convert single quotes at beginning and end of string */
     if (key[0] == '\'')
       key[0] = '"';
     if (key[keylen - 1] == '\'')
       key[keylen - 1] = '"';
 
-    if (tok->size) { // quote keys
+    if (tok->size) { /* quote keys */
       addout("\"", 1);
       addout(key, keylen);
       addout("\":", 2);
-    } else // don't quote values
+    } else /* don't quote values */
       addout(key, keylen);
     break;
   default:
     warnx("unknown json token type");
   }
 
-  // write any closing symbols
+  /* write any closing symbols */
   if (addout(closesym, strlen(closesym)) < 0)
     return -1;
 
-  // if not increasing and not heading to the end of this root
+  /* if not increasing and not heading to the end of this root */
   if (ndepth && depth >= ndepth)
-    if (!tok->size) // and if not a key
+    if (!tok->size) /* and if not a key */
       if (addout(",", 1) < 0)
         return -1;
 
@@ -262,14 +262,14 @@ human_readable_writer(jsmntok_t *tok, char *key, int depth, int ndepth, char *cl
     addout("[", 1);
     break;
   case JSMN_STRING:
-    if (tok->size) { // this is a key
+    if (tok->size) { /* this is a key */
       addout("\n", 1);
-      // indent with two spaces per next depth
+      /* indent with two spaces per next depth */
       for (i = 0; i < (size_t)ndepth; i++)
         addout("  ", 2);
       addout(key, strlen(key));
       addout(": ", 2);
-    } else { // this is a value
+    } else { /* this is a value */
       addout("\"" , 1);
       addout(key, strlen(key));
       addout("\"" , 1);
@@ -277,14 +277,14 @@ human_readable_writer(jsmntok_t *tok, char *key, int depth, int ndepth, char *cl
     break;
   case JSMN_UNDEFINED:
   case JSMN_PRIMITIVE:
-    if (tok->size) { // this is a key
+    if (tok->size) { /* this is a key */
       addout("\n", 1);
-      // indent with two spaces per next depth
+      /* indent with two spaces per next depth */
       for (i = 0; i < (size_t)ndepth; i++)
         addout("  ", 2);
       addout(key, strlen(key));
       addout(": ", 2);
-    } else { // this is a value
+    } else { /* this is a value */
       addout(key, strlen(key));
     }
     break;
@@ -293,7 +293,7 @@ human_readable_writer(jsmntok_t *tok, char *key, int depth, int ndepth, char *cl
   }
 
   for (i = 0; i < strlen(closesym); i++) {
-    // indent with two spaces per depth
+    /* indent with two spaces per depth */
     if (closesym[i] == '}') {
       if (ndepth < depth)
         if (addout("\n", 1) < 0)
@@ -307,14 +307,14 @@ human_readable_writer(jsmntok_t *tok, char *key, int depth, int ndepth, char *cl
       if (addout("]", 1) < 0)
         return -1;
     } else {
-      // unknown character
+      /* unknown character */
       return -1;
     }
   }
 
-  // if not increasing and not heading to the end of this root
+  /* if not increasing and not heading to the end of this root */
   if (ndepth && depth >= ndepth)
-    if (!tok->size) // and if not a key
+    if (!tok->size) /* and if not a key */
       if (addout(",", 1) < 0)
         return -1;
 
@@ -332,8 +332,8 @@ addout(char *src, size_t size)
   return 0;
 }
 
-// pop item from the stack
-// return item on the stack on success, -1 on error
+/* pop item from the stack */
+/* return item on the stack on success, -1 on error */
 int pop()
 {
   if (sp == 0)
@@ -341,11 +341,11 @@ int pop()
   return stack[--sp];
 }
 
-// push new item on the stack
-// return 0 on success, -1 on error
+/* push new item on the stack */
+/* return 0 on success, -1 on error */
 int push(int val)
 {
-  if (val == -1) // don't support -1 values, reserved for errors
+  if (val == -1) /* don't support -1 values, reserved for errors */
     return -1;
   if (sp == MAXSTACK)
     return -1;
