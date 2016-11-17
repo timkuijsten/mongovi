@@ -37,6 +37,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/ioctl.h>
+#include <sys/stat.h>
 
 #define MAXLINE 16 * 1024
 #define MAXUSERNAME 100

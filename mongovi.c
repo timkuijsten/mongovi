@@ -1440,6 +1440,7 @@ read_config(user_t *usr, config_t *cfg)
   const char *file = ".mongovi";
   char tmppath[PATH_MAX + 1];
   FILE *fp;
+  struct stat st;
 
   if (strlcpy(tmppath, usr->home, PATH_MAX) >= PATH_MAX)
     return -1;
@@ -1453,6 +1454,15 @@ read_config(user_t *usr, config_t *cfg)
       return 0;
 
     return -1;
+  }
+
+  if (fstat(fileno(fp), &st) < 0)
+    err(1, "read_config");
+
+  if (st.st_mode & (S_IROTH | S_IWOTH)) {
+    fprintf(stderr, "ignoring %s, because it is readable and/or writable by others\n", tmppath);
+    fclose(fp);
+    return 0;
   }
 
   if (mv_parse_file(fp, cfg) < 0) {
