@@ -32,7 +32,7 @@ static char pmpt[MAXPROMPT + 1] = "/> ";
 static mongoc_client_t *client;
 static mongoc_collection_t *ccoll = NULL; /* current collection */
 
-int pretty = 0;
+int hr = 0; /* print human readable or not */
 
 #define NCMDS (sizeof cmds / sizeof cmds[0])
 #define MAXCMDNAM (sizeof cmds) /* broadly define maximum length of a command name */
@@ -76,17 +76,17 @@ main_init(int argc, char **argv)
   if (strlcpy(progname, basename(argv[0]), MAXPROG) > MAXPROG)
     errx(1, "program name too long");
 
-  /* default ttys to pretty print */
+  /* default ttys to human readable output */
   if (isatty(STDIN_FILENO))
-    pretty = 1;
+    hr = 1;
 
   while ((ch = getopt(argc, argv, "ps")) != -1)
     switch (ch) {
     case 'p':
-      pretty = 1;
+      hr = 1;
       break;
     case 's':
-      pretty = 0;
+      hr = 0;
       break;
     case '?':
       usage();
@@ -1310,7 +1310,7 @@ int exec_query(mongoc_collection_t *collection, const char *line, int len, int i
 
   while (mongoc_cursor_next(cursor, &doc)) {
     str = bson_as_json(doc, &rlen);
-    if (pretty && rlen > w.ws_col) {
+    if (hr && rlen > w.ws_col) {
       if ((i = human_readable(tmpdoc, sizeof(tmpdoc), str, rlen)) < 0) {
         warnx("jsonify error: %ld", i);
         return -1;
