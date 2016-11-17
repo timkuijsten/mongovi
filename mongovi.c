@@ -64,7 +64,7 @@ main_init(int argc, char **argv)
 {
   const char *line, **av;
   char linecpy[MAXLINE], *lp;
-  int i, read, status, ac, cc, co, cmd, ch;
+  int i, read, status, ac, cmd, ch;
   EditLine *e;
   History *h;
   HistEvent he;
@@ -159,19 +159,19 @@ main_init(int argc, char **argv)
     if (line[read - 1] != '\n')
       errx(1, "expected line to end with a newline");
 
-    /* tokenize */
-    tok_reset(t);
-    if (tok_line(t, el_line(e), &ac, &av, &cc, &co) != 0)
-      errx(1, "can't tokenize line");
-
-    if (ac == 0)
-      continue;
-
     /* copy without newline */
     if (read > MAXLINE)
       errx(1, "line too long");
     if (strlcpy(linecpy, line, read) > (size_t)read)
       errx(1, "could not copy line");
+
+    /* tokenize */
+    tok_reset(t);
+    if (tok_str(t, linecpy, &ac, &av) != 0)
+      errx(1, "can't tokenize line");
+
+    if (ac == 0)
+      continue;
 
     if (history(h, &he, H_ENTER, linecpy) == -1)
       errx(1, "can't enter history");
