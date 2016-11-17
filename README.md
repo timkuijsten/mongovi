@@ -2,8 +2,7 @@
 
 mongovi is a cli for MongoDB that uses libedit for line editing and [key bindings].
 
-Status: **alpha**, only use it if you have backups and are not afraid to dive
-into the source code.
+Status: **beta**, only use it if you have backups and want to help testing.
 
 
 ## Requirements:
@@ -46,56 +45,46 @@ On OS X, Debian and Ubuntu install libmongoc and libbson:
     $ make
 
 
+## Documentation
+
+For full documentation please refer to the manpage: `nroff -mandoc mongovi.1`.
+
 ## Usage examples
 
 ### Interactive
 
-Open database *raboof* and collection *sabar*:
+Open database *raboof* and collection *bar*:
 
-    $ mongovi
-    /> cd /raboof/sabar
-    /raboof/sabar> 
+    $ mongovi /raboof/bar
+    /raboof/bar> 
 
-List all documents:
+Change collection from bar to qux:
 
-    /raboof/sabar> find
-    { "_id" : { "$oid" : "57c6fb00495b576b10996f64" }, "foo" : "bar" }
-    { "_id" : { "$oid" : "57c6fb00495b576b10996f65" }, "foo" : "baz" }
-    /raboof/sabar> 
+    /raboof/bar> cd ../qux
+    /raboof/qux> 
 
-List all documents with *foo* is *bar*:
+List all documents where *foo* is *bar*:
 
-    /raboof/sabar> find { foo: "bar" }
+    /raboof/qux> find { foo: "bar" }
     { "foo" : "bar" }
-    /raboof/sabar> 
 
 Quick search on object id:
 
-    /raboof/sabar> find 57c6fb00495b576b10996f64
+    /raboof/qux> find 57c6fb00495b576b10996f64
     { "_id" : { "$oid" : "57c6fb00495b576b10996f64" }, "foo" : "bar" }
-    /raboof/sabar> 
 
-Use an aggregation query to list all documents without the _id field:
+Use an aggregation query to filter on documents where *foo* is *bar*. Note that
+*aggregate* is abbreviated to *a*.
 
-    /raboof/sabar> aggregate [{ $project: { _id: false, foo: true } }]
+    /raboof/qux> a [{ $project: { foo: true } }, { $match: { foo: "bar" } }]
     { "foo" : "bar" }
-    { "foo" : "baz" }
-    /raboof/sabar> 
-
-Same as previous, but filter on documents with *foo* is *bar* and use short
-command feature:
-
-    /raboof/sabar> a [{ $project: { _id: false, foo: true } }, { $match: { foo: "bar" } }]
-    { "foo" : "bar" }
-    /raboof/sabar> 
 
 ### Non-interactive
 
-Show all documents in *raboof.sabar* with *foo* is *bar*:
+Show all documents in database *raboof* and collection *qux* where *foo* is *bar*:
 
-    $ echo 'find { foo: "bar" }' | mongovi /raboof/sabar
+    $ echo 'find { foo: "bar" }' | mongovi /raboof/qux
     { "foo" : "bar" }
-    $
 
 ### vi key bindings
 
@@ -147,6 +136,12 @@ See [editline(7)] for a list of supported key bindings.
 
 If this file exists, the first line is read and expected to be a valid mongodb
 [connection string], possibly containing a username and password.
+
+
+## Known issues
+
+Currently no support for UTF-8. This won't make it in the 1.0.0 that has yet to
+be released.
 
 
 ## Tests
