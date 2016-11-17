@@ -32,7 +32,10 @@ static char pmpt[MAXPROMPT + 1] = "/> ";
 static mongoc_client_t *client;
 static mongoc_collection_t *ccoll = NULL; /* current collection */
 
-int hr = 0; /* print human readable or not */
+ /* print human readable or not */
+int hr = 0;
+/* import mode, treat input lines as json documents force insert command */
+int import = 0;
 
 #define NCMDS (sizeof cmds / sizeof cmds[0])
 #define MAXCMDNAM (sizeof cmds) /* broadly define maximum length of a command name */
@@ -55,7 +58,7 @@ const char *cmds[] = {
 void
 usage(void)
 {
-  printf("usage: %s [-hps] [/database/collection]\n", progname);
+  printf("usage: %s [-psih] [/database/collection]\n", progname);
   exit(0);
 }
 
@@ -80,13 +83,16 @@ main_init(int argc, char **argv)
   if (isatty(STDIN_FILENO))
     hr = 1;
 
-  while ((ch = getopt(argc, argv, "hps")) != -1)
+  while ((ch = getopt(argc, argv, "psih")) != -1)
     switch (ch) {
     case 'p':
       hr = 1;
       break;
     case 's':
       hr = 0;
+      break;
+    case 'i':
+      import = 1;
       break;
     case 'h':
     case '?':
@@ -149,6 +155,11 @@ main_init(int argc, char **argv)
       errx(1, "can't change database or collection");
   }
 
+  /* check import mode */
+  if (import)
+    if (isatty(STDIN_FILENO))
+      errx(1, "import mode can only be used non-interactively");
+
   while ((line = el_gets(e, &read)) != NULL) {
     if (read > MAXLINE)
       errx(1, "line too long");
@@ -156,14 +167,18 @@ main_init(int argc, char **argv)
     if (read == 0)
       goto done; /* happens on Ubuntu 12.04 without tty */
 
-    if (line[read - 1] != '\n')
-      errx(1, "expected line to end with a newline");
+    /* make room for a copy */
+    linecpy[0] = '\0';
 
-    /* copy without newline */
-    if (read > MAXLINE)
+    if (import)
+      if (strlcpy(linecpy, "insert ", MAXLINE) > MAXLINE)
+        errx(1, "MAXLINE too short");
+
+    if (strlcat(linecpy, line, MAXLINE) > MAXLINE)
       errx(1, "line too long");
-    if (strlcpy(linecpy, line, read) > (size_t)read)
-      errx(1, "could not copy line");
+
+    /* trim newline if any */
+    linecpy[strcspn(linecpy, "\n")] = '\0';
 
     /* tokenize */
     tok_reset(t);

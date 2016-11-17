@@ -6,9 +6,7 @@
 .Nd command line interface for MongoDB
 .Sh SYNOPSIS
 .Nm
-.Op Fl p
-.Op Fl s
-.Op Fl h
+.Op Fl psih
 .Op Ar path
 .Sh DESCRIPTION
 .Nm
@@ -21,6 +19,8 @@ for line editing and key bindings.
 Print output in a human readable format. This is the default when stdin is connected to a terminal.
 .It Fl s
 Put each JSON document on a single line. This is the default when stdin is not connected to a terminal.
+.It Fl i
+Import mode. Insert every document read on stdin. Expects exactly one document per line. Can only be used non-interactively.
 .It Fl h
 Print usage.
 .It Ar path
@@ -154,6 +154,11 @@ is abbreviated to
 .Ar a :
 .Bd -literal -offset 4n
 /foo/bar> a [{ $project: { foo: true } }, { $match: { foo: "bar" } }]
+.Ed
+.Pp
+Copy one collection to another:
+.Bd -literal -offset 4n
+$ echo f | mongovi /foo/bar | mongovi -i /qux/baz
 .Ed
 .Sh SEE ALSO
 .Xr editline 7 ,
