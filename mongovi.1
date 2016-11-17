@@ -35,6 +35,12 @@ key bindings can be enabled by putting
 into your
 .Xr editrc 5
 file.
+.Pp
+By default
+.Nm
+will connect to mongodb://localhost:27017. It is possible to override this connection string using a file called
+.Qq .mongovi
+in your home directory. This file, if it exists, should contain exactly one line, which is a mongodb connection string. This string might contain a username and password.
 .Sh BUILTIN COMMANDS
 The following commands are supported:
 .Bl -tag -widith Ds
@@ -93,6 +99,12 @@ since no other command starts with an f.
 .Pp
 If selector is not a JSON document it is treated as a shortcut to search on _id of type string. Hexadecimal strings of 24 characters are treated as object ids.
 .Sh EXAMPLES
+.Pp
+List all databases non-interactively:
+.Bd -literal -offset 4n
+$ echo ls | mongovi
+.Ed
+.Pp
 Open database
 .Qq foo
 and collection
