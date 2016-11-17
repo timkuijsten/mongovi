@@ -20,8 +20,8 @@ static int sp = 0;
 static int stack[MAXSTACK];
 static char closesym[MAXSTACK];
 
-static char out[MAXOUTPUT];
-static size_t outsize = MAXOUTPUT;
+static char *out;
+static size_t outsize;
 static size_t outidx = 0;
 
 /*
@@ -29,7 +29,6 @@ static size_t outidx = 0;
  *
  * -10 if srcsize exceed LONG_MAX
  * -11 if writer failed
- * -12 if dst too small
  *
  * Parse errors:
  * -1 Not enough tokens were provided
@@ -47,6 +46,9 @@ human_readable(char *dst, size_t dstsize, const char *src, size_t srcsize)
   if (srcsize > LONG_MAX)
     return -10;
 
+  if (dstsize < 1)
+    return -11;
+
   jsmn_init(&parser);
   i = srcsize;
   nrtokens = jsmn_parse(&parser, src, srcsize, tokens, TOKENS);
@@ -54,14 +56,13 @@ human_readable(char *dst, size_t dstsize, const char *src, size_t srcsize)
   if (nrtokens <= 0)
     return nrtokens;
 
-  // wipe internal buffer
+  // wipe buffer
+  out = dst;
+  outsize = dstsize;
   out[0] = '\0';
   outidx = 0;
   if (iterate(src, tokens, nrtokens, (int (*)(jsmntok_t *, char *, int, int, char *))human_readable_writer) == -1)
     return -11;
-
-  if (strlcpy(dst, out, dstsize) > dstsize)
-    return -12;
 
   return i;
 }
@@ -71,7 +72,6 @@ human_readable(char *dst, size_t dstsize, const char *src, size_t srcsize)
  *
  * -10 if srcsize exceed LONG_MAX
  * -11 if writer failed
- * -12 if dst too small
  *
  * Parse errors:
  * -1 Not enough tokens were provided
@@ -88,6 +88,9 @@ relaxed_to_strict(char *dst, size_t dstsize, const char *src, size_t srcsize, in
 
   if (srcsize > LONG_MAX)
     return -10;
+
+  if (dstsize < 1)
+    return -11;
 
   if (firstonly) {
     // stop after first document (root)
@@ -107,13 +110,12 @@ relaxed_to_strict(char *dst, size_t dstsize, const char *src, size_t srcsize, in
     return nrtokens;
 
   // wipe internal buffer
+  out = dst;
+  outsize = dstsize;
   out[0] = '\0';
   outidx = 0;
   if (iterate(src, tokens, nrtokens, (int (*)(jsmntok_t *, char *, int, int, char *))strict_writer) == -1)
     return -11;
-
-  if (strlcpy(dst, out, dstsize) > dstsize)
-    return -12;
 
   return i;
 }

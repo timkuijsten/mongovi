@@ -28,7 +28,6 @@
 
 #define TOKENS 100000
 #define MAXSTACK 10000
-#define MAXOUTPUT 16 * 1024 * 1024
 
 int pop();
 int push(int val);
