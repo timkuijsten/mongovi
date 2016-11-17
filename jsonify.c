@@ -57,7 +57,7 @@ human_readable(char *dst, size_t dstsize, const char *src, size_t srcsize)
   // wipe internal buffer
   out[0] = '\0';
   outidx = 0;
-  if (iterate(src, tokens, nrtokens, (void (*)(jsmntok_t *, char *, int, int, char *))human_readable_writer) == -1)
+  if (iterate(src, tokens, nrtokens, (int (*)(jsmntok_t *, char *, int, int, char *))human_readable_writer) == -1)
     return -11;
 
   if (strlcpy(dst, out, dstsize) > dstsize)
@@ -109,7 +109,7 @@ relaxed_to_strict(char *dst, size_t dstsize, const char *src, size_t srcsize, in
   // wipe internal buffer
   out[0] = '\0';
   outidx = 0;
-  if (iterate(src, tokens, nrtokens, (void (*)(jsmntok_t *, char *, int, int, char *))strict_writer) == -1)
+  if (iterate(src, tokens, nrtokens, (int (*)(jsmntok_t *, char *, int, int, char *))strict_writer) == -1)
     return -11;
 
   if (strlcpy(dst, out, dstsize) > dstsize)
@@ -119,7 +119,7 @@ relaxed_to_strict(char *dst, size_t dstsize, const char *src, size_t srcsize, in
 }
 
 int
-iterate(const char *src, jsmntok_t *tokens, int nrtokens, void (*iterator)(jsmntok_t *, char *, int, int, char *))
+iterate(const char *src, jsmntok_t *tokens, int nrtokens, int (*iterator)(jsmntok_t *, char *, int, int, char *))
 {
   char *key, *cp, c;
   jsmntok_t *tok;
@@ -164,9 +164,12 @@ iterate(const char *src, jsmntok_t *tokens, int nrtokens, void (*iterator)(jsmnt
     }
     *cp = '\0';
 
-    if (outidx < outsize)
-      iterator(tok, key, depth, ndepth, closesym);
-    else {
+    if (outidx < outsize) {
+      if (iterator(tok, key, depth, ndepth, closesym) < 0) {
+        free(key);
+        return -1;
+      }
+    } else {
       free(key);
       return -1;
     }
@@ -179,7 +182,7 @@ iterate(const char *src, jsmntok_t *tokens, int nrtokens, void (*iterator)(jsmnt
   return 0;
 }
 
-void
+int
 strict_writer(jsmntok_t *tok, char *key, int depth, int ndepth, char *closesym)
 {
   size_t keylen;
@@ -227,13 +230,15 @@ strict_writer(jsmntok_t *tok, char *key, int depth, int ndepth, char *closesym)
 
   // write any closing symbols
   if (addout(closesym, strlen(closesym)) < 0)
-    return;
+    return -1;
 
   // if not increasing and not heading to the end of this root
   if (ndepth && depth >= ndepth)
     if (!tok->size) // and if not a key
       if (addout(",", 1) < 0)
-        return;
+        return -1;
+
+  return 0;
 }
 
 /*
@@ -241,7 +246,7 @@ strict_writer(jsmntok_t *tok, char *key, int depth, int ndepth, char *closesym)
  * after every key value pair or opening of a new object. Also sprinkle in some
  * white space in arrays and don't quote keys.
  */
-void
+int
 human_readable_writer(jsmntok_t *tok, char *key, int depth, int ndepth, char *closesym)
 {
   size_t i;
@@ -290,18 +295,18 @@ human_readable_writer(jsmntok_t *tok, char *key, int depth, int ndepth, char *cl
     if (closesym[i] == '}') {
       if (ndepth < depth)
         if (addout("\n", 1) < 0)
-          return;
+          return -1;
       for (j = 1; (size_t)j < depth - i; j++)
         addout("  ", 2);
 
       if (addout("}", 1) < 0)
-        return;
+        return -1;
     } else if (closesym[i] == ']') {
       if (addout("]", 1) < 0)
-        return;
+        return -1;
     } else {
       // unknown character
-      return;
+      return -1;
     }
   }
 
@@ -309,7 +314,9 @@ human_readable_writer(jsmntok_t *tok, char *key, int depth, int ndepth, char *cl
   if (ndepth && depth >= ndepth)
     if (!tok->size) // and if not a key
       if (addout(",", 1) < 0)
-        return;
+        return -1;
+
+  return 0;
 }
 
 static int
