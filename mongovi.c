@@ -20,6 +20,9 @@ static char progname[MAXPROG];
 
 static path_t path;
 
+/* use as temporary one-time storage while building a query or query  results */
+static char tmpdoc[16 * 1024 * 1024];
+
 static user_t user;
 static config_t config;
 static char **list_match = NULL; /* contains all ambiguous prefix_match commands */
@@ -1109,13 +1112,19 @@ int exec_count(mongoc_collection_t *collection, const char *line, int len)
   bson_error_t error;
   int64_t count;
   bson_t query;
-  char query_doc[MAXDOC] = "{}"; /* default to all documents */
 
-  if (parse_selector(query_doc, MAXDOC, line, len) == -1)
+  if (sizeof(tmpdoc) < 3)
+    errx(1, "exec_count");
+  /* default to all documents */
+  tmpdoc[0] = '{';
+  tmpdoc[1] = '}';
+  tmpdoc[2] = '\0';
+
+  if (parse_selector(tmpdoc, sizeof(tmpdoc), line, len) == -1)
     return -1;
 
   /* try to parse it as json and convert to bson */
-  if (!bson_init_from_json(&query, query_doc, -1, &error)) {
+  if (!bson_init_from_json(&query, tmpdoc, -1, &error)) {
     warnx("%d.%d %s", error.domain, error.code, error.message);
     return -1;
   }
@@ -1134,7 +1143,6 @@ int exec_count(mongoc_collection_t *collection, const char *line, int len)
 int exec_update(mongoc_collection_t *collection, const char *line, int upsert)
 {
   long offset;
-  char query_doc[MAXDOC];
   char update_doc[MAXDOC];
   bson_error_t error;
   bson_t query, update;
@@ -1144,7 +1152,7 @@ int exec_update(mongoc_collection_t *collection, const char *line, int upsert)
     opts |= MONGOC_UPDATE_UPSERT;
 
   /* read first json object */
-  if ((offset = parse_selector(query_doc, MAXDOC, line, strlen(line))) == -1)
+  if ((offset = parse_selector(tmpdoc, sizeof(tmpdoc), line, strlen(line))) == -1)
     return ILLEGAL;
   if (offset == 0)
     return ILLEGAL;
@@ -1164,7 +1172,7 @@ int exec_update(mongoc_collection_t *collection, const char *line, int upsert)
   line += offset;
 
   /* try to parse the query as json and convert to bson */
-  if (!bson_init_from_json(&query, query_doc, -1, &error)) {
+  if (!bson_init_from_json(&query, tmpdoc, -1, &error)) {
     warnx("%d.%d %s", error.domain, error.code, error.message);
     return -1;
   }
@@ -1196,18 +1204,17 @@ int exec_update(mongoc_collection_t *collection, const char *line, int upsert)
 int exec_insert(mongoc_collection_t *collection, const char *line, int len)
 {
   long offset;
-  char insert_doc[MAXDOC];
   bson_error_t error;
   bson_t doc;
 
   /* read first json object */
-  if ((offset = parse_selector(insert_doc, MAXDOC, line, len)) == -1)
+  if ((offset = parse_selector(tmpdoc, sizeof(tmpdoc), line, len)) == -1)
     return ILLEGAL;
   if (offset == 0)
     return ILLEGAL;
 
   /* try to parse the doc as json and convert to bson */
-  if (!bson_init_from_json(&doc, insert_doc, -1, &error)) {
+  if (!bson_init_from_json(&doc, tmpdoc, -1, &error)) {
     warnx("%d.%d %s", error.domain, error.code, error.message);
     return -1;
   }
@@ -1225,18 +1232,17 @@ int exec_insert(mongoc_collection_t *collection, const char *line, int len)
 int exec_remove(mongoc_collection_t *collection, const char *line, int len)
 {
   long offset;
-  char remove_doc[MAXDOC];
   bson_error_t error;
   bson_t doc;
 
   /* read first json object */
-  if ((offset = parse_selector(remove_doc, MAXDOC, line, len)) == -1)
+  if ((offset = parse_selector(tmpdoc, sizeof(tmpdoc), line, len)) == -1)
     return ILLEGAL;
   if (offset == 0)
     return ILLEGAL;
 
   /* try to parse the doc as json and convert to bson */
-  if (!bson_init_from_json(&doc, remove_doc, -1, &error)) {
+  if (!bson_init_from_json(&doc, tmpdoc, -1, &error)) {
     warnx("%d.%d %s", error.domain, error.code, error.message);
     return -1;
   }
@@ -1262,14 +1268,20 @@ int exec_query(mongoc_collection_t *collection, const char *line, int len, int i
   const bson_t *doc;
   char *str;
   bson_t query, fields;
-  char query_doc[MAXDOC] = "{}"; /* default to all documents */
   struct winsize w;
 
-  if (parse_selector(query_doc, MAXDOC, line, len) == -1)
+  if (sizeof(tmpdoc) < 3)
+    errx(1, "exec_query");
+  /* default to all documents */
+  tmpdoc[0] = '{';
+  tmpdoc[1] = '}';
+  tmpdoc[2] = '\0';
+
+  if (parse_selector(tmpdoc, sizeof(tmpdoc), line, len) == -1)
     return -1;
 
   /* try to parse it as json and convert to bson */
-  if (!bson_init_from_json(&query, query_doc, -1, &error)) {
+  if (!bson_init_from_json(&query, tmpdoc, -1, &error)) {
     warnx("%d.%d %s", error.domain, error.code, error.message);
     return -1;
   }
@@ -1287,11 +1299,11 @@ int exec_query(mongoc_collection_t *collection, const char *line, int len, int i
   while (mongoc_cursor_next(cursor, &doc)) {
     str = bson_as_json(doc, &rlen);
     if (pretty && rlen > w.ws_col) {
-      if ((i = human_readable(query_doc, MAXDOC, str, rlen)) < 0) {
+      if ((i = human_readable(tmpdoc, sizeof(tmpdoc), str, rlen)) < 0) {
         warnx("jsonify error: %ld", i);
         return -1;
       }
-      printf ("%s\n", query_doc);
+      printf ("%s\n", tmpdoc);
     } else {
       printf ("%s\n", str);
     }
@@ -1320,16 +1332,15 @@ int exec_agquery(mongoc_collection_t *collection, const char *line, int len)
   const bson_t *doc;
   char *str;
   bson_t aggr_query;
-  char query_doc[MAXDOC];
 
   /* try to parse as relaxed json and convert to strict json */
-  if ((i = relaxed_to_strict(query_doc, MAXDOC, line, len, 0)) < 0) {
+  if ((i = relaxed_to_strict(tmpdoc, sizeof(tmpdoc), line, len, 0)) < 0) {
     warnx("jsonify error: %ld", i);
     return -1;
   }
 
   /* try to parse it as json and convert to bson */
-  if (!bson_init_from_json(&aggr_query, query_doc, -1, &error)) {
+  if (!bson_init_from_json(&aggr_query, tmpdoc, -1, &error)) {
     warnx("%d.%d %s", error.domain, error.code, error.message);
     return -1;
   }
