@@ -55,7 +55,7 @@ const char *cmds[] = {
 void
 usage(void)
 {
-  printf("usage: %s [-ps] [/database/collection]\n", progname);
+  printf("usage: %s [-hps] [/database/collection]\n", progname);
   exit(0);
 }
 
@@ -80,7 +80,7 @@ main_init(int argc, char **argv)
   if (isatty(STDIN_FILENO))
     hr = 1;
 
-  while ((ch = getopt(argc, argv, "ps")) != -1)
+  while ((ch = getopt(argc, argv, "hps")) != -1)
     switch (ch) {
     case 'p':
       hr = 1;
@@ -88,6 +88,7 @@ main_init(int argc, char **argv)
     case 's':
       hr = 0;
       break;
+    case 'h':
     case '?':
       usage();
       break;

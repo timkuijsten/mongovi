@@ -8,6 +8,7 @@
 .Nm
 .Op Fl p
 .Op Fl s
+.Op Fl h
 .Op Ar path
 .Sh DESCRIPTION
 .Nm
@@ -20,6 +21,8 @@ for line editing and key bindings.
 Print output in a human readable format. This is the default when stdin is connected to a terminal.
 .It Fl s
 Put each JSON document on a single line. This is the default when stdin is not connected to a terminal.
+.It Fl h
+Print usage.
 .It Ar path
 Open a specific database and collection. A
 .Ar path
