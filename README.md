@@ -49,6 +49,7 @@ On OS X, Debian and Ubuntu install libmongoc and libbson:
 
 For full documentation please refer to the manpage: `nroff -mandoc mongovi.1`.
 
+
 ## Usage examples
 
 ### Interactive
@@ -94,42 +95,6 @@ your [editrc(5)] contains `bind -v`:
 ```sh
 echo "bind -v" >> ~/.editrc
 ```
-
-## Command-line options
-
-    usage: mongovi [-ps] [/database/collection]
-    -p    pretty print human readable json, default on a tty
-    -s    single line mongo extended json, default in non-interactive mode
-
-
-## Commands
-
-* `aggregate [...]` aggregation pipeline, see [aggregation operators]
-* `cd [path]` change to database or collection in path. Supports ".." to go up
-  one level.
-* `cd arg` if a database is selected, change to collection `arg`, if no database
-  is selected, change to database `arg`
-* `count selector` count the number of documents in the current collection
-* `find [selector]` query current collection using the optional selector, see
-  [query operators]
-* `help` print all commands
-* `insert doc` insert given document `doc`
-* `ls [path]` without path, if no database is selected, list all databases
-  otherwise list all collections in the currently selected database. Or use
-  path. Supports ".." to go up one level.
-* `drop [path]` drop current database or collection or drop path
-* `remove selector` remove all documents that match `selector`
-* `update selector doc` update all documents that match `selector` using `doc`
-* `upsert selector doc` update or insert document that matches `selector` using
-  `doc`
-
-Any command can be abbreviated to the shortest non-ambiguous form. So `find` can
-also be written as `f` since no other command starts with an f.
-
-If `selector` is not a JSON document it is treated as a shortcut to search on _id
-of type string. Hexadecimal strings of 24 characters are treated as object ids.
-
-See [editline(7)] for a list of supported key bindings.
 
 
 ## ~/.mongovi
