@@ -168,6 +168,8 @@ main_init(int argc, char **argv)
       continue;
 
     /* copy without newline */
+    if (read > MAXLINE)
+      errx(1, "line too long");
     if (strlcpy(linecpy, line, read) > (size_t)read)
       errx(1, "could not copy line");
 
