@@ -14,7 +14,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include "mongovi.h"
+int main_init(int argc, char **argv);
 
 int main(int argc, char **argv)
 {
