@@ -29,13 +29,7 @@
 #define TOKENS 100000
 #define MAXSTACK 10000
 
-int pop();
-int push(int val);
-
 long human_readable(char *dst, size_t dstsize, const char *src, size_t srcsize);
 long relaxed_to_strict(char *dst, size_t dstsize, const char *src, size_t srcsize, int firstonly);
-int iterate(const char *src, jsmntok_t *tokens, int nrtokens, int (*iterator)(jsmntok_t *, char *, int, int, char *));
-int strict_writer(jsmntok_t *tok, char *key, int depth, int ndepth, char *closesym);
-int human_readable_writer(jsmntok_t *tok, char *key, int depth, int ndepth, char *closesym);
 
 #endif

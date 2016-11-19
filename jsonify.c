@@ -24,7 +24,12 @@ static char *out;
 static size_t outsize;
 static size_t outidx = 0;
 
+static int iterate(const char *src, jsmntok_t *tokens, int nrtokens, int (*iterator)(jsmntok_t *, char *, int, int, char *));
+static int strict_writer(jsmntok_t *tok, char *key, int depth, int ndepth, char *closesym);
+static int human_readable_writer(jsmntok_t *tok, char *key, int depth, int ndepth, char *closesym);
 static int addout(char *src, size_t size);
+static int pop();
+static int push(int val);
 
 /*
  * return pos in src or < 0 on error
@@ -122,7 +127,7 @@ relaxed_to_strict(char *dst, size_t dstsize, const char *src, size_t srcsize, in
   return i;
 }
 
-int
+static int
 iterate(const char *src, jsmntok_t *tokens, int nrtokens, int (*iterator)(jsmntok_t *, char *, int, int, char *))
 {
   char *key, *cp, c;
@@ -186,7 +191,7 @@ iterate(const char *src, jsmntok_t *tokens, int nrtokens, int (*iterator)(jsmnto
   return 0;
 }
 
-int
+static int
 strict_writer(jsmntok_t *tok, char *key, int depth, int ndepth, char *closesym)
 {
   size_t keylen;
@@ -250,7 +255,7 @@ strict_writer(jsmntok_t *tok, char *key, int depth, int ndepth, char *closesym)
  * after every key value pair or opening of a new object. Also sprinkle in some
  * white space in arrays and don't quote keys.
  */
-int
+static int
 human_readable_writer(jsmntok_t *tok, char *key, int depth, int ndepth, char *closesym)
 {
   size_t i;
@@ -336,7 +341,8 @@ addout(char *src, size_t size)
 
 /* pop item from the stack */
 /* return item on the stack on success, -1 on error */
-int pop()
+static int
+pop()
 {
   if (sp == 0)
     return -1;
@@ -345,7 +351,8 @@ int pop()
 
 /* push new item on the stack */
 /* return 0 on success, -1 on error */
-int push(int val)
+static int
+push(int val)
 {
   if (val == -1) /* don't support -1 values, reserved for errors */
     return -1;
