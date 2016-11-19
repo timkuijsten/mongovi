@@ -37,6 +37,5 @@ long relaxed_to_strict(char *dst, size_t dstsize, const char *src, size_t srcsiz
 int iterate(const char *src, jsmntok_t *tokens, int nrtokens, int (*iterator)(jsmntok_t *, char *, int, int, char *));
 int strict_writer(jsmntok_t *tok, char *key, int depth, int ndepth, char *closesym);
 int human_readable_writer(jsmntok_t *tok, char *key, int depth, int ndepth, char *closesym);
-static int addout(char *src, size_t size);
 
 #endif

@@ -24,6 +24,8 @@ static char *out;
 static size_t outsize;
 static size_t outidx = 0;
 
+static int addout(char *src, size_t size);
+
 /*
  * return pos in src or < 0 on error
  *
