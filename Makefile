@@ -38,6 +38,10 @@ test-dep:
 	$(CC) $(CFLAGS) prefix_match.c compat/reallocarray.c test/prefix_match.c -o prefix_match-test
 	./prefix_match-test
 
+install:
+	install mongovi /usr/local/bin/
+	install mongovi.1 /usr/local/share/man/man1/
+
 depend:
 	$(CC) ${CFLAGS} -E -MM *.c > .depend
 
