@@ -10,7 +10,7 @@ ifeq (${OS},Darwin)
 COMPAT=reallocarray.o
 endif
 
-INCDIR=-I/usr/include/libbson-1.0/ -I/usr/include/libmongoc-1.0/ -I/usr/local/include/libbson-1.0/ -I/usr/local/include/libmongoc-1.0/
+INCDIR=-I$(DESTDIR)/usr/include/libbson-1.0/ -I$(DESTDIR)/usr/include/libmongoc-1.0/ -I$(DESTDIR)/usr/local/include/libbson-1.0/ -I$(DESTDIR)/usr/local/include/libmongoc-1.0/
 
 CFLAGS=-Wall -Wextra -pedantic -g ${INCDIR}
 LDFLAGS=-lmongoc-1.0 -lbson-1.0 -ledit
@@ -39,8 +39,8 @@ test-dep:
 	./prefix_match-test
 
 install:
-	install mongovi /usr/local/bin/
-	install mongovi.1 /usr/local/share/man/man1/
+	install mongovi $(DESTDIR)/usr/bin/
+	install mongovi.1 $(DESTDIR)/usr/share/man/man1/
 
 depend:
 	$(CC) ${CFLAGS} -E -MM *.c > .depend
