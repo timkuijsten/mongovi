@@ -1,5 +1,7 @@
 OS=$(shell uname)
 
+PROG=   mongovi
+
 COMPAT=""
 
 ifeq (${OS},Linux)
@@ -10,13 +12,21 @@ ifeq (${OS},Darwin)
 COMPAT=reallocarray.o
 endif
 
+USRDIR=  /usr/local
+BINDIR=  $(USRDIR)/bin
+MANDIR=  $(USRDIR)/share/man
+
 INCDIR=-I$(DESTDIR)/usr/include/libbson-1.0/ -I$(DESTDIR)/usr/include/libmongoc-1.0/ -I$(DESTDIR)/usr/local/include/libbson-1.0/ -I$(DESTDIR)/usr/local/include/libmongoc-1.0/
 
 CFLAGS=-Wall -Wextra -pedantic -g ${INCDIR}
 LDFLAGS=-lmongoc-1.0 -lbson-1.0 -ledit
 OBJ=jsmn.o jsonify.o main.o mongovi.o shorten.o prefix_match.o
 
-mongovi: ${OBJ} ${COMPAT}
+INSTALL_DIR=  install -dm 755
+INSTALL_BIN=  install -m 555
+INSTALL_MAN=  install -m 444
+
+${PROG}: ${OBJ} ${COMPAT}
 	$(CC) ${CFLAGS} -o $@ ${OBJ} ${COMPAT} ${LDFLAGS}
 
 %.o: %.c
@@ -39,8 +49,10 @@ test-dep:
 	./prefix_match-test
 
 install:
-	install mongovi $(DESTDIR)/usr/bin/
-	install mongovi.1 $(DESTDIR)/usr/share/man/man1/
+	${INSTALL_DIR} ${DESTDIR}${BINDIR}
+	${INSTALL_DIR} ${DESTDIR}${MANDIR}/man1
+	${INSTALL_BIN} ${PROG} ${DESTDIR}${BINDIR}
+	${INSTALL_MAN} ${PROG}.1 ${DESTDIR}${MANDIR}/man1
 
 depend:
 	$(CC) ${CFLAGS} -E -MM *.c > .depend
