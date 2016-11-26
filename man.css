@@ -4,6 +4,7 @@ td.head-rtitle, td.foot-os { text-align: right; }
 td.head-vol { text-align: center; }
 table.foot td { width: 50%; }
 table.head td { width: 33%; }
+table td.parameters { white-space: nowrap; }
 div.spacer { margin: 1em 0; }
 dl .list .list-tag { margin-top: 0.00em; margin-bottom: 0.00em; }
 dt .list-tag { margin-top: 1.00em; }
