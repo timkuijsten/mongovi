@@ -107,8 +107,7 @@ If this file exists, the first line is read and expected to be a valid mongodb
 
 ## Known issues
 
-Currently no support for UTF-8. This won't make it in the 1.0.0 that has yet to
-be released.
+Currently no support for UTF-8.
 
 
 ## Tests
