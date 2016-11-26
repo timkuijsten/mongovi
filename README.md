@@ -45,7 +45,7 @@ Then compile and install mongovi:
 
 ## Documentation
 
-For documentation please refer to the manpage: `nroff -mandoc mongovi.1`.
+For documentation please refer to the manpage: `man mongovi`.
 
 
 ## Usage examples
