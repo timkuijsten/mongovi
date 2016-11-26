@@ -15,7 +15,7 @@ mongovi is primarily developed and tested on OS X 10.11, Debian and Ubuntu.
 
 Using the binary package is the easiest way to get started on a Debian based system:
 
-    $ wget https://netsend.nl/mongovi_1.0.0-1_amd64.deb
+    $ wget https://netsend.nl/mongovi/mongovi_1.0.0-1_amd64.deb
     $ sha256sum mongovi_1.0.0-1_amd64.deb    # only proceed if this checksum matches
     9a33f86d5f74b77085d0f0801c4a48d348bc2eeb952299c7b1b828b1f66d4db7  mongovi_1.0.0-1_amd64.deb
     $ dpkg -i mongovi_1.0.0-1_amd64.deb
@@ -45,7 +45,7 @@ Then compile and install mongovi:
 
 ## Documentation
 
-For documentation please refer to the manpage: `man mongovi`.
+For documentation please refer to the [manpage].
 
 
 ## Usage examples
@@ -146,6 +146,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 mongovi uses the JSMN [JSON parser] which is distributed under the MIT license.
 
 
+[manpage]: https://netsend.nl/mongovi/mongovi.1.html
 [JSON parser]: http://zserge.com/jsmn.html
 [editrc(5)]: http://man.openbsd.org/editrc.5
 [editline(7)]: http://man.openbsd.org/editline.7
