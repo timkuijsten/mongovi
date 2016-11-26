@@ -1,4 +1,12 @@
-col { width: 7.00ex; }
+body {
+  line-height: 1.3em;
+}
+
+#container.font-size3 h1 {
+  font-size: 18px;
+  margin-top: 1.4em;
+}
+
 table.head, table.foot { width: 100%; }
 td.head-rtitle, td.foot-os { text-align: right; }
 td.head-vol { text-align: center; }
@@ -6,11 +14,12 @@ table.foot td { width: 50%; }
 table.head td { width: 33%; }
 table td.parameters { white-space: nowrap; }
 div.spacer { margin: 1em 0; }
-dl .list .list-tag { margin-top: 0.00em; margin-bottom: 0.00em; }
-dt .list-tag { margin-top: 1.00em; }
-dd .list-tag { margin-left: 6.00ex; }
+dl.list.list-tag { margin-top: 0.00em; margin-bottom: 0.00em; }
+dt.list-tag { margin-top: 1.0em; }
+dd.list-tag { margin-left: 6.00ex; }
 
 pre .lit .display { margin-left: 4.00ex; }
+
 
 /* Firefox 52: chrome://global/skin/aboutReader.css */
 /* This Source Code Form is subject to the terms of the Mozilla Public
