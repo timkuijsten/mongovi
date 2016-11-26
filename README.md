@@ -1,11 +1,13 @@
 # mongovi
 
-mongovi is a cli for MongoDB. In non-interactive mode it integrates into shell
-pipelines using [MongoDB Extended JSON] to read from stdin and write to stdout.
-In interactive mode both Emacs-like and vi-like [key bindings] are supported via
-[libedit]. Furthermore tab-completion of commands, databases and collections is
-supported, as well as the common `cd` idiom to move around between different
-databases.
+mongovi is a command line interface for MongoDB.
+
+Features:
+* Emacs-like and vi-like [key bindings] via [libedit]
+* Tab-completion of commands, databases and collections
+* move around databases and collections using the common `cd` idiom
+* integrates into shell pipelines by reading and writing [MongoDB Extended JSON]
+  on stdin/stdout
 
 Status: **release-candidate**, make sure you have backups of your database.
 
