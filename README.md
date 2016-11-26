@@ -3,26 +3,26 @@
 mongovi is a cli for MongoDB. Both emacs and vi [key bindings] are supported via
 libedit.
 
-Status: **beta**, only use it if you have backups and want to help testing.
+Status: **release-candidate**, make sure you have backups of your database
 
 
-## Requirements:
-* [MongoDB C Driver] 1.4.0
-* [editline(3)] ships with OS X
-
-mongovi is primarily developed and tested with OS X 10.11, Debian 8 and Ubuntu
-12.04.
+mongovi is primarily developed and tested on OS X 10.11, Debian and Ubuntu.
 
 
 ## Installation
 
-### OS X, Debian 8, Ubuntu 12.04 and 14.04
+### Debian and Ubuntu
 
-On Debian and Ubuntu first install libedit:
+Using the binary package is the easiest way to get started on a Debian based system:
 
-    $ sudo apt-get install libedit-dev
+    $ wget https://netsend.nl/mongovi_1.0.0-1_amd64.deb
+    $ sha256sum mongovi_1.0.0-1_amd64.deb    # only proceed if this checksum matches
+    9a33f86d5f74b77085d0f0801c4a48d348bc2eeb952299c7b1b828b1f66d4db7  mongovi_1.0.0-1_amd64.deb
+    $ dpkg -i mongovi_1.0.0-1_amd64.deb
 
-On OS X, Debian and Ubuntu install libmongoc and libbson:
+### macOS
+
+First compile and install libmongoc and libbson:
 
     $ curl -LO https://github.com/mongodb/mongo-c-driver/releases/download/1.4.0/mongo-c-driver-1.4.0.tar.gz
     $ sha256sum mongo-c-driver-1.4.0.tar.gz    # only proceed if this checksum matches
@@ -35,16 +35,12 @@ On OS X, Debian and Ubuntu install libmongoc and libbson:
     $ ldconfig
     $ cd
 
+Then compile and install mongovi:
+
     $ git clone https://github.com/timkuijsten/mongovi.git
     $ cd mongovi
     $ make
-
-### Ubuntu 16.04
-
-    $ sudo apt-get install libedit-dev libmongoc-dev libbson-dev
-    $ git clone https://github.com/timkuijsten/mongovi.git
-    $ cd mongovi
-    $ make
+    $ sudo make install
 
 
 ## Documentation
