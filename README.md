@@ -34,6 +34,19 @@ Then compile and install mongovi:
     $ sudo make install
 
 
+## Build requiremets
+
+* C compiler (with reasonable C99 support)
+* BSD or GNU make
+* [libedit]
+* [libmongoc]
+
+
+## Run-time requiremets
+
+* [mongod]
+
+
 ## Documentation
 
 For documentation please refer to the [manpage].
@@ -137,6 +150,8 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 mongovi uses the JSMN [JSON parser] which is distributed under the MIT license.
 
 
+[mongod]: https://docs.mongodb.com/manual/reference/program/mongod/
+[libedit]: http://cvsweb.netbsd.org/bsdweb.cgi/src/lib/libedit/?sortby=date#dirlist
 [libmongoc]: http://mongoc.org/
 [Homebrew]: http://brew.sh/
 [manpage]: https://netsend.nl/mongovi/mongovi.1.html
@@ -145,8 +160,5 @@ mongovi uses the JSMN [JSON parser] which is distributed under the MIT license.
 [editline(7)]: http://man.openbsd.org/editline.7
 [editline(3)]: http://man.openbsd.org/editline.3
 [key bindings]: http://man.openbsd.org/editline.7#Input_character_bindings
-[MongoDB C Driver]: http://mongoc.org/
-[aggregation operators]: https://docs.mongodb.com/manual/reference/operator/aggregation/
-[query operators]: https://docs.mongodb.com/manual/reference/operator/query/
 [connection string]: https://docs.mongodb.com/manual/reference/connection-string/
 [node-mongovi]: https://www.npmjs.com/package/mongovi
