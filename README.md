@@ -1,10 +1,10 @@
 # mongovi
 
-mongovi is a cli for MongoDB. Both emacs and vi [key bindings] are supported via
-libedit.
+mongovi is a cli for MongoDB. In non-interactive mode it properly integrates
+into shell pipelines using [MongoDB Extended JSON]. In interactive mode both
+Emacs-like and vi-like [key bindings] are supported via [libedit].
 
 Status: **release-candidate**, make sure you have backups of your database
-
 
 mongovi is primarily developed and tested on OS X 10.11, Debian and Ubuntu.
 
@@ -34,7 +34,7 @@ Then compile and install mongovi:
     $ sudo make install
 
 
-## Build requiremets
+### Build requiremets
 
 * C compiler (with reasonable C99 support)
 * BSD or GNU make
@@ -42,7 +42,7 @@ Then compile and install mongovi:
 * [libmongoc]
 
 
-## Run-time requiremets
+### Run-time requiremets
 
 * [mongod]
 
@@ -150,6 +150,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 mongovi uses the JSMN [JSON parser] which is distributed under the MIT license.
 
 
+[MongoDB Extended JSON]: https://docs.mongodb.com/manual/reference/mongodb-extended-json/
 [mongod]: https://docs.mongodb.com/manual/reference/program/mongod/
 [libedit]: http://cvsweb.netbsd.org/bsdweb.cgi/src/lib/libedit/?sortby=date#dirlist
 [libmongoc]: http://mongoc.org/
