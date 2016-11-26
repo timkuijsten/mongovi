@@ -34,7 +34,7 @@ Then compile and install mongovi:
     $ sudo make install
 
 
-### Build requiremets
+### Build requirements
 
 * C compiler (with reasonable C99 support)
 * BSD or GNU make
@@ -42,7 +42,7 @@ Then compile and install mongovi:
 * [libmongoc]
 
 
-### Run-time requiremets
+### Run-time requirements
 
 * [mongod]
 
