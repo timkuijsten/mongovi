@@ -22,18 +22,9 @@ Using the binary package is the easiest way to get started on a Debian based sys
 
 ### macOS
 
-First compile and install libmongoc and libbson:
+Install [libmongoc] using [Homebrew]:
 
-    $ curl -LO https://github.com/mongodb/mongo-c-driver/releases/download/1.4.0/mongo-c-driver-1.4.0.tar.gz
-    $ sha256sum mongo-c-driver-1.4.0.tar.gz    # only proceed if this checksum matches
-    2bc6ea7fd8db15250910a7c72da7d959e416000bec2205be86b52d2899f6951b  mongo-c-driver-1.4.0.tar.gz
-    $ tar zxf mongo-c-driver-1.4.0.tar.gz
-    $ cd mongo-c-driver-1.4.0/
-    $ ./configure --enable-man-pages=yes
-    $ make
-    $ sudo make install
-    $ ldconfig
-    $ cd
+    $ brew install libmongoc
 
 Then compile and install mongovi:
 
@@ -146,6 +137,8 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 mongovi uses the JSMN [JSON parser] which is distributed under the MIT license.
 
 
+[libmongoc]: http://mongoc.org/
+[Homebrew]: http://brew.sh/
 [manpage]: https://netsend.nl/mongovi/mongovi.1.html
 [JSON parser]: http://zserge.com/jsmn.html
 [editrc(5)]: http://man.openbsd.org/editrc.5
