@@ -86,7 +86,7 @@ int init_user(user_t *usr);
 int set_prompt(const char *dbname, const char *collname);
 int read_config(user_t *usr, config_t *cfg);
 int idtosel(char *doc, const size_t docsize, const char *sel, const size_t sellen);
-long parse_selector(char *doc, size_t docsize, const char *line, int len);
+long parse_selector(unsigned char *doc, const size_t docsize, const char *line, int len);
 int parse_path(const char *paths, path_t *newpath, int *dbstart, int *collstart);
 int mv_parse_file(FILE *fp, config_t *cfg);
 int mv_parse_cmd(int argc, const char *argv[], const char *line, char **lp);

@@ -20,7 +20,7 @@ static int sp = 0;
 static int stack[MAXSTACK];
 static char closesym[MAXSTACK];
 
-static char *out;
+static unsigned char *out;
 static size_t outsize;
 static size_t outidx = 0;
 
@@ -43,7 +43,7 @@ static int push(int val);
  * -3 The string is not a full JSON packet, more bytes expected
  */
 long
-human_readable(char *dst, size_t dstsize, const char *src, size_t srcsize)
+human_readable(unsigned char *dst, size_t dstsize, const char *src, size_t srcsize)
 {
   size_t i;
   ssize_t nrtokens;
@@ -86,7 +86,7 @@ human_readable(char *dst, size_t dstsize, const char *src, size_t srcsize)
  * -3 The string is not a full JSON packet, more bytes expected
  */
 long
-relaxed_to_strict(char *dst, size_t dstsize, const char *src, size_t srcsize, int firstonly)
+relaxed_to_strict(unsigned char *dst, size_t dstsize, const char *src, size_t srcsize, int firstonly)
 {
   size_t i;
   ssize_t nrtokens;

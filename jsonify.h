@@ -29,7 +29,7 @@
 #define TOKENS 100000
 #define MAXSTACK 10000
 
-long human_readable(char *dst, size_t dstsize, const char *src, size_t srcsize);
-long relaxed_to_strict(char *dst, size_t dstsize, const char *src, size_t srcsize, int firstonly);
+long human_readable(unsigned char *dst, size_t dstsize, const char *src, size_t srcsize);
+long relaxed_to_strict(unsigned char *dst, size_t dstsize, const char *src, size_t srcsize, int firstonly);
 
 #endif
