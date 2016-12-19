@@ -20,10 +20,10 @@ mongovi is primarily developed on OS X 10.11 and tested on Debian and Ubuntu.
 
 Using the binary package is the easiest way to get started on a Debian based system:
 
-    $ wget https://netsend.nl/mongovi/mongovi_1.0.0-1_amd64.deb
-    $ sha256sum mongovi_1.0.0-1_amd64.deb    # only proceed if this checksum matches
-    9a33f86d5f74b77085d0f0801c4a48d348bc2eeb952299c7b1b828b1f66d4db7  mongovi_1.0.0-1_amd64.deb
-    $ sudo dpkg -i mongovi_1.0.0-1_amd64.deb
+    $ wget https://netsend.nl/mongovi/mongovi_1.0.0-3_amd64.deb
+    $ sha256sum mongovi_1.0.0-3_amd64.deb    # only proceed if this checksum matches
+    d5b25f279022e194d74f08713b7d4de73295efbb5f45df9828de17795ac28d17  mongovi_1.0.0-3_amd64.deb
+    $ sudo dpkg -i mongovi_1.0.0-3_amd64.deb
 
 ### macOS
 
