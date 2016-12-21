@@ -39,7 +39,7 @@
 #include <sys/ioctl.h>
 #include <sys/stat.h>
 
-#define MAXLINE 16 * 1024
+#define MAXLINE 16 * 100 * 1024
 #define MAXUSERNAME 100
 
 #define MAXMONGOURL 200
