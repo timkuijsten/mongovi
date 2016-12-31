@@ -20,23 +20,29 @@ mongovi is primarily developed on OS X 10.11 and tested on Debian and Ubuntu.
 
 Using the binary package is the easiest way to get started on a Debian based system:
 
-    $ wget https://netsend.nl/mongovi/mongovi_1.0.0-3_amd64.deb
-    $ sha256sum mongovi_1.0.0-3_amd64.deb    # only proceed if this checksum matches
-    d5b25f279022e194d74f08713b7d4de73295efbb5f45df9828de17795ac28d17  mongovi_1.0.0-3_amd64.deb
-    $ sudo dpkg -i mongovi_1.0.0-3_amd64.deb
+```sh
+$ wget https://netsend.nl/mongovi/mongovi_1.0.0-3_amd64.deb
+$ sha256sum mongovi_1.0.0-3_amd64.deb    # only proceed if this checksum matches
+d5b25f279022e194d74f08713b7d4de73295efbb5f45df9828de17795ac28d17  mongovi_1.0.0-3_amd64.deb
+$ sudo dpkg -i mongovi_1.0.0-3_amd64.deb
+```
 
 ### macOS
 
 Install [mongo-c-driver] using [Homebrew]:
 
-    $ brew install mongo-c-driver
+```sh
+$ brew install mongo-c-driver
+```
 
 Then compile and install mongovi:
 
-    $ git clone https://github.com/timkuijsten/mongovi.git
-    $ cd mongovi
-    $ make
-    $ sudo make install
+```sh
+$ git clone https://github.com/timkuijsten/mongovi.git
+$ cd mongovi
+$ make
+$ sudo make install
+```
 
 
 ### Build requirements
@@ -63,40 +69,54 @@ For documentation please refer to the [manpage].
 
 Open database *raboof* and collection *bar*:
 
-    $ mongovi /raboof/bar
-    /raboof/bar> 
+```sh
+$ mongovi /raboof/bar
+/raboof/bar> 
+```
 
 Change collection from bar to qux:
 
-    /raboof/bar> cd ../qux
-    /raboof/qux> 
+```
+/raboof/bar> cd ../qux
+/raboof/qux> 
+```
 
 List all documents where *foo* is *bar*:
 
-    /raboof/qux> find { foo: "bar" }
-    { "foo" : "bar" }
+```
+/raboof/qux> find { foo: "bar" }
+{ "foo" : "bar" }
+```
 
 Quick search on object id:
 
-    /raboof/qux> find 57c6fb00495b576b10996f64
-    { "_id" : { "$oid" : "57c6fb00495b576b10996f64" }, "foo" : "bar" }
+```
+/raboof/qux> find 57c6fb00495b576b10996f64
+{ "_id" : { "$oid" : "57c6fb00495b576b10996f64" }, "foo" : "bar" }
+```
 
 Use an aggregation query to filter on documents where *foo* is *bar*. Note that
 *aggregate* is abbreviated to *a*.
 
-    /raboof/qux> a [{ $project: { foo: true } }, { $match: { foo: "bar" } }]
-    { "foo" : "bar" }
+```
+/raboof/qux> a [{ $project: { foo: true } }, { $match: { foo: "bar" } }]
+{ "foo" : "bar" }
+```
 
 ### Non-interactive
 
 List all databases:
 
-    $ echo ls | mongovi
-    raboof
+```sh
+$ echo ls | mongovi
+raboof
+```
 
 Copy some documents from */raboof/qux* to */raboof/baz*:
 
-    $ echo 'find { foo: "bar" }' | mongovi /raboof/qux | mongovi -i /raboof/baz
+```sh
+$ echo 'find { foo: "bar" }' | mongovi /raboof/qux | mongovi -i /raboof/baz
+```
 
 ### vi key bindings
 
@@ -121,7 +141,9 @@ Currently no support for UTF-8.
 
 ## Tests
 
-    $ make test
+```sh
+$ make test
+```
 
 
 ## History
