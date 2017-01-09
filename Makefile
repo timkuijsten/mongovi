@@ -12,7 +12,9 @@ ifeq (${OS},Darwin)
 COMPAT=reallocarray.o
 endif
 
-USRDIR=  /usr/local
+ifndef USRDIR
+  USRDIR=  /usr/local
+endif
 BINDIR=  $(USRDIR)/bin
 MANDIR=  $(USRDIR)/share/man
 
