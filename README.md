@@ -24,6 +24,7 @@ Using the binary package is the easiest way to get started on a Debian based sys
 $ wget https://netsend.nl/mongovi/mongovi_1.0.0-3_amd64.deb
 $ sha256sum mongovi_1.0.0-3_amd64.deb    # only proceed if this checksum matches
 d5b25f279022e194d74f08713b7d4de73295efbb5f45df9828de17795ac28d17  mongovi_1.0.0-3_amd64.deb
+$ sudo apt-get install libmongoc-1.0-0
 $ sudo dpkg -i mongovi_1.0.0-3_amd64.deb
 ```
 
