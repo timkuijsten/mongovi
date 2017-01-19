@@ -22,10 +22,10 @@ Using the binary package is the easiest way to get started on a Debian based
 system. On either Debian 8 or Ubuntu 16.04 the following should be issued:
 
 ```sh
-$ wget https://netsend.nl/mongovi/mongovi_1.0.0-4_amd64.deb
-$ sha256sum mongovi_1.0.0-4_amd64.deb    # only proceed if this checksum matches
-b345c9eac38b534bf9cd9ed9b2565576aad57c355e8b058f09199d678ad7a7c9  mongovi_1.0.0-4_amd64.deb
-$ sudo dpkg -i mongovi_1.0.0-4_amd64.deb
+$ wget https://netsend.nl/mongovi/mongovi_1.0.0.5-1_amd64.deb
+$ sha256sum mongovi_1.0.0.5-1_amd64.deb    # only proceed if this checksum matches
+f5e3ff128a1a1384caa18f7a522e18ed79e5328022e92d3be42950af7b0c6f24  mongovi_1.0.0.5-1_amd64.deb
+$ sudo dpkg -i mongovi_1.0.0.5-1_amd64.deb
 ```
 
 ### macOS
