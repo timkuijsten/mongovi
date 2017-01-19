@@ -1,3 +1,16 @@
+2017.01.19, Version 1.0.0-rc.5
+
+* try to set libmongoc-1.0.0 as a dep to dpkg
+
+
+2017.01.12, Version 1.0.0-rc.4
+
+* update debian package to mongovi_1.0.0-4_amd64.deb
+* tweak ubuntu 16.04 installation instructions
+* libmongoc-1.0-0 has to be installed manually if using dpkg.
+* update readme
+
+
 2017.01.09, Version 1.0.0-rc.3
 
 * make it easier to override USRDIR
