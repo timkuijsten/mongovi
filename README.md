@@ -62,7 +62,8 @@ $ sudo make install
 
 ### Run-time requirements
 
-* [mongod]
+* [libedit]
+* [mongo-c-driver]
 
 
 ## Documentation
@@ -180,7 +181,6 @@ mongovi uses the JSMN [JSON parser] which is distributed under the MIT license.
 
 
 [MongoDB Extended JSON]: https://docs.mongodb.com/manual/reference/mongodb-extended-json/
-[mongod]: https://docs.mongodb.com/manual/reference/program/mongod/
 [libedit]: http://cvsweb.netbsd.org/bsdweb.cgi/src/lib/libedit/?sortby=date#dirlist
 [mongo-c-driver]: http://mongoc.org/
 [Homebrew]: http://brew.sh/
