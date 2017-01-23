@@ -138,7 +138,7 @@ If this file exists, the first line is read and expected to be a valid mongodb
 
 ## Known issues
 
-Currently no support for UTF-8.
+Currently no special support for UTF-8 in interactive mode.
 
 
 ## Tests
