@@ -8,6 +8,7 @@ Features:
 * move around databases and collections using the common `cd` idiom
 * integrates into shell pipelines by reading and writing [MongoDB Extended JSON]
   on stdin/stdout
+* read a username and password from a simple config file
 
 Status: **release-candidate**, make sure you have backups of your database.
 
@@ -134,10 +135,10 @@ echo "bind -v" >> ~/.editrc
 ```
 
 
-## ~/.mongovi
+## Config file
 
-If this file exists, the first line is read and expected to be a valid mongodb
-[connection string], possibly containing a username and password.
+If the file ~/.mongovi exists, the first line is read and expected to be a valid
+mongodb [connection string], possibly containing a username and password.
 
 
 ## Tests
