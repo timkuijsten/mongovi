@@ -24,15 +24,13 @@ system. On either Debian Stretch or Ubuntu 16.04 the following should be issued:
 
 ```sh
 
-$ wget https://netsend.nl/mongovi/mongovi_1.0.0~rc5-1_amd64.deb
-$ sha256sum mongovi_1.0.0~rc5-1_amd64.deb    # only proceed if this checksum matches
-acdd503ef69357c4f29103a91c454e757444f0b982cfb69a3915fedc1c270fad  mongovi_1.0.0~rc5-1_amd64.deb
-$ sudo apt-get install -y libmongoc-1.0.0
-$ sudo dpkg -i mongovi_1.0.0~rc5-1_amd64.deb
+$ wget https://netsend.nl/mongovi/mongovi_1.0.0~rc5-2_amd64.deb
+$ sha256sum mongovi_1.0.0~rc5-2_amd64.deb    # only proceed if this checksum matches
+9a1639684d3337b72baaf8f2ce96caa36faeb150e2dfb6a5cc74be7452d7ccdf  mongovi_1.0.0~rc5-2_amd64.deb
+$ sudo apt-get install -y libmongoc-1.0-0
+$ sudo dpkg -i mongovi_1.0.0~rc5-2_amd64.deb
 ```
 
-On Ubuntu 16.04 this yields an error about requiring a higher version of
-libmongoc-1.0.0, but mongovi works nonetheless.
 
 ### macOS
 
