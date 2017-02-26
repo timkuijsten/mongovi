@@ -1,0 +1,5 @@
+# package maintained by upstream developer
+version=4
+opts="pgpmode=none, filenamemangle=s%(?:.*?)?v?(\d[\d.]*)\.tar\.gz%mongovi-$1.tar.gz%" \
+             https://github.com/timkuijsten/mongovi/tags \
+             (?:.*?/)?v?(\d[\d.]*)\.tar\.gz debian uupdate
