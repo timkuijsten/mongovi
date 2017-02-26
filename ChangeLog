@@ -1,3 +1,8 @@
+2017.02.26, Version 1.0.0
+
+* add debian package dir
+
+
 2017.01.19, Version 1.0.0-rc.5
 
 * try to set libmongoc-1.0.0 as a dep to dpkg
