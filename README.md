@@ -102,7 +102,7 @@ Quick search on object id:
 ```
 
 Use an aggregation query to filter on documents where *foo* is *bar*. Note that
-*aggregate* is abbreviated to *a*.
+*aggregate* can be abbreviated to *a*.
 
 ```
 /raboof/qux> a [{ $project: { foo: true } }, { $match: { foo: "bar" } }]
