@@ -10,9 +10,9 @@ Features:
   on stdin/stdout
 * read a username and password from a simple config file
 
-Status: **release-candidate**, make sure you have backups of your database.
+Status: **stable**
 
-mongovi is primarily developed on OS X 10.11 and tested on Debian and Ubuntu.
+mongovi is primarily developed on macOS and tested on Debian and Ubuntu.
 
 
 ## Installation
@@ -145,6 +145,11 @@ mongodb [connection string], possibly containing a username and password.
 ```sh
 $ make test
 ```
+
+
+## Wanted
+
+* UTF-8 support
 
 
 ## History
