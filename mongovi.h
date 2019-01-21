@@ -22,7 +22,6 @@
 #include "prefix_match.h"
 
 #include <bson.h>
-#include <bcon.h>
 #include <mongoc.h>
 
 #include <err.h>
