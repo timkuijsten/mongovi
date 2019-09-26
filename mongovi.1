@@ -1,4 +1,18 @@
-.Dd Nov 15, 2016
+.\" Copyright (c) 2016 Tim Kuijsten
+.\"
+.\" Permission to use, copy, modify, and/or distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: November 15 2016 $
 .Dt MONGOVI 1
 .Os
 .Sh NAME
@@ -6,25 +20,28 @@
 .Nd command line interface for MongoDB
 .Sh SYNOPSIS
 .Nm
-.Op Fl psih
+.Op Fl psi
 .Op Ar path
 .Sh DESCRIPTION
 .Nm
 is a cli for MongoDB that uses
 .Xr editline 3
 for line editing and key bindings.
-.Pp 
 .Bl -tag -width Ds
 .It Fl p
-Print output in a human readable format. This is the default when stdin is connected to a terminal.
+Print output in a human readable format.
+This is the default when stdin is connected to a terminal.
 .It Fl s
-Put each JSON document on a single line. This is the default when stdin is not connected to a terminal.
+Put each JSON document on a single line.
+This is the default when stdin is not connected to a terminal.
 .It Fl i
-Import mode. Insert every document read on stdin. Expects exactly one document per line. Can only be used non-interactively.
-.It Fl h
-Print usage.
+Import mode.
+Insert every document read on stdin.
+Expects exactly one document per line.
+Can only be used non-interactively.
 .It Ar path
-Open a specific database and collection. A
+Open a specific database and collection.
+A
 .Ar path
 is a
 .Qq /
@@ -41,9 +58,12 @@ file.
 .Pp
 By default
 .Nm
-will connect to mongodb://localhost:27017. It is possible to override this connection string using a file called
+will connect to mongodb://localhost:27017.
+It is possible to override this connection string using a file called
 .Qq .mongovi
-in your home directory. This file, if it exists, should contain exactly one line, which is a mongodb connection string. This string might contain a username and password.
+in your home directory.
+This file, if it exists, should contain exactly one line, which is a mongodb connection string.
+This string might contain a username and password.
 .Sh BUILTIN COMMANDS
 The following commands are supported:
 .Bl -tag -width Ds
@@ -73,7 +93,7 @@ The database and collection name should be separated by a
 A path that starts with a leading
 .Qq /
 is treated as an absolute path and should always be followed by a database name.
-.Pp 
+.Pp
 If
 .Ar path
 is
@@ -82,7 +102,7 @@ the previously selected path will be selected again.
 If a path component is
 .Qq ..
 it's interpreted as a way to traverse up.
-.Pp 
+.Pp
 If
 .Qq / ,
 .Qq -
@@ -101,15 +121,18 @@ or the currently selected path.
 Print the list of commands.
 .El
 .Pp
-Any command can be abbreviated to the shortest non-ambiguous form. So
+Any command can be abbreviated to the shortest non-ambiguous form.
+So
 .Ar find
 can also be written as
 .Ar f
 since no other command starts with an f.
 .Pp
-If selector is not a JSON document it is treated as a shortcut to search on _id of type string. Hexadecimal strings of 24 characters are treated as object ids.
+If selector is not a JSON document it is treated as a shortcut to search on _id of type string.
+Hexadecimal strings of 24 characters are treated as object ids.
+.Sh EXIT STATUS
+.Ex -std
 .Sh EXAMPLES
-.Pp
 List all databases non-interactively:
 .Bd -literal -offset 4n
 $ echo ls | mongovi
@@ -161,10 +184,8 @@ Copy one collection to another:
 $ echo f | mongovi /foo/bar | mongovi -i /qux/baz
 .Ed
 .Sh SEE ALSO
-.Xr editline 7 ,
-.Xr editrc 5
-.Sh EXIT STATUS
-.Ex -std 
+.Xr editrc 5 ,
+.Xr editline 7
 .Sh AUTHORS
 .An -nosplit
-.An Tim Kuijsten Aq Mt tim@netsend.nl
+.An Tim Kuijsten
