@@ -68,7 +68,8 @@ This string might contain a username and password.
 The following commands are supported:
 .Bl -tag -width Ds
 .It Ic find Op Ar selector
-List all documents in the currently selected collection. Each document is output in MongoDB Extended JSON format.
+List all databases or all documents in the currently selected path.
+Documents are output in MongoDB Extended JSON format.
 .It Ic count Op Ar selector
 Count all documents in the currently selected collection.
 .It Ic remove Ar selector
@@ -109,10 +110,6 @@ If
 or
 .Qq ..
 follow a collection name, these will be treated as part of that collection and won't have the special meaning described before.
-.It Ic ls Op Ar path
-List the contents of
-.Ar path
-or if path is omitted, the currently selected path.
 .It Ic drop Op Ar path
 drop a collection or database depending on
 .Ar path
@@ -135,7 +132,7 @@ Hexadecimal strings of 24 characters are treated as object ids.
 .Sh EXAMPLES
 List all databases non-interactively:
 .Bd -literal -offset 4n
-$ echo ls | mongovi
+$ echo f | mongovi
 .Ed
 .Pp
 Open database
@@ -159,12 +156,12 @@ List documents where
 is
 .Qq bar :
 .Bd -literal -offset 4n
-/foo/bar> find { foo: "bar" }
+/foo/bar> f { foo: "bar" }
 .Ed
 .Pp
 Quick search on Object ID:
 .Bd -literal -offset 4n
-/foo/bar> find 57c6fb00495b576b10996f64
+/foo/bar> f 57c6fb00495b576b10996f64
 .Ed
 .Pp
 Use an aggregation query to filter on documents where

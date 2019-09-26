@@ -87,17 +87,18 @@ Change collection from bar to qux:
 /raboof/qux> 
 ```
 
-List all documents where *foo* is *bar*:
+List all documents where *foo* is *bar*, using `find` which can be abbreviated
+to `f`:
 
 ```
-/raboof/qux> find { foo: "bar" }
+/raboof/qux> f { foo: "bar" }
 { "foo" : "bar" }
 ```
 
 Quick search on object id:
 
 ```
-/raboof/qux> find 57c6fb00495b576b10996f64
+/raboof/qux> f 57c6fb00495b576b10996f64
 { "_id" : { "$oid" : "57c6fb00495b576b10996f64" }, "foo" : "bar" }
 ```
 
@@ -111,17 +112,17 @@ Use an aggregation query to filter on documents where *foo* is *bar*. Note that
 
 ### Non-interactive
 
-List all databases:
+List all databases using `f`, an abbreviation of `find`:
 
 ```sh
-$ echo ls | mongovi
+$ echo f | mongovi
 raboof
 ```
 
 Copy some documents from */raboof/qux* to */raboof/baz*:
 
 ```sh
-$ echo 'find { foo: "bar" }' | mongovi /raboof/qux | mongovi -i /raboof/baz
+$ echo 'f { foo: "bar" }' | mongovi /raboof/qux | mongovi -i /raboof/baz
 ```
 
 ### vi key bindings
