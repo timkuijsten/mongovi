@@ -34,19 +34,41 @@ $ sudo dpkg -i mongovi_1.0.0~rc5-2_amd64.deb
 
 ### macOS
 
-Install [mongo-c-driver] using [Homebrew]:
+*(tested on macOS 10.15)*
+
+Download, verify and compile the [mongo-c-driver] version 1.14.1.
 
 ```sh
-$ brew install mongo-c-driver
+% cd ~
+% curl -sLO https://github.com/mongodb/mongo-c-driver/releases/download/1.14.1/mongo-c-driver-1.14.1.tar.gz
+% sha256 mongo-c-driver-1.14.1.tar.gz
+84fca347a6818e5ed6db50e06eb6d33538346b49bf0ba7475d7dbcecacac2ec6  mongo-c-driver-1.14.1.tar.gz
+% tar zxf mongo-c-driver-1.14.1.tar.gz
+% export _mongoc=~/mongo-c-driver-1.14.1
+% cd "$_mongoc"/build
+% cmake -DENABLE_SSL=OFF -DENABLE_SASL=OFF -DENABLE_ZLIB=OFF ..
+% make
 ```
 
-Then compile and install mongovi:
+Then clone, compile and install mongovi:
 
 ```sh
-$ git clone https://github.com/timkuijsten/mongovi.git
-$ cd mongovi
-$ make
-$ sudo make install
+% cd ~
+% git clone https://github.com/timkuijsten/mongovi.git
+% cd mongovi
+% cc \
+  -I "$_mongoc"/src/libmongoc/src \
+  -I "$_mongoc"/src/libmongoc/src/mongoc \
+  -I "$_mongoc"/src/libbson/src \
+  -I "$_mongoc"/src/libbson/src/bson \
+  -I "$_mongoc"/build/src/libbson/src \
+  -I "$_mongoc"/build/src/libmongoc/src \
+  -o mongovi mongovi.c jsonify.c main.c  prefix_match.c shorten.c jsmn.c \
+  compat/reallocarray.c \
+  "$_mongoc"/build/src/libmongoc/libmongoc-static-1.0.a \
+  "$_mongoc"/build/src/libbson/libbson-static-1.0.a \
+  -ledit -lresolv
+% sudo make install
 ```
 
 
