@@ -78,7 +78,7 @@ Then clone, compile and install mongovi:
 * C compiler (with reasonable C99 support)
 * BSD or GNU make
 * [libedit]
-* [mongo-c-driver]
+* [mongo-c-driver] (which needs cmake)
 
 
 ### Run-time requirements
