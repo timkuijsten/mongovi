@@ -36,12 +36,13 @@ $ sudo dpkg -i mongovi_1.0.0~rc5-2_amd64.deb
 
 *(tested on macOS 10.15)*
 
-Download, verify and compile the [mongo-c-driver] version 1.14.1.
+Download, verify and compile the [mongo-c-driver] version 1.14.1 (which needs
+cmake).
 
 ```sh
 % cd ~
 % curl -sLO https://github.com/mongodb/mongo-c-driver/releases/download/1.14.1/mongo-c-driver-1.14.1.tar.gz
-% sha256 mongo-c-driver-1.14.1.tar.gz
+% shasum -a 256 mongo-c-driver-1.14.1.tar.gz
 84fca347a6818e5ed6db50e06eb6d33538346b49bf0ba7475d7dbcecacac2ec6  mongo-c-driver-1.14.1.tar.gz
 % tar zxf mongo-c-driver-1.14.1.tar.gz
 % export _mongoc=~/mongo-c-driver-1.14.1
