@@ -470,7 +470,7 @@ complete_path(EditLine *e, const char *npath, int cp)
     }
 
     /* otherwise get a list of matching prefixes */
-    if ((strv = mongoc_client_get_database_names(client, &error)) == NULL)
+    if ((strv = mongoc_client_get_database_names_with_opts(client, NULL, &error)) == NULL)
       errx(1, "%d.%d %s", error.domain, error.code, error.message);
 
     /* check if this matches one or more entries */
@@ -542,7 +542,7 @@ complete_path(EditLine *e, const char *npath, int cp)
     /* otherwise get a list of matching prefixes */
     db = mongoc_client_get_database(client, tmppath.dbname);
 
-    if ((strv = mongoc_database_get_collection_names(db, &error)) == NULL)
+    if ((strv = mongoc_database_get_collection_names_with_opts(db, NULL, &error)) == NULL)
       errx(1, "%d.%d %s", error.domain, error.code, error.message);
 
     mongoc_database_destroy(db);
@@ -1055,7 +1055,7 @@ int exec_lsdbs(mongoc_client_t *client, const char *prefix)
   if (prefix != NULL)
     prefixlen = strlen(prefix);
 
-  if ((strv = mongoc_client_get_database_names(client, &error)) == NULL) {
+  if ((strv = mongoc_client_get_database_names_with_opts(client, NULL, &error)) == NULL) {
     warnx("cursor failed: %d.%d %s", error.domain, error.code, error.message);
     return -1;
   }
@@ -1088,7 +1088,7 @@ int exec_lscolls(mongoc_client_t *client, char *dbname)
 
   db = mongoc_client_get_database(client, dbname);
 
-  if ((strv = mongoc_database_get_collection_names(db, &error)) == NULL)
+  if ((strv = mongoc_database_get_collection_names_with_opts(db, NULL, &error)) == NULL)
     return -1;
 
   for (i = 0; strv[i]; i++)
@@ -1334,13 +1334,13 @@ int exec_query(mongoc_collection_t *collection, const char *line, int len, int i
   }
 
   if (idsonly)
-    if ((fields = bson_new_from_json((unsigned char *)"{ \"_id\": true }", -1, &error)) == NULL) {
+    if ((fields = bson_new_from_json((unsigned char *)"{ \"projection\": { \"_id\": true } }", -1, &error)) == NULL) {
       warnx("%d.%d %s", error.domain, error.code, error.message);
       bson_destroy(query);
       return -1;
     }
 
-  cursor = mongoc_collection_find(collection, MONGOC_QUERY_NONE, 0, 0, 0, query, idsonly ? fields : NULL, NULL);
+  cursor = mongoc_collection_find_with_opts(collection, query, idsonly ? fields : NULL, NULL);
 
   ioctl(0, TIOCGWINSZ, &w);
 
