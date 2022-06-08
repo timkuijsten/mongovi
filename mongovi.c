@@ -265,7 +265,6 @@ complete(EditLine *e, int ch)
   Tokenizer *t;
   const char **av;
   int i, ret, ac, cc, co;
-  size_t cmdlen;
 
   /* default exit code to error */
   ret = CC_ERROR;
@@ -293,7 +292,6 @@ complete(EditLine *e, int ch)
   case 0: /* on command */
     if (complete_cmd(e, cmd, co) < 0)
       goto cleanup;
-    cmdlen = strlen(cmd);
     ret = CC_REDISPLAY;
     break;
   case 1: /* on argument, try to complete all commands that support a path parameter */
@@ -1160,13 +1158,13 @@ int exec_count(mongoc_collection_t *collection, const char *line, int len)
     return -1;
   }
 
-  if ((count = mongoc_collection_count(collection, MONGOC_QUERY_NONE, query, 0, 0, NULL, &error)) == -1) {
+  if ((count = mongoc_collection_count_documents(collection, query, NULL, NULL, NULL, &error)) == -1) {
     warnx("cursor failed: %d.%d %s", error.domain, error.code, error.message);
     bson_destroy(query);
     return -1;
   }
 
-  printf("%lld\n", count);
+  printf("%ld\n", count);
 
   bson_destroy(query);
 
