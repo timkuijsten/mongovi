@@ -30,28 +30,28 @@
 int
 shorten(char *str, int maxlen)
 {
-  int half, i, len, offset;
+	int half, i, len, offset;
 
-  if (maxlen < MINSHORTENED) /* need at least four chars */
-    return -1;
+	if (maxlen < MINSHORTENED)	/* need at least four chars */
+		return -1;
 
-  len = strlen(str);
+	len = strlen(str);
 
-  offset = len - maxlen;
-  if (offset <= 0)
-    return len;
+	offset = len - maxlen;
+	if (offset <= 0)
+		return len;
 
-  /* len > maxlen >= MINSHORTENED */
+	/* len > maxlen >= MINSHORTENED */
 
-  half = maxlen / 2;
-  str[half - 1] = '.';
-  str[half] = '.';
+	half = maxlen / 2;
+	str[half - 1] = '.';
+	str[half] = '.';
 
-  for (i = half + 1; i < maxlen; i++)
-    str[i] = str[offset + i];
-  str[maxlen] = '\0';
+	for (i = half + 1; i < maxlen; i++)
+		str[i] = str[offset + i];
+	str[maxlen] = '\0';
 
-  return maxlen;
+	return maxlen;
 }
 
 /**
@@ -63,36 +63,37 @@ shorten(char *str, int maxlen)
 int
 shorten_comps(char *c1, char *c2, int maxlen)
 {
-  int len, nlen, totlen, overflow;
-  char *comp[3];
-  char **compp;
+	int len, nlen, totlen, overflow;
+	char *comp[3];
+	char **compp;
 
-  comp[0] = c1;
-  comp[1] = c2;
-  comp[2] = NULL;
+	comp[0] = c1;
+	comp[1] = c2;
+	comp[2] = NULL;
 
-  totlen = 0;
-  compp = comp;
-  while (*compp)
-    totlen += strlen(*compp++);
+	totlen = 0;
+	compp = comp;
+	while (*compp)
+		totlen += strlen(*compp++);
 
-  overflow = totlen - maxlen;
-  if (overflow <= 0)
-    return totlen;
+	overflow = totlen - maxlen;
+	if (overflow <= 0)
+		return totlen;
 
-  compp = comp;
-  while (*compp && overflow > 0) {
-    len = strlen(*compp);
-    nlen = len - overflow;
-    if (nlen < MINSHORTENED)
-      nlen = MINSHORTENED; /* never shorten more than MINSHORTENED */
+	compp = comp;
+	while (*compp && overflow > 0) {
+		len = strlen(*compp);
+		nlen = len - overflow;
+		if (nlen < MINSHORTENED)
+			nlen = MINSHORTENED;	/* never shorten more than
+						   MINSHORTENED */
 
-    if ((nlen = shorten(*compp, nlen)) < 0)
-      return -1;
-    overflow -= len - nlen;
-    totlen -= len - nlen;
-    compp++;
-  }
+		if ((nlen = shorten(*compp, nlen)) < 0)
+			return -1;
+		overflow -= len - nlen;
+		totlen -= len - nlen;
+		compp++;
+	}
 
-  return totlen;
+	return totlen;
 }

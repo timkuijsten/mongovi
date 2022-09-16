@@ -16,7 +16,8 @@
 
 int main_init(int argc, char **argv);
 
-int main(int argc, char **argv)
+int
+main(int argc, char **argv)
 {
-  return main_init(argc, argv);
+	return main_init(argc, argv);
 }
