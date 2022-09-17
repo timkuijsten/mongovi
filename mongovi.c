@@ -1552,12 +1552,16 @@ set_prompt(const char *dbname, const char *collname)
 		if (shorten_comps(c1, c2, MAXPROMPT - static_chars) < 0)
 			errx(1, "can't initialize prompt");
 
-	if (strlen(c1) && strlen(c2))
-		snprintf(pmpt, MAXPROMPT + 1, "/%s/%s> ", c1, c2);
-	else if (strlen(c1))
-		snprintf(pmpt, MAXPROMPT + 1, "/%s> ", c1);
-	else
-		snprintf(pmpt, MAXPROMPT + 1, "/> ");
+	if (strlen(c1) > 0 && strlen(c2) > 0) {
+		if ((unsigned long)snprintf(pmpt, sizeof(pmpt), "/%s/%s> ", c1, c2) >= sizeof(pmpt))
+			return -1;
+	} else if (strlen(c1) > 0) {
+		if ((unsigned long)snprintf(pmpt, sizeof(pmpt), "/%s> ", c1) >= sizeof(pmpt))
+			return -1;
+	} else {
+		if ((unsigned long)snprintf(pmpt, sizeof(pmpt), "/> ") >= sizeof(pmpt))
+			return -1;
+	}
 
 	return 0;
 }
