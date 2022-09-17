@@ -263,7 +263,7 @@ done:
  * if command is complete and needs args, look at that
  */
 unsigned char
-complete(EditLine * e, int ch)
+complete(EditLine * e, __attribute__((unused)) int ch)
 {
 	char cmd[MAXCMDNAM];
 	Tokenizer *t;
