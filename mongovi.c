@@ -69,7 +69,8 @@ usage(void)
 int
 main_init(int argc, char **argv)
 {
-	const char *line, **av;
+	const wchar_t *line;
+	const char **av;
 	char linecpy[MAXLINE], *lp;
 	int i, read, status, ac, cmd, ch;
 	EditLine *e;
@@ -166,9 +167,11 @@ main_init(int argc, char **argv)
 		if (isatty(STDIN_FILENO))
 			errx(1, "import mode can only be used non-interactively");
 
-	while ((line = el_gets(e, &read)) != NULL) {
-		if (read > MAXLINE)
-			errx(1, "line too long");
+	while ((line = el_wgets(e, &read)) != NULL) {
+		if (read > MAXLINE || wcstombs(NULL, line, 0) + 1 > MAXLINE) {
+			warnx("MAXLINE too short: %ld bytes needed, have %d", wcstombs(NULL, line, 0) + 1, MAXLINE);
+			continue;
+		}
 
 		if (read == 0)
 			goto done;	/* happens on Ubuntu 12.04 without
@@ -177,14 +180,32 @@ main_init(int argc, char **argv)
 		/* make room for a copy */
 		linecpy[0] = '\0';
 
-		if (import)
-			if (strlcpy(linecpy, "insert ", MAXLINE) > MAXLINE)
-				errx(1, "MAXLINE too short");
+		if (import) {
+			if (wcstombs(NULL, line, 0) + 1 + 7 > MAXLINE) {
+				warnx("MAXLINE too short: %ld bytes needed, have %d", wcstombs(NULL, line, 0) + 1 + 7, MAXLINE);
+				continue;
+			}
 
-		if (strlcat(linecpy, line, MAXLINE) > MAXLINE)
-			errx(1, "line too long");
+			linecpy[0] = 'i';
+			linecpy[1] = 'n';
+			linecpy[2] = 's';
+			linecpy[3] = 'e';
+			linecpy[4] = 'r';
+			linecpy[5] = 't';
+			linecpy[6] = ' ';
 
-		/* trim newline if any */
+			if (wcstombs(&linecpy[7], line, MAXLINE - 7) == (size_t)-1) {
+				warnx("locale wcstombs error");
+				continue;
+			}
+		} else {
+			if (wcstombs(linecpy, line, MAXLINE) == (size_t)-1) {
+				warnx("locale wcstombs error");
+				continue;
+			}
+		}
+
+		/* trim newline if any (might error on exotic, non-C and non-UTF8 locales) */
 		linecpy[strcspn(linecpy, "\n")] = '\0';
 
 		/* tokenize */
