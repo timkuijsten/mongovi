@@ -139,7 +139,8 @@ main_init(int argc, char **argv)
 	el_set(e, EL_TERMINAL, NULL);
 
 	/* load user defaults */
-	el_source(e, NULL);
+	if (el_source(e, NULL) == -1)
+		warnx("sourcing .editrc failed");
 
 	if (el_get(e, EL_EDITMODE, &i) != 0)
 		errx(1, "can't determine editline status");
