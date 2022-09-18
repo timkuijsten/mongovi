@@ -24,6 +24,7 @@
 #include <bson.h>
 #include <mongoc.h>
 
+#include <locale.h>
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>

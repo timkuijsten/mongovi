@@ -80,6 +80,8 @@ main_init(int argc, char **argv)
 
 	char connect_url[MAXMONGOURL] = "mongodb://localhost:27017";
 
+	setlocale(LC_CTYPE, "");
+
 	if (strlcpy(progname, basename(argv[0]), MAXPROG) > MAXPROG)
 		errx(1, "program name too long");
 
