@@ -1,4 +1,4 @@
-#include "../prefix_match.h"
+#include "../prefix_match.c"
 
 #include <err.h>
 #include <stdio.h>

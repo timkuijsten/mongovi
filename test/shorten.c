@@ -1,4 +1,4 @@
-#include "../shorten.h"
+#include "../shorten.c"
 
 #include <stdio.h>
 #include <stdlib.h>

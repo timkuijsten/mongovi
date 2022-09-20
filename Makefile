@@ -40,14 +40,14 @@ ${PROG}: ${OBJ} ${COMPAT}
 %.o: test/%.c
 	$(CC) ${CFLAGS} -c $<
 
-testparsepath: test/parse_path.c ${OBJ} ${COMPAT}
-	$(CC) $(CFLAGS) mongovi.c prefix_match.c test/parse_path.c -o testparsepath jsmn.o jsonify.o shorten.o ${COMPAT} ${LDFLAGS}
+testparsepath: prefix_match.c mongovi.c test/parse_path.c ${OBJ} ${COMPAT}
+	$(CC) $(CFLAGS) prefix_match.c test/parse_path.c -o testparsepath jsmn.o jsonify.o shorten.o ${COMPAT} ${LDFLAGS}
 
-testshorten: test/shorten.c ${OBJ} ${COMPAT}
-	$(CC) $(CFLAGS) shorten.c test/shorten.c -o testshorten
+testshorten: shorten.h shorten.c test/shorten.c ${OBJ} ${COMPAT}
+	$(CC) $(CFLAGS) test/shorten.c -o testshorten
 
-testprefixmatch: prefix_match.c test/prefix_match.c ${OBJ} ${COMPAT}
-	$(CC) $(CFLAGS) prefix_match.c compat/reallocarray.c test/prefix_match.c -o testprefixmatch
+testprefixmatch: prefix_match.h prefix_match.c test/prefix_match.c ${OBJ} ${COMPAT}
+	$(CC) $(CFLAGS) test/prefix_match.c -o testprefixmatch
 
 runtest: testshorten testprefixmatch testparsepath
 	./testshorten
@@ -65,4 +65,4 @@ depend:
 
 .PHONY: clean 
 clean:
-	rm -f ${OBJ} ${COMPAT} mongovi shorten-test prefix_match-test mongovi-test
+	rm -f ${OBJ} ${COMPAT} mongovi testshorten testprefixmatch testmongovi

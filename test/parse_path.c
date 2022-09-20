@@ -1,4 +1,4 @@
-#include "../mongovi.h"
+#include "../mongovi.c"
 
 #include <err.h>
 #include <stdio.h>
