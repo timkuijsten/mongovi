@@ -49,7 +49,11 @@ int main()
     { "/some/coll/../some",              { "foo", "bar" },   { "some", "coll/../some" },       1,  6 },
     { "some/coll/../some",               { "foo", "bar" },   { "foo", "some/coll/../some" },  -1,  0 },
     { "../som/../some",                  { "foo", "bar" },   { "foo", "som/../some" },        -1,  3 },
-    { "../../../baz/../some",            { "foo", "bar" },   { "some", "" },                  16, -1 }
+    { "../../../baz/../some",            { "foo", "bar" },   { "some", "" },                  16, -1 },
+    { "/£",                              { "", "" },         { "£", "" },                      1, -1 },
+    { "/£/£",                            { "", "" },         { "£", "£" },                     1,  4 }, /* two bytes in UTF-8 */
+    { "/＄/＄",                          { "", "" },         { "＄", "＄" },                   1,  5 }, /* three bytes in UTF-8 */
+    { "/£ह€한𐍈＄/£ह€한𐍈＄",              { "", "" },         { "£ह€한𐍈＄", "£ह€한𐍈＄" },       1, 20 }
   };
   /* current expectation */
   struct expfmt *cexp;

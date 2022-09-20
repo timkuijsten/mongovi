@@ -25,6 +25,7 @@
 #include <mongoc.h>
 
 #include <locale.h>
+#include <assert.h>
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -46,11 +47,6 @@
 #define MAXDBNAME 200
 #define MAXCOLLNAME 200
 
-#define MAXPROMPT 30		/* must support at least 1 + 4 + 1 + 4 + 2 =
-				   12 characters for the minimally shortened
-				   version of a prompt. if MAXPROMPT = 12
-				   then "/dbname/collname> " would become
-				   "/d..e/c..e> " */
 #define MAXPROG 10
 #define MAXDOC 16 * 100 * 1024	/* maximum size of a json document */
 

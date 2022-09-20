@@ -16,6 +16,13 @@
 
 #include "mongovi.h"
 
+#define MAXPROMPTCOLUMNS 30	/* The maximum number of columns the prompt may
+				   use. Should be at least "/x..y/x..y> " = 4 +
+				   4 + 2 * 4 = 16 since x and y can take at
+				   most two columns for one character.
+				   NOTE: some UTF-8 characters consume 0 or 2
+				   columns. */
+
 static char progname[MAXPROG];
 
 static path_t path, prevpath;
@@ -29,7 +36,12 @@ static config_t config;
 static char **list_match = NULL;/* contains all ambiguous prefix_match
 				   commands */
 
-static char pmpt[MAXPROMPT + 1] = "/> ";
+/*
+ * Make sure the prompt can hold MAXPROMPTCOLUMNS + a trailing null. Since
+ * MB_CUR_MAX is only defined after setlocale() is executed, we assume it is
+ * less than 8 bytes.
+ */
+static char pmpt[8 * MAXPROMPTCOLUMNS + 8] = "/> ";
 
 static mongoc_client_t *client;
 static mongoc_collection_t *ccoll = NULL;	/* current collection */
@@ -82,6 +94,8 @@ main_init(int argc, char **argv)
 	char connect_url[MAXMONGOURL] = "mongodb://localhost:27017";
 
 	setlocale(LC_CTYPE, "");
+
+	assert((MB_CUR_MAX) > 0 && (MB_CUR_MAX) < 8);
 
 	if (strlcpy(progname, basename(argv[0]), MAXPROG) > MAXPROG)
 		errx(1, "program name too long");
@@ -841,15 +855,15 @@ parse_selector(unsigned char *doc, const size_t docsize,
  * collection name, since "/" and ".." are valid characters for a collection and
  * are thus treated as part of that collection name.
  *
- * if dbstart is not NULL the index is set to the start of the database component
- * if collstart is not NULL the index is set to the start of the collection component
- * both are -1 if not in paths
+ * if dbstart is not NULL the byte index is set to the start of the database
+ * component
+ * if collstart is not NULL the byte index is set to the start of the
+ * collection component both are -1 if not in paths
  *
  * Return 0 on success, -1 on failure.
  */
 int
-parse_path(const char *paths, path_t * newpath, int *dbstart,
-	   int *collstart)
+parse_path(const char *paths, path_t *newpath, int *dbstart, int *collstart)
 {
 	enum levels {
 		LNONE, LDB, LCOLL
@@ -1212,7 +1226,8 @@ exec_chcoll(mongoc_client_t * client, const path_t newpath)
 						 newpath.collname);
 
 	/* update prompt to show whatever we've changed to */
-	set_prompt(newpath.dbname, newpath.collname);
+	if (set_prompt(newpath.dbname, newpath.collname) == -1)
+		warnx("can't update prompt with db and collection name");
 
 	/* update global references */
 	if (strlcpy(prevpath.dbname, path.dbname, MAXDBNAME) > MAXDBNAME)
@@ -1554,36 +1569,62 @@ prompt()
 }
 
 /*
- * if too long, shorten first or both components global pmpt should have
- * space for MAXPROMPT + 1 bytes
+ * Update the prompt with the given dbname and collname. If the prompt exceeds
+ * MAXPROMPTCOLUMNS than shorten the dbname and collname.
+ *
+ * The following cases can arise:
+ * 1. dbname and collname are NULL, then prompt will be "/> "
+ * 2. dbname is not NULL and collname is NULL:
+ *   a. if columns("/> ") + columns(dbname) is <= MAXPROMPTCOLUMNS
+ *      then the prompt will be "/dbname> "
+ *   b. if columns("/> ") + columns(dbname) is > MAXPROMPTCOLUMNS
+ *      then dbname will be shortened and the prompt will be "/db..me> "
+ * 3. dbname is not NULL and collname is not NULL:
+ *   a. if columns("//> ") + columns(dbname) + columns(collname) is <= MAXPROMPTCOLUMNS
+ *      then the prompt will be "/dbname/collname> "
+ *   b. if columns("//> ") + columns(dbname) + columns(collname) is > MAXPROMPTCOLUMNS
+ *      then dbname and collname will be shortened and the prompt will be
+ *      "/db..me/co..me> ".
  */
 int
 set_prompt(const char *dbname, const char *collname)
 {
-	const int static_chars = 4;	/* prompt is of the form "/d/c> " */
-	char c1[MAXPROMPT + 1], c2[MAXPROMPT + 1];
-	int plen;
+	char c1[sizeof(pmpt)], c2[sizeof(pmpt)];
+	size_t fixedcolumns;
 
-	if (strlcpy(c1, dbname, MAXPROMPT) > MAXPROMPT)
-		return -1;
-	if (strlcpy(c2, collname, MAXPROMPT) > MAXPROMPT)
-		return -1;
-
-	plen = static_chars + strlen(c1) + strlen(c2);
-
-	/* ensure prompt fits */
-	if (plen - MAXPROMPT > 0)
-		if (shorten_comps(c1, c2, MAXPROMPT - static_chars) < 0)
-			errx(1, "can't initialize prompt");
-
-	if (strlen(c1) > 0 && strlen(c2) > 0) {
-		if ((unsigned long)snprintf(pmpt, sizeof(pmpt), "/%s/%s> ", c1, c2) >= sizeof(pmpt))
+	if (dbname == NULL && collname == NULL) {
+		if ((size_t)snprintf(pmpt, sizeof(pmpt), "/> ") >= sizeof(pmpt))
 			return -1;
-	} else if (strlen(c1) > 0) {
-		if ((unsigned long)snprintf(pmpt, sizeof(pmpt), "/%s> ", c1) >= sizeof(pmpt))
+	}
+
+	if (dbname == NULL) {
+		/* only collname is provided */
+		return -1;
+	}
+
+	c1[0] = '\0';
+	c2[0] = '\0';
+
+	/* default to db only prompt */
+	fixedcolumns = strlen("/> ");
+	if (strlcpy(c1, dbname, sizeof(c1)) >= sizeof(c1))
+		return -1;
+
+	if (collname != NULL) {
+		/* make dbname + collname prompt */
+		fixedcolumns = strlen("//> ");
+		if (strlcpy(c2, collname, sizeof(c2)) >= sizeof(c2))
+			return -1;
+	}
+
+	if (shorten_comps(c1, c2, MAXPROMPTCOLUMNS - fixedcolumns) == (size_t)-1)
+		return -1;
+
+	if (collname == NULL) {
+		if ((size_t)snprintf(pmpt, sizeof(pmpt), "/%s> ", c1) >= sizeof(pmpt))
 			return -1;
 	} else {
-		if ((unsigned long)snprintf(pmpt, sizeof(pmpt), "/> ") >= sizeof(pmpt))
+		if ((size_t)snprintf(pmpt, sizeof(pmpt), "/%s/%s> ", c1, c2) >= sizeof(pmpt))
 			return -1;
 	}
 
