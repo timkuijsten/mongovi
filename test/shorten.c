@@ -1,5 +1,6 @@
 #include "../shorten.c"
 
+#include <locale.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -13,56 +14,105 @@ int main()
 {
   int failed = 0;
 
+  setlocale(LC_CTYPE, "");
+
   printf("test shorten:\n");
-  failed += test_shorten("", 3, "", -1, "");
-  failed += test_shorten("foo", 3, "foo", -1, "");
+  failed += test_shorten("", 1, "", -1, "");
+  failed += test_shorten("foo", 1, "foo", -1, "");
   failed += test_shorten("", 5, "", 0, "");
   failed += test_shorten("foo", 4, "foo", 3, "");
   failed += test_shorten("foobar", 4, "f..r", 4, "");
-  failed += test_shorten("foobar", 5, "f..ar", 5, "");
+  failed += test_shorten("foobar", 5, "fo..r", 5, "");
   failed += test_shorten("foobarqux", 4, "f..x", 4, "");
-  failed += test_shorten("foobarqux", 7, "fo..qux", 7, "");
+  failed += test_shorten("foobarqux", 7, "foo..ux", 7, "");
   failed += test_shorten("a longer sentence", 19, "a longer sentence", 17, "");
   failed += test_shorten("a longer sentence", 18, "a longer sentence", 17, "");
   failed += test_shorten("a longer sentence", 17, "a longer sentence", 17, "");
   failed += test_shorten("a longer sentence", 16, "a longe..entence", 16, "");
-  failed += test_shorten("a longer sentence", 15, "a long..entence", 15, "");
+  failed += test_shorten("a longer sentence", 15, "a longe..ntence", 15, "");
   failed += test_shorten("a longer sentence", 14, "a long..ntence", 14, "");
-  failed += test_shorten("a longer sentence", 13, "a lon..ntence", 13, "");
+  failed += test_shorten("a longer sentence", 13, "a long..tence", 13, "");
   failed += test_shorten("a longer sentence", 12, "a lon..tence", 12, "");
-  failed += test_shorten("a longer sentence", 11, "a lo..tence", 11, "");
+  failed += test_shorten("a longer sentence", 11, "a lon..ence", 11, "");
   failed += test_shorten("a longer sentence", 10, "a lo..ence", 10, "");
   failed += test_shorten("a longer sentence", 0, "a longer sentence", -1, "");
   failed += test_shorten("a longer sentence", 1, "a longer sentence", -1, "");
-  failed += test_shorten("a longer sentence", 2, "a longer sentence", -1, "");
-  failed += test_shorten("a longer sentence", 3, "a longer sentence", -1, "");
+  failed += test_shorten("a longer sentence", 2, "..", 2, "");
+  failed += test_shorten("a longer sentence", 3, "a..", 3, "");
   failed += test_shorten("a longer sentence", 4, "a..e", 4, "");
+
+  /* UTF-8 tests */
+  failed += test_shorten("한", 2, "한", 2, "");
+  failed += test_shorten("한", 3, "한", 2, "");
+  failed += test_shorten("한한", 2, "..", 2, "");
+  failed += test_shorten("한한", 3, "..", 2, "");
+  failed += test_shorten("한한", 4, "한한", 4, "");
+  failed += test_shorten("한한한한", 4, "한..", 4, "");
+  failed += test_shorten("한한한한", 5, "한..", 4, "");
+  failed += test_shorten("한한한한", 6, "한..한", 6, "");
+  failed += test_shorten("한한한한", 7, "한..한", 6, "");
+  failed += test_shorten("한한한한", 8, "한한한한", 8, "");
+
+  failed += test_shorten("£", 2, "£", 1, "");
+  failed += test_shorten("£한", 2, "..", 2, "");
+  failed += test_shorten("£한", 3, "£한", 3, "");
+  failed += test_shorten("£한한", 2, "..", 2, "");
+  failed += test_shorten("£한한", 3, "£..", 3, "");
+  failed += test_shorten("£한한", 4, "£..", 3, "");
+  failed += test_shorten("£한한", 5, "£한한", 5, "");
+
+  failed += test_shorten("한£", 2, "..", 2, "");
+  failed += test_shorten("한£", 3, "한£", 3, "");
+  failed += test_shorten("한한£", 2, "..", 2, "");
+  failed += test_shorten("한한£", 3, "..£", 3, "");
+  failed += test_shorten("한한£", 4, "..£", 3, ""); /* choices */
+  failed += test_shorten("한한£", 5, "한한£", 5, "");
+
+  failed += test_shorten("£ह€한𐍈＄", 4, "£ह..", 4, "");
+  failed += test_shorten("£ह€한𐍈＄", 5, "£..＄", 5, "");
+  failed += test_shorten("£ह€한𐍈＄", 6, "£ह..＄", 6, "");
+  failed += test_shorten("£ह€한𐍈＄", 7, "£ह€..＄", 7, "");
+  failed += test_shorten("£ह€한𐍈＄", 8, "£ह€한𐍈＄", 8, "");
   printf("\n");
 
   printf("test shorten_comps:\n");
-  failed += test_shorten_comps("foo", "bar", 6, "foo", "bar", 6, "");
+  failed += test_shorten_comps("f", "b", 8, "f", "b", 2, "");
+  failed += test_shorten_comps("foof", "barb", 8, "foof", "barb", 8, "");
+  failed += test_shorten_comps("foof", "barba", 8, "foof", "b..a", 8, "");
+  failed += test_shorten_comps("foof", "barbaz", 8, "foof", "b..z", 8, "");
   failed += test_shorten_comps("foobar", "barbaz", 8, "f..r", "b..z", 8, "");
   failed += test_shorten_comps("foobar", "z", 8, "foobar", "z", 7, "");
-  failed += test_shorten_comps("foo", "barbaz", 8, "foo", "b..az", 8, "");
-  failed += test_shorten_comps("fu", "barbaz", 6, "fu", "b..z", 6, "");
-  failed += test_shorten_comps("fu", "barbaz", 7, "fu", "b..az", 7, "");
-  failed += test_shorten_comps("fu", "quxquuzraboof", 4, "fu", "q..f", 6, "");
+  failed += test_shorten_comps("foobarfoobar", "z", 8, "foo..ar", "z", 8, "");
+  failed += test_shorten_comps("fu", "barbaz", 8, "fu", "barbaz", 8, "");
+  failed += test_shorten_comps("fu", "quxquuzraboof", 8, "fu", "qu..of", 8, "");
 
   failed += test_shorten_comps("foobarbaz", "quxquuzraboof", 23, "foobarbaz", "quxquuzraboof", 22, "");
   failed += test_shorten_comps("foobarbaz", "quxquuzraboof", 22, "foobarbaz", "quxquuzraboof", 22, "");
-  failed += test_shorten_comps("foobarbaz", "quxquuzraboof", 21, "foo..baz", "quxquuzraboof", 21, "");
-  failed += test_shorten_comps("foobarbaz", "quxquuzraboof", 20, "fo..baz", "quxquuzraboof", 20, "");
+  failed += test_shorten_comps("foobarbaz", "quxquuzraboof", 21, "foobarbaz", "quxqu..aboof", 21, "");
+  failed += test_shorten_comps("foobarbaz", "quxquuzraboof", 20, "foobarbaz", "quxqu..boof", 20, "");
+  failed += test_shorten_comps("foobarbaz", "quxquuzraboof", 19, "foo..az", "quxqu..aboof", 19, "");
+  failed += test_shorten_comps("foobarbaz", "quxquuzraboof", 18, "foo..az", "quxqu..boof", 18, "");
+  failed += test_shorten_comps("foobarbaz", "quxquuzraboof", 17, "foo..az", "quxq..boof", 17, "");
+  failed += test_shorten_comps("foobarbaz", "quxquuzraboof", 16, "fo..az", "quxq..boof", 16, "");
+  failed += test_shorten_comps("foobarbaz", "quxquuzraboof", 15, "fo..az", "quxq..oof", 15, "");
 
-  failed += test_shorten_comps("foobarbaz", "quxquuzraboof", 18, "f..az", "quxquuzraboof", 18, "");
-  failed += test_shorten_comps("foobarbaz", "quxquuzraboof", 17, "f..z", "quxquuzraboof", 17, "");
-  failed += test_shorten_comps("foobarbaz", "quxquuzraboof", 16, "f..z", "quxqu..aboof", 16, "");
-  failed += test_shorten_comps("foobarbaz", "quxquuzraboof", 15, "f..z", "quxq..aboof", 15, "");
-
-  failed += test_shorten_comps("foobarbaz", "quxquuzraboof", 9, "f..z", "q..of", 9, "");
+  failed += test_shorten_comps("foobarbaz", "quxquuzraboof", 9, "f..z", "qu..f", 9, "");
   failed += test_shorten_comps("foobarbaz", "quxquuzraboof", 8, "f..z", "q..f", 8, "");
-  failed += test_shorten_comps("foobarbaz", "quxquuzraboof", 7, "f..z", "q..f", 8, "");
 
-  failed += test_shorten_comps("foobarbaz", "quxquuzraboof", 0, "f..z", "q..f", 8, "");
+  /* min 8 columns */
+  failed += test_shorten_comps("foobarbaz", "quxquuzraboof", 7, "foobarbaz", "quxquuzraboof", -1, "");
+
+  failed += test_shorten_comps("£ह€한𐍈＄£ह€한𐍈＄", "＄", 8, "£ह..＄", "＄", 8, "");
+  failed += test_shorten_comps("£＄ह€", "한𐍈＄£ह€한𐍈＄", 8, "£..€", "한..", 8, "");
+  failed += test_shorten_comps("＄", "£ह€한𐍈＄£ह€한𐍈＄", 8, "＄", "£ह..＄", 8, "");
+  failed += test_shorten_comps("＄£ह€", "한𐍈＄£ह€한𐍈＄", 8, "..ह€", "한..", 8, "");
+  failed += test_shorten_comps("＄£ह€", "한𐍈＄£ह€한𐍈＄", 9, "＄£ह€", "한..", 9, "");
+  failed += test_shorten_comps("＄£ह€", "한𐍈＄£ह€한𐍈＄", 10, "＄£ह€", "한𐍈..", 10, "");
+  failed += test_shorten_comps("＄£ह€", "한𐍈＄£ह€한𐍈＄", 11, "＄£ह€", "한..＄", 11, "");
+  failed += test_shorten_comps("＄£ह€", "한𐍈＄£ह€한𐍈＄", 12, "＄£ह€", "한𐍈..＄", 12, "");
+  failed += test_shorten_comps("＄£ह€", "한𐍈＄£ह€한𐍈＄", 13, "＄£ह€", "한𐍈..𐍈＄", 13, "");
+  failed += test_shorten_comps("＄£ह€", "한𐍈＄£ह€한𐍈＄", 14, "＄£ह€", "한𐍈..𐍈＄", 13, "");
+  failed += test_shorten_comps("＄£ह€", "한𐍈＄£ह€한𐍈＄", 15, "＄£ह€", "한𐍈＄..𐍈＄", 15, "");
 
   return failed;
 }

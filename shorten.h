@@ -1,12 +1,12 @@
 #ifndef SHORTEN_H
 #define SHORTEN_H
 
+#ifndef PATH_MAX
+#define PATH_MAX 1024
+#endif
+
 #include <sys/types.h>
 
-#define MINSHORTENED 4		/* 4 is min width of a shortened string, see
-				   shorten.c */
-
-int shorten(char *str, int maxlen);
-int shorten_comps(char *c1, char *c2, int maxlen);
+size_t shorten_comps(char *c1, char *c2, size_t maxlen);
 
 #endif
