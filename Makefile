@@ -40,15 +40,19 @@ ${PROG}: ${OBJ} ${COMPAT}
 %.o: test/%.c
 	$(CC) ${CFLAGS} -c $<
 
-test: test/parse_path.c ${OBJ} ${COMPAT}
-	$(CC) $(CFLAGS) mongovi.c prefix_match.c test/parse_path.c -o mongovi-test jsmn.o jsonify.o shorten.o ${COMPAT} ${LDFLAGS}
-	./mongovi-test
+testparsepath: test/parse_path.c ${OBJ} ${COMPAT}
+	$(CC) $(CFLAGS) mongovi.c prefix_match.c test/parse_path.c -o testparsepath jsmn.o jsonify.o shorten.o ${COMPAT} ${LDFLAGS}
 
-test-dep:
-	$(CC) $(CFLAGS) shorten.c test/shorten.c -o shorten-test
-	./shorten-test
-	$(CC) $(CFLAGS) prefix_match.c compat/reallocarray.c test/prefix_match.c -o prefix_match-test
-	./prefix_match-test
+testshorten: test/shorten.c ${OBJ} ${COMPAT}
+	$(CC) $(CFLAGS) shorten.c test/shorten.c -o testshorten
+
+testprefixmatch: prefix_match.c test/prefix_match.c ${OBJ} ${COMPAT}
+	$(CC) $(CFLAGS) prefix_match.c compat/reallocarray.c test/prefix_match.c -o testprefixmatch
+
+runtest: testshorten testprefixmatch testparsepath
+	./testshorten
+	./testprefixmatch
+	./testparsepath
 
 install:
 	${INSTALL_DIR} ${DESTDIR}${BINDIR}
