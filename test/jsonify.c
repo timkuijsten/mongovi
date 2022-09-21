@@ -6,7 +6,7 @@
  * return 0 if test passes, 1 if test fails, -1 on internal error
  */
 int
-test_relaxed_to_strict(const char *input, size_t inputlen, const int maxobj, const char *exp, const int exp_exit, const char *msg)
+test_relaxed_to_strict(const char *input, size_t inputlen, int maxobj, const char *exp, const int exp_exit, const char *msg)
 {
 	int exit;
 	char dst[MAXSTR];
@@ -39,29 +39,46 @@ main()
 
 	doc = "{ a: 'b' }";
 	exp = "{\"a\":\"b\"}";
-	failed += test_relaxed_to_strict(doc, strlen(doc), 0, exp, 10, "");
+	failed += test_relaxed_to_strict(doc, strlen(doc), -1, exp, 10, "");
 
 	doc = "{ a: b }";
 	exp = "{\"a\":b}";
-	failed += test_relaxed_to_strict(doc, strlen(doc), 0, exp, 8, "");
+	failed += test_relaxed_to_strict(doc, strlen(doc), -1, exp, 8, "");
 
 	doc = "{ a: b }{ c: d }";
 	exp = "{\"a\":b}{\"c\":d}";
-	failed += test_relaxed_to_strict(doc, strlen(doc), 0, exp, 16, "");
+	failed += test_relaxed_to_strict(doc, strlen(doc), -1, exp, 16, "");
 
 	doc = "{ a: { c: d } }";
 	exp = "{\"a\":{\"c\":d}}";
-	failed += test_relaxed_to_strict(doc, strlen(doc), 0, exp, 15, "");
+	failed += test_relaxed_to_strict(doc, strlen(doc), -1, exp, 15, "");
 
 	doc = "{ a: { c: d } }  { a: { c: d } }";
 	exp = "{\"a\":{\"c\":d}}{\"a\":{\"c\":d}}";
-	failed += test_relaxed_to_strict(doc, strlen(doc), 0, exp, 30, "");
+	failed += test_relaxed_to_strict(doc, strlen(doc), -1, exp, 32, "");
+
+	doc = "{ a: { c: d } }  { a: { c: d } }";
+	exp = "{\"a\":{\"c\":d}}";
+	failed += test_relaxed_to_strict(doc, strlen(doc), 1, exp, 15, "");
+
+	doc = "{ a: { c: { e: f } } }{ a: { c: { e: f } }}  { a: { c: { e: f } }}";
+
+	exp = "{\"a\":{\"c\":{\"e\":f}}}{\"a\":{\"c\":{\"e\":f}}}{\"a\":{\"c\":{\"e\":f}}}";
+	failed += test_relaxed_to_strict(doc, strlen(doc), -1, exp, 66, "");
+	failed += test_relaxed_to_strict(doc, strlen(doc), 3, exp, 66, "");
+	failed += test_relaxed_to_strict(doc, strlen(doc), 4, exp, 66, "");
+
+	exp = "{\"a\":{\"c\":{\"e\":f}}}";
+	failed += test_relaxed_to_strict(doc, strlen(doc), 1, exp, 22, "");
+
+	exp = "{\"a\":{\"c\":{\"e\":f}}}{\"a\":{\"c\":{\"e\":f}}}";
+	failed += test_relaxed_to_strict(doc, strlen(doc), 2, exp, 43, "");
 
 	/* UTF-8 */
 	/*
 	doc = "{ 한: '＄' }";
 	exp = "{ \"한\": \"＄\" }";
-	failed += test_relaxed_to_strict(doc, strlen(doc), 0, exp, 30, "");
+	failed += test_relaxed_to_strict(doc, strlen(doc), -1, exp, 30, "");
 	*/
 
 	return failed;

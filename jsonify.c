@@ -72,18 +72,40 @@ addout(char *src, size_t size)
 	return 0;
 }
 
+/*
+ * Run iterator on each token in tokens.
+ *
+ * If maxroots > 0, then at most this many root tokens (and it's children) will
+ * be parsed.
+ *
+ * Returns the index in tokens of the last parsed root token on success or -1
+ * on failure.
+ */
 static int
-iterate(const char *src, jsmntok_t * tokens, int nrtokens,
+iterate(const char *src, jsmntok_t * tokens, int nrtokens, int maxroots,
     int (*iterator)(jsmntok_t *, char *, int, int, char *))
 {
 	char *key, *cp, c;
 	jsmntok_t *tok;
 	int i, j;
-	int depth, ndepth;
+	int depth, ndepth, roottokens, lastroottoken;
 
-	depth = ndepth = 0;
+	depth = 0;
+	ndepth = 0;
+	roottokens = 0;
+	lastroottoken = -1;
 
 	for (i = 0; i < nrtokens; i++) {
+		// consider each token at depth 0 a root
+		if (depth == 0) {
+			if (maxroots > 0 && maxroots == roottokens) {
+				return lastroottoken;
+			}
+
+			roottokens++;
+			lastroottoken = i;
+		}
+
 		tok = &tokens[i];
 		key = strndup(src + tok->start, tok->end - tok->start);
 		if (key == NULL)
@@ -134,7 +156,7 @@ iterate(const char *src, jsmntok_t * tokens, int nrtokens,
 		free(key);
 	}
 
-	return 0;
+	return lastroottoken;
 }
 
 /*
@@ -313,7 +335,7 @@ human_readable(char *dst, size_t dstsize, const char *src,
 	outsize = dstsize;
 	out[0] = '\0';
 	outidx = 0;
-	if (iterate(src, tokens, nrtokens, NULL, human_readable_writer) == -1)
+	if (iterate(src, tokens, nrtokens, 0, human_readable_writer) == -1)
 		return -11;
 
 	return i;
@@ -340,7 +362,8 @@ print_tokens(const char *src, jsmntok_t *tokens, int nrtokens)
 /*
  * Add double quotes to keys that are unquoted by copying src into dst.
  *
- * Return pos in src or < 0 on error
+ * Returns the index of the last parsed character in src on success, or < 0 on
+ * error
  *
  * -10 if srcsize exceed LONG_MAX
  * -11 if writer failed
@@ -349,18 +372,15 @@ print_tokens(const char *src, jsmntok_t *tokens, int nrtokens)
  * -1 Not enough tokens were provided
  * -2 Invalid character inside JSON string
  * -3 The string is not a full JSON packet, more bytes expected
- *
- * Note: srcsize must be the result of strlen(src), so src must be a null
- * terminated string and srcsize must not count the trailing null byte.
  */
-long
-relaxed_to_strict(char *dst, size_t dstsize, const char *src,
-    size_t srcsize, int firstonly)
+int
+relaxed_to_strict(char *dst, size_t dstsize, const char *src, size_t srcsize,
+    int maxobjects)
 {
-	size_t i;
-	ssize_t nrtokens;
-	jsmn_parser parser;
 	jsmntok_t tokens[TOKENS];
+	jsmn_parser parser;
+	ssize_t nrtokens;
+	int r;
 
 	if (srcsize > LONG_MAX)
 		return -10;
@@ -368,39 +388,21 @@ relaxed_to_strict(char *dst, size_t dstsize, const char *src,
 	if (dstsize < 1)
 		return -11;
 
-	if (firstonly) {
-		/* stop after first document (root) */
-		jsmn_init(&parser);
-		// include the trailing null byte if any
-		for (i = 0; i <= srcsize; i++) {
-			nrtokens = jsmn_parse(&parser, src, i, tokens, TOKENS);
-			if (nrtokens != JSMN_ERROR_PART && nrtokens != 0)
-				break;
-		}
+	jsmn_init(&parser);
+	nrtokens = jsmn_parse(&parser, src, srcsize, tokens, TOKENS);
 
-		/* on success reinit to determine proper number of tokens */
-		if (nrtokens > 0) {
-			jsmn_init(&parser);
-			nrtokens = jsmn_parse(&parser, src, i, tokens, TOKENS);
-		}
-
-		i--;
-	} else {
-		jsmn_init(&parser);
-		i = srcsize;
-		nrtokens = jsmn_parse(&parser, src, srcsize, tokens, TOKENS);
-	}
-
-	if (nrtokens <= 0)
-		return nrtokens;
-
-	/* wipe internal buffer */
 	out = dst;
 	outsize = dstsize;
 	out[0] = '\0';
 	outidx = 0;
-	if (iterate(src, tokens, nrtokens, strict_writer) == -1)
+
+	if (nrtokens <= 0)
+		return nrtokens;
+
+	r = iterate(src, tokens, nrtokens, maxobjects, strict_writer);
+	if (r == -1)
 		return -11;
 
-	return i;
+	// return end of last processed root object token
+	return tokens[r].end;
 }
