@@ -87,24 +87,6 @@ enum errors {
 	DBMISSING = 256, COLLMISSING
 };
 
-int complete_cmd(EditLine * e, const char *tok, int co);
-int complete_path(EditLine * e, const char *tok, int co);
-int set_prompt(const char *dbname, const char *collname);
-int parse_path(const char *paths, path_t * newpath, int *dbstart,
-    int *collstart);
-int mv_parse_file(FILE * fp, config_t * cfg);
-int exec_cmd(const int cmd, const char **argv, const char *line, int linelen);
-int exec_lsdbs(mongoc_client_t * client, const char *prefix);
-int exec_lscolls(mongoc_client_t * client, char *dbname);
-int exec_chcoll(mongoc_client_t * client, const path_t newpath);
-int exec_count(mongoc_collection_t * collection, const char *line, int len);
-int exec_update(mongoc_collection_t * collection, const char *line, int upsert);
-int exec_insert(mongoc_collection_t * collection, const char *line, int len);
-int exec_remove(mongoc_collection_t * collection, const char *line, int len);
-int exec_query(mongoc_collection_t * collection, const char *line, int len,
-    int idsonly);
-int exec_agquery(mongoc_collection_t * collection, const char *line, int len);
-
 static char progname[MAXPROG];
 
 static path_t path, prevpath;
@@ -154,68 +136,224 @@ const char *cmds[] = {
 };
 
 /*
- * tab complete command line
+ * Parse path that consists of a database name and or a collection name. Support
+ * both absolute and relative paths.
+ * Absolute paths always start with a / followed by a database name.
+ * Relative paths depend on the db and collection values in newpath.
+ * paths must be null terminated.
+ * ".." is supported as a way to go up, but only if it does not follow a
+ * collection name, since "/" and ".." are valid characters for a collection and
+ * are thus treated as part of that collection name.
  *
- * if empty, print all commands
- * if matches more than one command, print all with matching prefix
- * if matches exactly one command and not complete, complete
- * if command is complete and needs args, look at that
+ * if dbstart is not NULL the byte index is set to the start of the database
+ * component
+ * if collstart is not NULL the byte index is set to the start of the
+ * collection component both are -1 if not in paths
+ *
+ * Return 0 on success, -1 on failure.
  */
-uint8_t
-complete(EditLine * e, __attribute__((unused)) int ch)
+int
+parse_path(const char *paths, path_t *newpath, int *dbstart, int *collstart)
 {
-	char cmd[MAXCMDNAM];
-	Tokenizer *t;
+	enum levels {
+		LNONE, LDB, LCOLL
+	};
+	int i, ac, ds, cs;
+	enum levels level;
 	const char **av;
-	int i, ret, ac, cc, co;
+	Tokenizer *t;
+	char *path, *cp;
 
-	/* default exit code to error */
-	ret = CC_ERROR;
+	ds = -1;		/* dbstart index */
+	cs = -1;		/* collstart index */
 
-	/* tokenize */
-	t = tok_init(NULL);
-	if (tok_line(t, el_line(e), &ac, &av, &cc, &co) != 0)
-		return ret;
+	/* init indices on request */
+	if (dbstart != NULL)
+		*dbstart = ds;
 
-	/* empty, print all commands */
-	if (ac == 0) {
-		i = 0;
-		printf("\n");
-		while (cmds[i] != NULL)
-			printf("%s\n", cmds[i++]);
-		ret = CC_REDISPLAY;
-		goto cleanup;
+	if (collstart != NULL)
+		*collstart = cs;
+
+	i = strlen(paths);
+	if (!i)
+		return 0;
+
+	if ((path = strdup(paths)) == NULL)
+		err(1, "parse_path");
+
+	cp = path;
+
+	/* trim trailing blanks */
+	while (cp[i - 1] == ' ' || cp[i - 1] == '\t' || cp[i - 1] == '\n')
+		cp[--i] = '\0';
+
+	/* trim leading blanks */
+	while (*cp == ' ' || *cp == '\t' || *cp == '\n')
+		cp++;
+
+	/* before we start parsing, determine current depth level */
+	if (cp[0] == '/') {	/* absolute path, reset db and collection */
+		level = LNONE;	/* not in db or collection */
+		newpath->dbname[0] = '\0';
+		newpath->collname[0] = '\0';
+	} else {		/* relative path */
+		if (strlen(newpath->collname))
+			level = LCOLL;	/* in collection (and thus db) */
+		else if (strlen(newpath->dbname))
+			level = LDB;	/* in db */
+		else
+			level = LNONE;	/* no db or collection set */
 	}
-	/* init cmd */
-	if (strlcpy(cmd, av[0], MAXCMDNAM) > MAXCMDNAM)
-		goto cleanup;
 
-	switch (cc) {
-	case 0:		/* on command */
-		if (complete_cmd(e, cmd, co) < 0)
-			goto cleanup;
-		ret = CC_REDISPLAY;
-		break;
-	case 1:		/* on argument, try to complete all commands
-				   that support a path parameter */
-		if (strcmp(cmd, "cd") == 0 || strcmp(cmd, "ls") == 0
-		    || strcmp(cmd, "drop") == 0)
-			if (complete_path(e, ac <= 1 ? "" : av[1], co) < 0) {
-				warnx("complete_path error");
-				goto cleanup;
+	t = tok_init("/");
+	tok_str(t, cp, &ac, &av);
+
+	/* now start parsing cp */
+	i = 0;
+	if (cp[0] == '/')
+		cp++;
+
+	while (i < ac) {
+		switch (level) {
+		case LNONE:
+			if (strcmp(av[i], "..") == 0) {	/* skip */
+				cp += 2 + 1;
+			} else {
+				/* use component as database name */
+				if (strlcpy(newpath->dbname, av[i], MAXDBNAME) > MAXDBNAME)
+					goto cleanuperr;
+				ds = cp - path;
+				cp += strlen(av[i]) + 1;
+				level = LDB;
 			}
-		ret = CC_REDISPLAY;
-		goto cleanup;
-	default:
-		/* ignore subsequent words */
-		ret = CC_NORM;
-		goto cleanup;
+			break;
+		case LDB:
+			if (strcmp(av[i], "..") == 0) {	/* go up */
+				newpath->dbname[0] = '\0';
+				cp += 2 + 1;
+				ds = -1;
+				level = LNONE;
+			} else {
+				/*
+				 * use all remaining tokens as the name of
+				 * the collection:
+				 */
+				if ((strlcpy(newpath->collname, cp, MAXCOLLNAME)) >
+				    MAXCOLLNAME)
+					goto cleanuperr;
+				cs = cp - path;
+				cp += strlen(av[i]) + 1;
+				/* we're done */
+				i = ac;
+			}
+			break;
+		case LCOLL:
+			if (strcmp(av[i], "..") == 0) {	/* go up */
+				newpath->collname[0] = '\0';
+				cp += 2 + 1;
+				cs = -1;
+				level = LDB;
+			} else {
+				/*
+				 * use all remaining tokens as the name of
+				 * the collection:
+				 */
+				if ((strlcpy(newpath->collname, cp, MAXCOLLNAME)) >
+				    MAXCOLLNAME)
+					goto cleanuperr;
+				cs = cp - path;
+				cp += strlen(av[i]) + 1;
+				level = LDB;
+				/* we're done */
+				i = ac;
+			}
+			break;
+		default:
+			errx(1, "unexpected level %d while parsing \"%s\"", level, cp);
+		}
+		i++;
 	}
 
-cleanup:
-	tok_end(t);
+	/* update indices on request */
+	if (dbstart != NULL)
+		*dbstart = ds;
 
-	return ret;
+	if (collstart != NULL)
+		*collstart = cs;
+
+	tok_end(t);
+	free(path);
+
+	return 0;
+
+cleanuperr:
+	tok_end(t);
+	free(path);
+
+	return -1;
+}
+
+/*
+ * list database for the given client return 0 on success, -1 on failure
+ */
+int
+exec_lsdbs(mongoc_client_t * client, const char *prefix)
+{
+	bson_error_t error;
+	char **strv;
+	int i, prefixlen;
+
+	if (prefix != NULL)
+		prefixlen = strlen(prefix);
+
+	if ((strv =
+	     mongoc_client_get_database_names_with_opts(client, NULL,
+							&error)) == NULL) {
+		warnx("cursor failed: %d.%d %s", error.domain, error.code,
+		      error.message);
+		return -1;
+	}
+	for (i = 0; strv[i]; i++)
+		if (prefix == NULL) {
+			printf("%s\n", strv[i]);
+		} else {
+			if (strncmp(prefix, strv[i], prefixlen) == 0)
+				printf("%s\n", strv[i]);
+		}
+
+	bson_strfreev(strv);
+
+	return 0;
+}
+
+/*
+ * list collections for the given database return 0 on success, -1 on failure
+ */
+int
+exec_lscolls(mongoc_client_t * client, char *dbname)
+{
+	bson_error_t error;
+	mongoc_database_t *db;
+	char **strv;
+	int i;
+
+	if (!strlen(dbname))
+		return -1;
+
+	db = mongoc_client_get_database(client, dbname);
+
+	if ((strv =
+	     mongoc_database_get_collection_names_with_opts(db, NULL,
+							    &error)) == NULL)
+		return -1;
+
+	for (i = 0; strv[i]; i++)
+		printf("%s\n", strv[i]);
+
+	bson_strfreev(strv);
+	mongoc_database_destroy(db);
+
+	return 0;
 }
 
 /*
@@ -540,82 +678,69 @@ complete_path(EditLine * e, const char *npath, int cp)
 	return 0;
 }
 
-int
-exec_ls(const char *npath)
+/*
+ * tab complete command line
+ *
+ * if empty, print all commands
+ * if matches more than one command, print all with matching prefix
+ * if matches exactly one command and not complete, complete
+ * if command is complete and needs args, look at that
+ */
+uint8_t
+complete(EditLine * e, __attribute__((unused)) int ch)
 {
-	int ret;
-	path_t tmppath;
-	mongoc_collection_t *ccoll;
+	char cmd[MAXCMDNAM];
+	Tokenizer *t;
+	const char **av;
+	int i, ret, ac, cc, co;
 
-	/* copy current context */
-	if (strlcpy(tmppath.dbname, path.dbname, MAXDBNAME) > MAXDBNAME)
-		return -1;
-	if (strlcpy(tmppath.collname, path.collname, MAXCOLLNAME) >
-	    MAXCOLLNAME)
-		return -1;
+	/* default exit code to error */
+	ret = CC_ERROR;
 
-	if (parse_path(npath, &tmppath, NULL, NULL) < 0)
-		errx(1, "illegal path spec");
-
-	if (strlen(tmppath.collname)) {	/* print all document ids */
-		ccoll =
-		    mongoc_client_get_collection(client, tmppath.dbname,
-						 tmppath.collname);
-		ret = exec_query(ccoll, "{}", 2, 1);
-		mongoc_collection_destroy(ccoll);
+	/* tokenize */
+	t = tok_init(NULL);
+	if (tok_line(t, el_line(e), &ac, &av, &cc, &co) != 0)
 		return ret;
-	} else if (strlen(tmppath.dbname))
-		return exec_lscolls(client, tmppath.dbname);
-	else
-		return exec_lsdbs(client, NULL);
-}
 
-int
-exec_drop(const char *npath)
-{
-	path_t tmppath;
-	mongoc_collection_t *coll;
-	mongoc_database_t *db;
-	bson_error_t error;
+	/* empty, print all commands */
+	if (ac == 0) {
+		i = 0;
+		printf("\n");
+		while (cmds[i] != NULL)
+			printf("%s\n", cmds[i++]);
+		ret = CC_REDISPLAY;
+		goto cleanup;
+	}
+	/* init cmd */
+	if (strlcpy(cmd, av[0], MAXCMDNAM) > MAXCMDNAM)
+		goto cleanup;
 
-	/* copy current context */
-	if (strlcpy(tmppath.dbname, path.dbname, MAXDBNAME) > MAXDBNAME)
-		return -1;
-	if (strlcpy(tmppath.collname, path.collname, MAXCOLLNAME) >
-	    MAXCOLLNAME)
-		return -1;
-
-	if (parse_path(npath, &tmppath, NULL, NULL) < 0)
-		errx(1, "illegal path spec");
-
-	if (strlen(tmppath.collname)) {	/* drop collection */
-		coll =
-		    mongoc_client_get_collection(client, tmppath.dbname,
-						 tmppath.collname);
-		if (!mongoc_collection_drop(coll, &error)) {
-			warnx("cursor failed: %d.%d %s", error.domain, error.code,
-			      error.message);
-			mongoc_collection_destroy(coll);
-			return -1;
-		}
-		mongoc_collection_destroy(coll);
-		printf("dropped /%s/%s\n", tmppath.dbname, tmppath.collname);
-	} else if (strlen(tmppath.dbname)) {
-		db = mongoc_client_get_database(client, tmppath.dbname);
-		if (!mongoc_database_drop(db, &error)) {
-			warnx("cursor failed: %d.%d %s", error.domain, error.code,
-			      error.message);
-			mongoc_database_destroy(db);
-			return -1;
-		}
-		mongoc_database_destroy(db);
-		printf("dropped %s\n", tmppath.dbname);
-	} else {
-		/* illegal context */
-		return -1;
+	switch (cc) {
+	case 0:		/* on command */
+		if (complete_cmd(e, cmd, co) < 0)
+			goto cleanup;
+		ret = CC_REDISPLAY;
+		break;
+	case 1:		/* on argument, try to complete all commands
+				   that support a path parameter */
+		if (strcmp(cmd, "cd") == 0 || strcmp(cmd, "ls") == 0
+		    || strcmp(cmd, "drop") == 0)
+			if (complete_path(e, ac <= 1 ? "" : av[1], co) < 0) {
+				warnx("complete_path error");
+				goto cleanup;
+			}
+		ret = CC_REDISPLAY;
+		goto cleanup;
+	default:
+		/* ignore subsequent words */
+		ret = CC_NORM;
+		goto cleanup;
 	}
 
-	return 0;
+cleanup:
+	tok_end(t);
+
+	return ret;
 }
 
 /*
@@ -706,161 +831,162 @@ parse_selector(uint8_t *doc, const size_t docsize, const char *line,
 }
 
 /*
- * Parse path that consists of a database name and or a collection name. Support
- * both absolute and relative paths.
- * Absolute paths always start with a / followed by a database name.
- * Relative paths depend on the db and collection values in newpath.
- * paths must be null terminated.
- * ".." is supported as a way to go up, but only if it does not follow a
- * collection name, since "/" and ".." are valid characters for a collection and
- * are thus treated as part of that collection name.
- *
- * if dbstart is not NULL the byte index is set to the start of the database
- * component
- * if collstart is not NULL the byte index is set to the start of the
- * collection component both are -1 if not in paths
- *
- * Return 0 on success, -1 on failure.
+ * execute a query return 0 on success, -1 on failure
  */
 int
-parse_path(const char *paths, path_t *newpath, int *dbstart, int *collstart)
+exec_query(mongoc_collection_t * collection, const char *line, int len,
+   int idsonly)
 {
-	enum levels {
-		LNONE, LDB, LCOLL
-	};
-	int i, ac, ds, cs;
-	enum levels level;
-	const char **av;
-	Tokenizer *t;
-	char *path, *cp;
+	int i;
+	mongoc_cursor_t *cursor;
+	bson_error_t error;
+	size_t rlen;
+	const bson_t *doc;
+	char *str;
+	bson_t *query, *fields;
+	struct winsize w;
 
-	ds = -1;		/* dbstart index */
-	cs = -1;		/* collstart index */
+	if (sizeof(tmpdocs) < 3)
+		errx(1, "exec_query");
+	/* default to all documents */
+	tmpdoc[0] = '{';
+	tmpdoc[1] = '}';
+	tmpdoc[2] = '\0';
 
-	/* init indices on request */
-	if (dbstart != NULL)
-		*dbstart = ds;
+	if (parse_selector(tmpdoc, sizeof(tmpdocs), line, len) == -1)
+		return -1;
 
-	if (collstart != NULL)
-		*collstart = cs;
-
-	i = strlen(paths);
-	if (!i)
-		return 0;
-
-	if ((path = strdup(paths)) == NULL)
-		err(1, "parse_path");
-
-	cp = path;
-
-	/* trim trailing blanks */
-	while (cp[i - 1] == ' ' || cp[i - 1] == '\t' || cp[i - 1] == '\n')
-		cp[--i] = '\0';
-
-	/* trim leading blanks */
-	while (*cp == ' ' || *cp == '\t' || *cp == '\n')
-		cp++;
-
-	/* before we start parsing, determine current depth level */
-	if (cp[0] == '/') {	/* absolute path, reset db and collection */
-		level = LNONE;	/* not in db or collection */
-		newpath->dbname[0] = '\0';
-		newpath->collname[0] = '\0';
-	} else {		/* relative path */
-		if (strlen(newpath->collname))
-			level = LCOLL;	/* in collection (and thus db) */
-		else if (strlen(newpath->dbname))
-			level = LDB;	/* in db */
-		else
-			level = LNONE;	/* no db or collection set */
+	/* try to parse it as json and convert to bson */
+	if ((query = bson_new_from_json(tmpdoc, -1, &error)) == NULL) {
+		warnx("%d.%d %s", error.domain, error.code, error.message);
+		return -1;
 	}
-
-	t = tok_init("/");
-	tok_str(t, cp, &ac, &av);
-
-	/* now start parsing cp */
-	i = 0;
-	if (cp[0] == '/')
-		cp++;
-
-	while (i < ac) {
-		switch (level) {
-		case LNONE:
-			if (strcmp(av[i], "..") == 0) {	/* skip */
-				cp += 2 + 1;
-			} else {
-				/* use component as database name */
-				if (strlcpy(newpath->dbname, av[i], MAXDBNAME) > MAXDBNAME)
-					goto cleanuperr;
-				ds = cp - path;
-				cp += strlen(av[i]) + 1;
-				level = LDB;
-			}
-			break;
-		case LDB:
-			if (strcmp(av[i], "..") == 0) {	/* go up */
-				newpath->dbname[0] = '\0';
-				cp += 2 + 1;
-				ds = -1;
-				level = LNONE;
-			} else {
-				/*
-				 * use all remaining tokens as the name of
-				 * the collection:
-				 */
-				if ((strlcpy(newpath->collname, cp, MAXCOLLNAME)) >
-				    MAXCOLLNAME)
-					goto cleanuperr;
-				cs = cp - path;
-				cp += strlen(av[i]) + 1;
-				/* we're done */
-				i = ac;
-			}
-			break;
-		case LCOLL:
-			if (strcmp(av[i], "..") == 0) {	/* go up */
-				newpath->collname[0] = '\0';
-				cp += 2 + 1;
-				cs = -1;
-				level = LDB;
-			} else {
-				/*
-				 * use all remaining tokens as the name of
-				 * the collection:
-				 */
-				if ((strlcpy(newpath->collname, cp, MAXCOLLNAME)) >
-				    MAXCOLLNAME)
-					goto cleanuperr;
-				cs = cp - path;
-				cp += strlen(av[i]) + 1;
-				level = LDB;
-				/* we're done */
-				i = ac;
-			}
-			break;
-		default:
-			errx(1, "unexpected level %d while parsing \"%s\"", level, cp);
+	if (idsonly)
+		if ((fields = bson_new_from_json((uint8_t *)
+				    "{ \"projection\": { \"_id\": true } }",
+						 -1, &error)) == NULL) {
+			warnx("%d.%d %s", error.domain, error.code, error.message);
+			bson_destroy(query);
+			return -1;
 		}
-		i++;
+	cursor =
+	    mongoc_collection_find_with_opts(collection, query,
+					     idsonly ? fields : NULL, NULL);
+
+	ioctl(0, TIOCGWINSZ, &w);
+
+	while (mongoc_cursor_next(cursor, &doc)) {
+		str = bson_as_json(doc, &rlen);
+		if (hr && rlen > w.ws_col) {
+			if ((i =
+			     human_readable((char *)tmpdoc, sizeof(tmpdocs), str, rlen)) < 0) {
+				warnx("jsonify error: %d", i);
+				bson_destroy(query);
+				if (idsonly)
+					bson_destroy(fields);
+				return -1;
+			}
+			printf("%s\n", tmpdoc);
+		} else {
+			printf("%s\n", str);
+		}
+		bson_free(str);
 	}
 
-	/* update indices on request */
-	if (dbstart != NULL)
-		*dbstart = ds;
+	if (mongoc_cursor_error(cursor, &error)) {
+		warnx("cursor failed: %d.%d %s", error.domain, error.code,
+		      error.message);
+		mongoc_cursor_destroy(cursor);
+		bson_destroy(query);
+		if (idsonly)
+			bson_destroy(fields);
+		return -1;
+	}
+	mongoc_cursor_destroy(cursor);
 
-	if (collstart != NULL)
-		*collstart = cs;
-
-	tok_end(t);
-	free(path);
+	bson_destroy(query);
+	if (idsonly)
+		bson_destroy(fields);
 
 	return 0;
+}
 
-cleanuperr:
-	tok_end(t);
-	free(path);
+int
+exec_ls(const char *npath)
+{
+	int ret;
+	path_t tmppath;
+	mongoc_collection_t *ccoll;
 
-	return -1;
+	/* copy current context */
+	if (strlcpy(tmppath.dbname, path.dbname, MAXDBNAME) > MAXDBNAME)
+		return -1;
+	if (strlcpy(tmppath.collname, path.collname, MAXCOLLNAME) >
+	    MAXCOLLNAME)
+		return -1;
+
+	if (parse_path(npath, &tmppath, NULL, NULL) < 0)
+		errx(1, "illegal path spec");
+
+	if (strlen(tmppath.collname)) {	/* print all document ids */
+		ccoll =
+		    mongoc_client_get_collection(client, tmppath.dbname,
+						 tmppath.collname);
+		ret = exec_query(ccoll, "{}", 2, 1);
+		mongoc_collection_destroy(ccoll);
+		return ret;
+	} else if (strlen(tmppath.dbname))
+		return exec_lscolls(client, tmppath.dbname);
+	else
+		return exec_lsdbs(client, NULL);
+}
+
+int
+exec_drop(const char *npath)
+{
+	path_t tmppath;
+	mongoc_collection_t *coll;
+	mongoc_database_t *db;
+	bson_error_t error;
+
+	/* copy current context */
+	if (strlcpy(tmppath.dbname, path.dbname, MAXDBNAME) > MAXDBNAME)
+		return -1;
+	if (strlcpy(tmppath.collname, path.collname, MAXCOLLNAME) >
+	    MAXCOLLNAME)
+		return -1;
+
+	if (parse_path(npath, &tmppath, NULL, NULL) < 0)
+		errx(1, "illegal path spec");
+
+	if (strlen(tmppath.collname)) {	/* drop collection */
+		coll =
+		    mongoc_client_get_collection(client, tmppath.dbname,
+						 tmppath.collname);
+		if (!mongoc_collection_drop(coll, &error)) {
+			warnx("cursor failed: %d.%d %s", error.domain, error.code,
+			      error.message);
+			mongoc_collection_destroy(coll);
+			return -1;
+		}
+		mongoc_collection_destroy(coll);
+		printf("dropped /%s/%s\n", tmppath.dbname, tmppath.collname);
+	} else if (strlen(tmppath.dbname)) {
+		db = mongoc_client_get_database(client, tmppath.dbname);
+		if (!mongoc_database_drop(db, &error)) {
+			warnx("cursor failed: %d.%d %s", error.domain, error.code,
+			      error.message);
+			mongoc_database_destroy(db);
+			return -1;
+		}
+		mongoc_database_destroy(db);
+		printf("dropped %s\n", tmppath.dbname);
+	} else {
+		/* illegal context */
+		return -1;
+	}
+
+	return 0;
 }
 
 /* return command code */
@@ -951,118 +1077,64 @@ mv_parse_cmd(int argc, const char *argv[], const char *line, char **lp)
 }
 
 /*
- * execute command with given arguments return 0 on success, -1 on failure
+ * Update the prompt with the given dbname and collname. If the prompt exceeds
+ * MAXPROMPTCOLUMNS than shorten the dbname and collname.
+ *
+ * The following cases can arise:
+ * 1. dbname and collname are NULL, then prompt will be "/> "
+ * 2. dbname is not NULL and collname is NULL:
+ *   a. if columns("/> ") + columns(dbname) is <= MAXPROMPTCOLUMNS
+ *      then the prompt will be "/dbname> "
+ *   b. if columns("/> ") + columns(dbname) is > MAXPROMPTCOLUMNS
+ *      then dbname will be shortened and the prompt will be "/db..me> "
+ * 3. dbname is not NULL and collname is not NULL:
+ *   a. if columns("//> ") + columns(dbname) + columns(collname) is <= MAXPROMPTCOLUMNS
+ *      then the prompt will be "/dbname/collname> "
+ *   b. if columns("//> ") + columns(dbname) + columns(collname) is > MAXPROMPTCOLUMNS
+ *      then dbname and collname will be shortened and the prompt will be
+ *      "/db..me/co..me> ".
  */
 int
-exec_cmd(const int cmd, const char **argv, const char *line, int linelen)
+set_prompt(const char *dbname, const char *collname)
 {
-	path_t tmppath;
+	char c1[sizeof(pmpt)], c2[sizeof(pmpt)];
+	size_t fixedcolumns;
 
-	switch (cmd) {
-	case LS:
-		return exec_ls(line);
-	case DROP:
-		return exec_drop(line);
-	case ILLEGAL:
-		break;
-	case CHCOLL:
-		/* special case "cd -" */
-		if (argv[1][0] == '-' && argv[1][1] == '\0') {
-			if (strlcpy(tmppath.dbname, prevpath.dbname, MAXDBNAME) >
-			    MAXDBNAME)
-				return -1;
-			if (strlcpy(tmppath.collname, prevpath.collname, MAXCOLLNAME) >
-			    MAXCOLLNAME)
-				return -1;
-		} else {
-			if (strlcpy(tmppath.dbname, path.dbname, MAXDBNAME) >
-			    MAXDBNAME)
-				return -1;
-			if (strlcpy(tmppath.collname, path.collname, MAXCOLLNAME) >
-			    MAXCOLLNAME)
-				return -1;
-			if (parse_path(argv[1], &tmppath, NULL, NULL) < 0)
-				return -1;
-		}
-		return exec_chcoll(client, tmppath);
-	case COUNT:
-		return exec_count(ccoll, line, linelen);
-	case UPDATE:
-		return exec_update(ccoll, line, 0);
-	case UPSERT:
-		return exec_update(ccoll, line, 1);
-	case INSERT:
-		return exec_insert(ccoll, line, linelen);
-	case REMOVE:
-		return exec_remove(ccoll, line, linelen);
-	case FIND:
-		return exec_query(ccoll, line, linelen, 0);
-	case AGQUERY:
-		return exec_agquery(ccoll, line, linelen);
+	if (dbname == NULL && collname == NULL) {
+		if ((size_t)snprintf(pmpt, sizeof(pmpt), "/> ") >= sizeof(pmpt))
+			return -1;
 	}
 
-	return -1;
-}
-
-/*
- * list database for the given client return 0 on success, -1 on failure
- */
-int
-exec_lsdbs(mongoc_client_t * client, const char *prefix)
-{
-	bson_error_t error;
-	char **strv;
-	int i, prefixlen;
-
-	if (prefix != NULL)
-		prefixlen = strlen(prefix);
-
-	if ((strv =
-	     mongoc_client_get_database_names_with_opts(client, NULL,
-							&error)) == NULL) {
-		warnx("cursor failed: %d.%d %s", error.domain, error.code,
-		      error.message);
+	if (dbname == NULL) {
+		/* only collname is provided */
 		return -1;
 	}
-	for (i = 0; strv[i]; i++)
-		if (prefix == NULL) {
-			printf("%s\n", strv[i]);
-		} else {
-			if (strncmp(prefix, strv[i], prefixlen) == 0)
-				printf("%s\n", strv[i]);
-		}
 
-	bson_strfreev(strv);
+	c1[0] = '\0';
+	c2[0] = '\0';
 
-	return 0;
-}
-
-/*
- * list collections for the given database return 0 on success, -1 on failure
- */
-int
-exec_lscolls(mongoc_client_t * client, char *dbname)
-{
-	bson_error_t error;
-	mongoc_database_t *db;
-	char **strv;
-	int i;
-
-	if (!strlen(dbname))
+	/* default to db only prompt */
+	fixedcolumns = strlen("/> ");
+	if (strlcpy(c1, dbname, sizeof(c1)) >= sizeof(c1))
 		return -1;
 
-	db = mongoc_client_get_database(client, dbname);
+	if (collname != NULL) {
+		/* make dbname + collname prompt */
+		fixedcolumns = strlen("//> ");
+		if (strlcpy(c2, collname, sizeof(c2)) >= sizeof(c2))
+			return -1;
+	}
 
-	if ((strv =
-	     mongoc_database_get_collection_names_with_opts(db, NULL,
-							    &error)) == NULL)
+	if (shorten_comps(c1, c2, MAXPROMPTCOLUMNS - fixedcolumns) == (size_t)-1)
 		return -1;
 
-	for (i = 0; strv[i]; i++)
-		printf("%s\n", strv[i]);
-
-	bson_strfreev(strv);
-	mongoc_database_destroy(db);
+	if (collname == NULL) {
+		if ((size_t)snprintf(pmpt, sizeof(pmpt), "/%s> ", c1) >= sizeof(pmpt))
+			return -1;
+	} else {
+		if ((size_t)snprintf(pmpt, sizeof(pmpt), "/%s/%s> ", c1, c2) >= sizeof(pmpt))
+			return -1;
+	}
 
 	return 0;
 }
@@ -1295,87 +1367,6 @@ exec_remove(mongoc_collection_t * collection, const char *line, int len)
 }
 
 /*
- * execute a query return 0 on success, -1 on failure
- */
-int
-exec_query(mongoc_collection_t * collection, const char *line, int len,
-   int idsonly)
-{
-	int i;
-	mongoc_cursor_t *cursor;
-	bson_error_t error;
-	size_t rlen;
-	const bson_t *doc;
-	char *str;
-	bson_t *query, *fields;
-	struct winsize w;
-
-	if (sizeof(tmpdocs) < 3)
-		errx(1, "exec_query");
-	/* default to all documents */
-	tmpdoc[0] = '{';
-	tmpdoc[1] = '}';
-	tmpdoc[2] = '\0';
-
-	if (parse_selector(tmpdoc, sizeof(tmpdocs), line, len) == -1)
-		return -1;
-
-	/* try to parse it as json and convert to bson */
-	if ((query = bson_new_from_json(tmpdoc, -1, &error)) == NULL) {
-		warnx("%d.%d %s", error.domain, error.code, error.message);
-		return -1;
-	}
-	if (idsonly)
-		if ((fields = bson_new_from_json((uint8_t *)
-				    "{ \"projection\": { \"_id\": true } }",
-						 -1, &error)) == NULL) {
-			warnx("%d.%d %s", error.domain, error.code, error.message);
-			bson_destroy(query);
-			return -1;
-		}
-	cursor =
-	    mongoc_collection_find_with_opts(collection, query,
-					     idsonly ? fields : NULL, NULL);
-
-	ioctl(0, TIOCGWINSZ, &w);
-
-	while (mongoc_cursor_next(cursor, &doc)) {
-		str = bson_as_json(doc, &rlen);
-		if (hr && rlen > w.ws_col) {
-			if ((i =
-			     human_readable((char *)tmpdoc, sizeof(tmpdocs), str, rlen)) < 0) {
-				warnx("jsonify error: %d", i);
-				bson_destroy(query);
-				if (idsonly)
-					bson_destroy(fields);
-				return -1;
-			}
-			printf("%s\n", tmpdoc);
-		} else {
-			printf("%s\n", str);
-		}
-		bson_free(str);
-	}
-
-	if (mongoc_cursor_error(cursor, &error)) {
-		warnx("cursor failed: %d.%d %s", error.domain, error.code,
-		      error.message);
-		mongoc_cursor_destroy(cursor);
-		bson_destroy(query);
-		if (idsonly)
-			bson_destroy(fields);
-		return -1;
-	}
-	mongoc_cursor_destroy(cursor);
-
-	bson_destroy(query);
-	if (idsonly)
-		bson_destroy(fields);
-
-	return 0;
-}
-
-/*
  * execute an aggregation pipeline return 0 on success, -1 on failure
  */
 int
@@ -1422,73 +1413,64 @@ exec_agquery(mongoc_collection_t * collection, const char *line, int len)
 	return 0;
 }
 
+/*
+ * execute command with given arguments return 0 on success, -1 on failure
+ */
+int
+exec_cmd(const int cmd, const char **argv, const char *line, int linelen)
+{
+	path_t tmppath;
+
+	switch (cmd) {
+	case LS:
+		return exec_ls(line);
+	case DROP:
+		return exec_drop(line);
+	case ILLEGAL:
+		break;
+	case CHCOLL:
+		/* special case "cd -" */
+		if (argv[1][0] == '-' && argv[1][1] == '\0') {
+			if (strlcpy(tmppath.dbname, prevpath.dbname, MAXDBNAME) >
+			    MAXDBNAME)
+				return -1;
+			if (strlcpy(tmppath.collname, prevpath.collname, MAXCOLLNAME) >
+			    MAXCOLLNAME)
+				return -1;
+		} else {
+			if (strlcpy(tmppath.dbname, path.dbname, MAXDBNAME) >
+			    MAXDBNAME)
+				return -1;
+			if (strlcpy(tmppath.collname, path.collname, MAXCOLLNAME) >
+			    MAXCOLLNAME)
+				return -1;
+			if (parse_path(argv[1], &tmppath, NULL, NULL) < 0)
+				return -1;
+		}
+		return exec_chcoll(client, tmppath);
+	case COUNT:
+		return exec_count(ccoll, line, linelen);
+	case UPDATE:
+		return exec_update(ccoll, line, 0);
+	case UPSERT:
+		return exec_update(ccoll, line, 1);
+	case INSERT:
+		return exec_insert(ccoll, line, linelen);
+	case REMOVE:
+		return exec_remove(ccoll, line, linelen);
+	case FIND:
+		return exec_query(ccoll, line, linelen, 0);
+	case AGQUERY:
+		return exec_agquery(ccoll, line, linelen);
+	}
+
+	return -1;
+}
+
 char *
 prompt()
 {
 	return pmpt;
-}
-
-/*
- * Update the prompt with the given dbname and collname. If the prompt exceeds
- * MAXPROMPTCOLUMNS than shorten the dbname and collname.
- *
- * The following cases can arise:
- * 1. dbname and collname are NULL, then prompt will be "/> "
- * 2. dbname is not NULL and collname is NULL:
- *   a. if columns("/> ") + columns(dbname) is <= MAXPROMPTCOLUMNS
- *      then the prompt will be "/dbname> "
- *   b. if columns("/> ") + columns(dbname) is > MAXPROMPTCOLUMNS
- *      then dbname will be shortened and the prompt will be "/db..me> "
- * 3. dbname is not NULL and collname is not NULL:
- *   a. if columns("//> ") + columns(dbname) + columns(collname) is <= MAXPROMPTCOLUMNS
- *      then the prompt will be "/dbname/collname> "
- *   b. if columns("//> ") + columns(dbname) + columns(collname) is > MAXPROMPTCOLUMNS
- *      then dbname and collname will be shortened and the prompt will be
- *      "/db..me/co..me> ".
- */
-int
-set_prompt(const char *dbname, const char *collname)
-{
-	char c1[sizeof(pmpt)], c2[sizeof(pmpt)];
-	size_t fixedcolumns;
-
-	if (dbname == NULL && collname == NULL) {
-		if ((size_t)snprintf(pmpt, sizeof(pmpt), "/> ") >= sizeof(pmpt))
-			return -1;
-	}
-
-	if (dbname == NULL) {
-		/* only collname is provided */
-		return -1;
-	}
-
-	c1[0] = '\0';
-	c2[0] = '\0';
-
-	/* default to db only prompt */
-	fixedcolumns = strlen("/> ");
-	if (strlcpy(c1, dbname, sizeof(c1)) >= sizeof(c1))
-		return -1;
-
-	if (collname != NULL) {
-		/* make dbname + collname prompt */
-		fixedcolumns = strlen("//> ");
-		if (strlcpy(c2, collname, sizeof(c2)) >= sizeof(c2))
-			return -1;
-	}
-
-	if (shorten_comps(c1, c2, MAXPROMPTCOLUMNS - fixedcolumns) == (size_t)-1)
-		return -1;
-
-	if (collname == NULL) {
-		if ((size_t)snprintf(pmpt, sizeof(pmpt), "/%s> ", c1) >= sizeof(pmpt))
-			return -1;
-	} else {
-		if ((size_t)snprintf(pmpt, sizeof(pmpt), "/%s/%s> ", c1, c2) >= sizeof(pmpt))
-			return -1;
-	}
-
-	return 0;
 }
 
 /*
@@ -1505,6 +1487,30 @@ init_user(user_t * usr)
 		return -1;	/* username truncated */
 	if (strlcpy(usr->home, pw->pw_dir, PATH_MAX) >= PATH_MAX)
 		return -1;	/* home dir truncated */
+
+	return 0;
+}
+
+/*
+ * read the credentials from a users config file return 0 on success or -1 on
+ * failure.
+ */
+int
+mv_parse_file(FILE * fp, config_t * cfg)
+{
+	char line[MAXMONGOURL + 1];
+
+	/* expect url on first line */
+	if (fgets(line, sizeof(line), fp) == NULL) {
+		if (ferror(fp))
+			err(1, "mv_parse_file");
+		return 0;	/* empty line */
+	}
+	/* trim newline if any */
+	line[strcspn(line, "\n")] = '\0';
+
+	if (strlcpy(cfg->url, line, MAXMONGOURL) > MAXMONGOURL)
+		return -1;
 
 	return 0;
 }
@@ -1550,30 +1556,6 @@ read_config(user_t * usr, config_t * cfg)
 	}
 	fclose(fp);
 	return 1;
-}
-
-/*
- * read the credentials from a users config file return 0 on success or -1 on
- * failure.
- */
-int
-mv_parse_file(FILE * fp, config_t * cfg)
-{
-	char line[MAXMONGOURL + 1];
-
-	/* expect url on first line */
-	if (fgets(line, sizeof(line), fp) == NULL) {
-		if (ferror(fp))
-			err(1, "mv_parse_file");
-		return 0;	/* empty line */
-	}
-	/* trim newline if any */
-	line[strcspn(line, "\n")] = '\0';
-
-	if (strlcpy(cfg->url, line, MAXMONGOURL) > MAXMONGOURL)
-		return -1;
-
-	return 0;
 }
 
 void
