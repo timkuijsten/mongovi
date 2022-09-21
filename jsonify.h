@@ -17,23 +17,11 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include "jsmn.h"
-
-#include <err.h>
-#include <limits.h>
 #include <sys/types.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 
-#define TOKENS 100000
-#define MAXSTACK 10000
-
-long
-human_readable(unsigned char *dst, size_t dstsize, const char *src,
-	       size_t srcsize);
-long
-relaxed_to_strict(unsigned char *dst, size_t dstsize, const char *src,
-		  size_t srcsize, int firstonly);
+long human_readable(unsigned char *dst, size_t dstsize, const char *src,
+    size_t srcsize);
+long relaxed_to_strict(unsigned char *dst, size_t dstsize, const char *src,
+    size_t srcsize, int firstonly);
 
 #endif

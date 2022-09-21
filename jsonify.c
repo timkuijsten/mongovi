@@ -14,7 +14,20 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include "jsonify.h"
+#ifndef _XOPEN_SOURCE
+#define _XOPEN_SOURCE 700
+#endif
+
+#include <err.h>
+#include <limits.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#include "jsmn.h"
+
+#define TOKENS 100000
+#define MAXSTACK 10000
 
 static int sp = 0;
 static int stack[MAXSTACK];
@@ -24,125 +37,44 @@ static unsigned char *out;
 static size_t outsize;
 static size_t outidx = 0;
 
+/* pop item from the stack */
+/* return item on the stack on success, -1 on error */
 static int
-iterate(const char *src, jsmntok_t * tokens, int nrtokens,
-	int (*iterator) (jsmntok_t *, char *, int, int, char *));
-	static int strict_writer(jsmntok_t * tok, char *key, int depth, int ndepth,
-				  char *closesym);
-	static int human_readable_writer(jsmntok_t * tok, char *key, int depth,
-					  int ndepth, char *closesym);
-	static int addout(char *src, size_t size);
-	static int pop();
-	static int push(int val);
-
-/*
- * return pos in src or < 0 on error
- *
- * -10 if srcsize exceed LONG_MAX
- * -11 if writer failed
- *
- * Parse errors:
- * -1 Not enough tokens were provided
- * -2 Invalid character inside JSON string
- * -3 The string is not a full JSON packet, more bytes expected
- */
-	long
-	 human_readable(unsigned char *dst, size_t dstsize, const char *src,
-			 size_t srcsize)
+pop()
 {
-	size_t i;
-	ssize_t nrtokens;
-	jsmn_parser parser;
-	jsmntok_t tokens[TOKENS];
-
-	if (srcsize > LONG_MAX)
-		return -10;
-
-	if (dstsize < 1)
-		return -11;
-
-	jsmn_init(&parser);
-	i = srcsize;
-	nrtokens = jsmn_parse(&parser, src, srcsize, tokens, TOKENS);
-
-	if (nrtokens <= 0)
-		return nrtokens;
-
-	/* wipe buffer */
-	out = dst;
-	outsize = dstsize;
-	out[0] = '\0';
-	outidx = 0;
-	if (iterate
-	    (src, tokens, nrtokens,
-	     (int (*) (jsmntok_t *, char *, int, int, char *))
-	     human_readable_writer) == -1)
-		return -11;
-
-	return i;
+	if (sp == 0)
+		return -1;
+	return stack[--sp];
 }
 
-/*
- * return pos in src or < 0 on error
- *
- * -10 if srcsize exceed LONG_MAX
- * -11 if writer failed
- *
- * Parse errors:
- * -1 Not enough tokens were provided
- * -2 Invalid character inside JSON string
- * -3 The string is not a full JSON packet, more bytes expected
- */
-long
-relaxed_to_strict(unsigned char *dst, size_t dstsize, const char *src,
-		  size_t srcsize, int firstonly)
+/* push new item on the stack */
+/* return 0 on success, -1 on error */
+static int
+push(int val)
 {
-	size_t i;
-	ssize_t nrtokens;
-	jsmn_parser parser;
-	jsmntok_t tokens[TOKENS];
+	if (val == -1)		/* don't support -1 values, reserved for
+				   errors */
+		return -1;
+	if (sp == MAXSTACK)
+		return -1;
+	stack[sp++] = val;
+	return 0;
+}
 
-	if (srcsize > LONG_MAX)
-		return -10;
-
-	if (dstsize < 1)
-		return -11;
-
-	if (firstonly) {
-		/* stop after first document (root) */
-		i = 0;
-		do {
-			jsmn_init(&parser);
-			nrtokens = jsmn_parse(&parser, src, i, tokens, TOKENS);
-		} while (i++ < srcsize
-			 && (nrtokens == JSMN_ERROR_PART || nrtokens == 0));
-		i--;
-	} else {
-		jsmn_init(&parser);
-		i = srcsize;
-		nrtokens = jsmn_parse(&parser, src, srcsize, tokens, TOKENS);
-	}
-
-	if (nrtokens <= 0)
-		return nrtokens;
-
-	/* wipe internal buffer */
-	out = dst;
-	outsize = dstsize;
-	out[0] = '\0';
-	outidx = 0;
-	if (iterate
-	    (src, tokens, nrtokens,
-	 (int (*) (jsmntok_t *, char *, int, int, char *)) strict_writer) ==
-	    -1)
-		return -11;
-
-	return i;
+static int
+addout(char *src, size_t size)
+{
+	if (outidx + size >= outsize)
+		return -1;
+	memcpy(out + outidx, src, size);
+	outidx += size;
+	out[outidx] = '\0';
+	return 0;
 }
 
 static int
 iterate(const char *src, jsmntok_t * tokens, int nrtokens,
-	int (*iterator) (jsmntok_t *, char *, int, int, char *))
+    int (*iterator)(jsmntok_t *, char *, int, int, char *))
 {
 	char *key, *cp, c;
 	jsmntok_t *tok;
@@ -205,66 +137,6 @@ iterate(const char *src, jsmntok_t * tokens, int nrtokens,
 	return 0;
 }
 
-static int
-strict_writer(jsmntok_t * tok, char *key, int depth, int ndepth,
-	      char *closesym)
-{
-	size_t keylen;
-
-	switch (tok->type) {
-	case JSMN_OBJECT:
-		addout("{", 1);
-		break;
-	case JSMN_ARRAY:
-		addout("[", 1);
-		break;
-	case JSMN_UNDEFINED:
-		if (tok->size) {/* quote keys */
-			addout("\"undefined\":", 11);
-		} else {	/* don't quote values */
-			addout(key, strlen(key));
-		}
-		break;
-	case JSMN_STRING:
-		keylen = strlen(key);
-		addout("\"", 1);
-		addout(key, keylen);
-		addout("\"", 1);
-		if (tok->size)	/* this is a key */
-			addout(":", 1);
-		break;
-	case JSMN_PRIMITIVE:
-		keylen = strlen(key);
-		/* convert single quotes at beginning and end of string */
-		if (key[0] == '\'')
-			key[0] = '"';
-		if (key[keylen - 1] == '\'')
-			key[keylen - 1] = '"';
-
-		if (tok->size) {/* quote keys */
-			addout("\"", 1);
-			addout(key, keylen);
-			addout("\":", 2);
-		} else		/* don't quote values */
-			addout(key, keylen);
-		break;
-	default:
-		warnx("unknown json token type");
-	}
-
-	/* write any closing symbols */
-	if (addout(closesym, strlen(closesym)) < 0)
-		return -1;
-
-	/* if not increasing and not heading to the end of this root */
-	if (ndepth && depth >= ndepth)
-		if (!tok->size)	/* and if not a key */
-			if (addout(",", 1) < 0)
-				return -1;
-
-	return 0;
-}
-
 /*
  * Convert json objects to contain two spaces per indent level and newlines
  * after every key value pair or opening of a new object. Also sprinkle in some
@@ -272,7 +144,7 @@ strict_writer(jsmntok_t * tok, char *key, int depth, int ndepth,
  */
 static int
 human_readable_writer(jsmntok_t * tok, char *key, int depth, int ndepth,
-		      char *closesym)
+    char *closesym)
 {
 	size_t i;
 	int j;
@@ -345,36 +217,159 @@ human_readable_writer(jsmntok_t * tok, char *key, int depth, int ndepth,
 }
 
 static int
-addout(char *src, size_t size)
+strict_writer(jsmntok_t * tok, char *key, int depth, int ndepth, char *closesym)
 {
-	if (outidx + size >= outsize)
+	size_t keylen;
+
+	switch (tok->type) {
+	case JSMN_OBJECT:
+		addout("{", 1);
+		break;
+	case JSMN_ARRAY:
+		addout("[", 1);
+		break;
+	case JSMN_UNDEFINED:
+		if (tok->size) {/* quote keys */
+			addout("\"undefined\":", 11);
+		} else {	/* don't quote values */
+			addout(key, strlen(key));
+		}
+		break;
+	case JSMN_STRING:
+		keylen = strlen(key);
+		addout("\"", 1);
+		addout(key, keylen);
+		addout("\"", 1);
+		if (tok->size)	/* this is a key */
+			addout(":", 1);
+		break;
+	case JSMN_PRIMITIVE:
+		keylen = strlen(key);
+		/* convert single quotes at beginning and end of string */
+		if (key[0] == '\'')
+			key[0] = '"';
+		if (key[keylen - 1] == '\'')
+			key[keylen - 1] = '"';
+
+		if (tok->size) {/* quote keys */
+			addout("\"", 1);
+			addout(key, keylen);
+			addout("\":", 2);
+		} else		/* don't quote values */
+			addout(key, keylen);
+		break;
+	default:
+		warnx("unknown json token type");
+	}
+
+	/* write any closing symbols */
+	if (addout(closesym, strlen(closesym)) < 0)
 		return -1;
-	memcpy(out + outidx, src, size);
-	outidx += size;
-	out[outidx] = '\0';
+
+	/* if not increasing and not heading to the end of this root */
+	if (ndepth && depth >= ndepth)
+		if (!tok->size)	/* and if not a key */
+			if (addout(",", 1) < 0)
+				return -1;
+
 	return 0;
 }
 
-/* pop item from the stack */
-/* return item on the stack on success, -1 on error */
-static int
-pop()
+/*
+ * return pos in src or < 0 on error
+ *
+ * -10 if srcsize exceed LONG_MAX
+ * -11 if writer failed
+ *
+ * Parse errors:
+ * -1 Not enough tokens were provided
+ * -2 Invalid character inside JSON string
+ * -3 The string is not a full JSON packet, more bytes expected
+ */
+long
+human_readable(unsigned char *dst, size_t dstsize, const char *src,
+    size_t srcsize)
 {
-	if (sp == 0)
-		return -1;
-	return stack[--sp];
+	size_t i;
+	ssize_t nrtokens;
+	jsmn_parser parser;
+	jsmntok_t tokens[TOKENS];
+
+	if (srcsize > LONG_MAX)
+		return -10;
+
+	if (dstsize < 1)
+		return -11;
+
+	jsmn_init(&parser);
+	i = srcsize;
+	nrtokens = jsmn_parse(&parser, src, srcsize, tokens, TOKENS);
+
+	if (nrtokens <= 0)
+		return nrtokens;
+
+	/* wipe buffer */
+	out = dst;
+	outsize = dstsize;
+	out[0] = '\0';
+	outidx = 0;
+	if (iterate(src, tokens, nrtokens, human_readable_writer) == -1)
+		return -11;
+
+	return i;
 }
 
-/* push new item on the stack */
-/* return 0 on success, -1 on error */
-static int
-push(int val)
+/*
+ * return pos in src or < 0 on error
+ *
+ * -10 if srcsize exceed LONG_MAX
+ * -11 if writer failed
+ *
+ * Parse errors:
+ * -1 Not enough tokens were provided
+ * -2 Invalid character inside JSON string
+ * -3 The string is not a full JSON packet, more bytes expected
+ */
+long
+relaxed_to_strict(unsigned char *dst, size_t dstsize, const char *src,
+    size_t srcsize, int firstonly)
 {
-	if (val == -1)		/* don't support -1 values, reserved for
-				   errors */
-		return -1;
-	if (sp == MAXSTACK)
-		return -1;
-	stack[sp++] = val;
-	return 0;
+	size_t i;
+	ssize_t nrtokens;
+	jsmn_parser parser;
+	jsmntok_t tokens[TOKENS];
+
+	if (srcsize > LONG_MAX)
+		return -10;
+
+	if (dstsize < 1)
+		return -11;
+
+	if (firstonly) {
+		/* stop after first document (root) */
+		i = 0;
+		do {
+			jsmn_init(&parser);
+			nrtokens = jsmn_parse(&parser, src, i, tokens, TOKENS);
+		} while (i++ < srcsize
+			 && (nrtokens == JSMN_ERROR_PART || nrtokens == 0));
+		i--;
+	} else {
+		jsmn_init(&parser);
+		i = srcsize;
+		nrtokens = jsmn_parse(&parser, src, srcsize, tokens, TOKENS);
+	}
+
+	if (nrtokens <= 0)
+		return nrtokens;
+
+	/* wipe internal buffer */
+	out = dst;
+	outsize = dstsize;
+	out[0] = '\0';
+	outidx = 0;
+	if (iterate(src, tokens, nrtokens, strict_writer) == -1)
+		return -11;
+
+	return i;
 }
