@@ -40,8 +40,8 @@ ${PROG}: ${OBJ} ${COMPAT}
 %.o: test/%.c
 	$(CC) ${CFLAGS} -c $<
 
-testparsepath: prefix_match.c mongovi.c test/parse_path.c ${OBJ} ${COMPAT}
-	$(CC) $(CFLAGS) prefix_match.c test/parse_path.c -o testparsepath jsmn.o jsonify.o shorten.o ${COMPAT} ${LDFLAGS}
+testparsepath: mongovi.c test/parse_path.c prefix_match.o jsmn.o jsonify.o shorten.o ${OBJ} ${COMPAT}
+	$(CC) $(CFLAGS) test/parse_path.c -o testparsepath prefix_match.o jsmn.o jsonify.o shorten.o ${COMPAT} ${LDFLAGS}
 
 testshorten: shorten.h shorten.c test/shorten.c ${OBJ} ${COMPAT}
 	$(CC) $(CFLAGS) test/shorten.c -o testshorten
