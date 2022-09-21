@@ -33,7 +33,7 @@ static int sp = 0;
 static int stack[MAXSTACK];
 static char closesym[MAXSTACK];
 
-static unsigned char *out;
+static char *out;
 static size_t outsize;
 static size_t outidx = 0;
 
@@ -287,7 +287,7 @@ strict_writer(jsmntok_t * tok, char *key, int depth, int ndepth, char *closesym)
  * -3 The string is not a full JSON packet, more bytes expected
  */
 long
-human_readable(unsigned char *dst, size_t dstsize, const char *src,
+human_readable(char *dst, size_t dstsize, const char *src,
     size_t srcsize)
 {
 	size_t i;
@@ -336,7 +336,7 @@ human_readable(unsigned char *dst, size_t dstsize, const char *src,
  * terminated string and srcsize must not count the trailing null byte.
  */
 long
-relaxed_to_strict(unsigned char *dst, size_t dstsize, const char *src,
+relaxed_to_strict(char *dst, size_t dstsize, const char *src,
     size_t srcsize, int firstonly)
 {
 	size_t i;
