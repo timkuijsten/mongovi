@@ -320,7 +320,9 @@ human_readable(unsigned char *dst, size_t dstsize, const char *src,
 }
 
 /*
- * return pos in src or < 0 on error
+ * Add double quotes to keys that are unquoted by copying src into dst.
+ *
+ * Return pos in src or < 0 on error
  *
  * -10 if srcsize exceed LONG_MAX
  * -11 if writer failed
@@ -329,6 +331,9 @@ human_readable(unsigned char *dst, size_t dstsize, const char *src,
  * -1 Not enough tokens were provided
  * -2 Invalid character inside JSON string
  * -3 The string is not a full JSON packet, more bytes expected
+ *
+ * Note: srcsize must be the result of strlen(src), so src must be a null
+ * terminated string and srcsize must not count the trailing null byte.
  */
 long
 relaxed_to_strict(unsigned char *dst, size_t dstsize, const char *src,
@@ -347,12 +352,13 @@ relaxed_to_strict(unsigned char *dst, size_t dstsize, const char *src,
 
 	if (firstonly) {
 		/* stop after first document (root) */
-		i = 0;
 		jsmn_init(&parser);
-		do {
+		// include the trailing null byte if any
+		for (i = 0; i <= srcsize; i++) {
 			nrtokens = jsmn_parse(&parser, src, i, tokens, TOKENS);
-		} while (i++ < srcsize
-			 && (nrtokens == JSMN_ERROR_PART || nrtokens == 0));
+			if (nrtokens != JSMN_ERROR_PART && nrtokens != 0)
+				break;
+		}
 
 		/* on success reinit to determine proper number of tokens */
 		if (nrtokens > 0) {
