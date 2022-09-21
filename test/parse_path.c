@@ -1,4 +1,4 @@
-#include "../mongovi.c"
+#include "../parse_path.c"
 
 #include <err.h>
 #include <stdio.h>

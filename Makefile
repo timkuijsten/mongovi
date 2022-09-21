@@ -22,7 +22,7 @@ INCDIR=-I$(DESTDIR)/usr/include/libbson-1.0/ -I$(DESTDIR)/usr/include/libmongoc-
 
 CFLAGS=-std=c17 -Wall -Wextra -pedantic ${INCDIR}
 LDFLAGS=-lmongoc-1.0 -lbson-1.0 -ledit
-OBJ=jsmn.o jsonify.o mongovi.o shorten.o prefix_match.o
+OBJ=jsmn.o jsonify.o mongovi.o shorten.o prefix_match.o parse_path.o
 
 INSTALL_DIR=  install -dm 755
 INSTALL_BIN=  install -m 555
@@ -40,8 +40,8 @@ ${PROG}: ${OBJ} ${COMPAT}
 %.o: test/%.c
 	$(CC) ${CFLAGS} -c $<
 
-testparsepath: mongovi.c test/parse_path.c prefix_match.o jsmn.o jsonify.o shorten.o ${OBJ} ${COMPAT}
-	$(CC) $(CFLAGS) test/parse_path.c -o testparsepath prefix_match.o jsmn.o jsonify.o shorten.o ${COMPAT} ${LDFLAGS}
+testparsepath: parse_path.h parse_path.c test/parse_path.c ${OBJ} ${COMPAT}
+	$(CC) $(CFLAGS) test/parse_path.c -o testparsepath ${COMPAT} ${LDFLAGS}
 
 testshorten: shorten.h shorten.c test/shorten.c ${OBJ} ${COMPAT}
 	$(CC) $(CFLAGS) test/shorten.c -o testshorten
