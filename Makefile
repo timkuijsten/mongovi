@@ -49,10 +49,14 @@ testshorten: shorten.h shorten.c test/shorten.c ${OBJ} ${COMPAT}
 testprefixmatch: prefix_match.h prefix_match.c test/prefix_match.c ${OBJ} ${COMPAT}
 	$(CC) $(CFLAGS) test/prefix_match.c -o testprefixmatch
 
-runtest: testshorten testprefixmatch testparsepath
+testjsonify: jsonify.h jsonify.c test/jsonify.c jsmn.o ${OBJ} ${COMPAT}
+	$(CC) $(CFLAGS) test/jsonify.c -o testjsonify jsmn.o
+
+runtest: testshorten testprefixmatch testparsepath testjsonify
 	./testshorten
 	./testprefixmatch
 	./testparsepath
+	./testjsonify
 
 install:
 	${INSTALL_DIR} ${DESTDIR}${BINDIR}
@@ -65,4 +69,4 @@ depend:
 
 .PHONY: clean 
 clean:
-	rm -f ${OBJ} ${COMPAT} mongovi testshorten testprefixmatch testmongovi
+	rm -f ${OBJ} ${COMPAT} mongovi testshorten testprefixmatch testparsepath testjsonify
