@@ -20,7 +20,7 @@ MANDIR=  $(USRDIR)/share/man
 
 INCDIR=-I$(DESTDIR)/usr/include/libbson-1.0/ -I$(DESTDIR)/usr/include/libmongoc-1.0/ -I$(DESTDIR)/usr/local/include/libbson-1.0/ -I$(DESTDIR)/usr/local/include/libmongoc-1.0/
 
-CFLAGS=-Wall -Wextra -pedantic -g ${INCDIR}
+CFLAGS=-std=c17 -Wall -Wextra -pedantic ${INCDIR}
 LDFLAGS=-lmongoc-1.0 -lbson-1.0 -ledit
 OBJ=jsmn.o jsonify.o main.o mongovi.o shorten.o prefix_match.o
 
