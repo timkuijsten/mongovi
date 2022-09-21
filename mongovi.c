@@ -1584,7 +1584,7 @@ usage(void)
 }
 
 int
-main_init(int argc, char **argv)
+main(int argc, char **argv)
 {
 	const wchar_t *line;
 	const char **av;
