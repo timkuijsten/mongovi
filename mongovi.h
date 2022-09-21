@@ -95,7 +95,7 @@ int read_config(user_t * usr, config_t * cfg);
 int
 idtosel(char *doc, const size_t docsize, const char *sel,
 	const size_t sellen);
-long
+int
 parse_selector(unsigned char *doc, const size_t docsize,
 	       const char *line, int len);
 int

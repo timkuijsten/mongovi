@@ -298,47 +298,41 @@ strict_writer(jsmntok_t * tok, char *key, int depth, int ndepth, char *closesym)
 }
 
 /*
- * return pos in src or < 0 on error
+ * Create an indented representation of src with keys unescaped.
  *
- * -10 if srcsize exceed LONG_MAX
- * -11 if writer failed
- *
- * Parse errors:
- * -1 Not enough tokens were provided
- * -2 Invalid character inside JSON string
- * -3 The string is not a full JSON packet, more bytes expected
+ * Returns the number of bytes parsed in src on success, or -1 on error.
  */
-long
-human_readable(char *dst, size_t dstsize, const char *src,
-    size_t srcsize)
+int
+human_readable(char *dst, size_t dstsize, const char *src, size_t srcsize)
 {
-	size_t i;
-	ssize_t nrtokens;
-	jsmn_parser parser;
 	jsmntok_t tokens[TOKENS];
-
-	if (srcsize > LONG_MAX)
-		return -10;
-
-	if (dstsize < 1)
-		return -11;
+	jsmn_parser parser;
+	ssize_t nrtokens;
+	int r;
 
 	jsmn_init(&parser);
-	i = srcsize;
 	nrtokens = jsmn_parse(&parser, src, srcsize, tokens, TOKENS);
 
-	if (nrtokens <= 0)
-		return nrtokens;
+	if (nrtokens < 0)
+		return -1;
 
-	/* wipe buffer */
+	if (nrtokens == 0)
+		return 0;
+	
+	if (dstsize < 1)
+		return -1;
+
 	out = dst;
 	outsize = dstsize;
 	out[0] = '\0';
 	outidx = 0;
-	if (iterate(src, tokens, nrtokens, 0, human_readable_writer) == -1)
-		return -11;
 
-	return i;
+	r = iterate(src, tokens, nrtokens, 0, human_readable_writer);
+	if (r == -1)
+		return -1;
+
+	// return end of last processed root object token
+	return tokens[r].end + 1;
 }
 
 /*
@@ -362,16 +356,7 @@ print_tokens(const char *src, jsmntok_t *tokens, int nrtokens)
 /*
  * Add double quotes to keys that are unquoted by copying src into dst.
  *
- * Returns the index of the last parsed character in src on success, or < 0 on
- * error
- *
- * -10 if srcsize exceed LONG_MAX
- * -11 if writer failed
- *
- * Parse errors:
- * -1 Not enough tokens were provided
- * -2 Invalid character inside JSON string
- * -3 The string is not a full JSON packet, more bytes expected
+ * Returns the number of bytes parsed in src on success, or -1 on error.
  */
 int
 relaxed_to_strict(char *dst, size_t dstsize, const char *src, size_t srcsize,
@@ -382,27 +367,27 @@ relaxed_to_strict(char *dst, size_t dstsize, const char *src, size_t srcsize,
 	ssize_t nrtokens;
 	int r;
 
-	if (srcsize > LONG_MAX)
-		return -10;
-
-	if (dstsize < 1)
-		return -11;
-
 	jsmn_init(&parser);
 	nrtokens = jsmn_parse(&parser, src, srcsize, tokens, TOKENS);
+
+	if (nrtokens < 0)
+		return -1;
+
+	if (nrtokens == 0)
+		return 0;
+	
+	if (dstsize < 1)
+		return -1;
 
 	out = dst;
 	outsize = dstsize;
 	out[0] = '\0';
 	outidx = 0;
 
-	if (nrtokens <= 0)
-		return nrtokens;
-
 	r = iterate(src, tokens, nrtokens, maxobjects, strict_writer);
 	if (r == -1)
-		return -11;
+		return -1;
 
 	// return end of last processed root object token
-	return tokens[r].end;
+	return tokens[r].end + 1;
 }

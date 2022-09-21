@@ -811,11 +811,11 @@ idtosel(char *doc, const size_t docsize, const char *sel, const size_t sellen)
  * parse json docs or id only specifications
  * return size of parsed length on success or -1 on failure.
  */
-long
+int
 parse_selector(unsigned char *doc, const size_t docsize, const char *line,
     int len)
 {
-	long offset;
+	int offset;
 
 	/* support id only selectors */
 	const char *ids;	/* id start */
@@ -838,7 +838,7 @@ parse_selector(unsigned char *doc, const size_t docsize, const char *line,
 	} else {
 		/* try to parse as relaxed json and convert to strict json */
 		if ((offset = relaxed_to_strict(doc, docsize, line, len, 1)) < 0) {
-			warnx("jsonify error: %ld", offset);
+			warnx("jsonify error: %d", offset);
 			return -1;
 		}
 	}
@@ -1292,7 +1292,7 @@ exec_count(mongoc_collection_t * collection, const char *line, int len)
 int
 exec_update(mongoc_collection_t * collection, const char *line, int upsert)
 {
-	long offset;
+	int offset;
 	unsigned char update_docs[MAXDOC];
 	unsigned char *update_doc = update_docs;
 	bson_error_t error;
@@ -1318,7 +1318,7 @@ exec_update(mongoc_collection_t * collection, const char *line, int upsert)
 	if ((offset =
 	     relaxed_to_strict(update_doc, MAXDOC, line, strlen(line),
 			       1)) < 0) {
-		warnx("jsonify error: %ld", offset);
+		warnx("jsonify error: %d", offset);
 		return ILLEGAL;
 	}
 	if (offset == 0)
@@ -1375,7 +1375,7 @@ exec_update(mongoc_collection_t * collection, const char *line, int upsert)
 int
 exec_insert(mongoc_collection_t * collection, const char *line, int len)
 {
-	long offset;
+	int offset;
 	bson_error_t error;
 	bson_t *doc;
 
@@ -1407,7 +1407,7 @@ exec_insert(mongoc_collection_t * collection, const char *line, int len)
 int
 exec_remove(mongoc_collection_t * collection, const char *line, int len)
 {
-	long offset;
+	int offset;
 	bson_error_t error;
 	bson_t *doc;
 
@@ -1442,7 +1442,7 @@ int
 exec_query(mongoc_collection_t * collection, const char *line, int len,
    int idsonly)
 {
-	long i;
+	int i;
 	mongoc_cursor_t *cursor;
 	bson_error_t error;
 	size_t rlen;
@@ -1485,7 +1485,7 @@ exec_query(mongoc_collection_t * collection, const char *line, int len,
 		if (hr && rlen > w.ws_col) {
 			if ((i =
 			     human_readable(tmpdoc, sizeof(tmpdocs), str, rlen)) < 0) {
-				warnx("jsonify error: %ld", i);
+				warnx("jsonify error: %d", i);
 				bson_destroy(query);
 				if (idsonly)
 					bson_destroy(fields);
@@ -1522,7 +1522,7 @@ exec_query(mongoc_collection_t * collection, const char *line, int len,
 int
 exec_agquery(mongoc_collection_t * collection, const char *line, int len)
 {
-	long i;
+	int i;
 	mongoc_cursor_t *cursor;
 	bson_error_t error;
 	const bson_t *doc;
@@ -1531,7 +1531,7 @@ exec_agquery(mongoc_collection_t * collection, const char *line, int len)
 
 	/* try to parse as relaxed json and convert to strict json */
 	if ((i = relaxed_to_strict(tmpdoc, sizeof(tmpdocs), line, len, 0)) < 0) {
-		warnx("jsonify error: %ld", i);
+		warnx("jsonify error: %d", i);
 		return -1;
 	}
 	/* try to parse it as json and convert to bson */

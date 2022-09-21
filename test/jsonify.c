@@ -39,40 +39,40 @@ main()
 
 	doc = "{ a: 'b' }";
 	exp = "{\"a\":\"b\"}";
-	failed += test_relaxed_to_strict(doc, strlen(doc), -1, exp, 10, "");
+	failed += test_relaxed_to_strict(doc, strlen(doc), -1, exp, 11, "");
 
 	doc = "{ a: b }";
 	exp = "{\"a\":b}";
-	failed += test_relaxed_to_strict(doc, strlen(doc), -1, exp, 8, "");
+	failed += test_relaxed_to_strict(doc, strlen(doc), -1, exp, 9, "");
 
 	doc = "{ a: b }{ c: d }";
 	exp = "{\"a\":b}{\"c\":d}";
-	failed += test_relaxed_to_strict(doc, strlen(doc), -1, exp, 16, "");
+	failed += test_relaxed_to_strict(doc, strlen(doc), -1, exp, 17, "");
 
 	doc = "{ a: { c: d } }";
 	exp = "{\"a\":{\"c\":d}}";
-	failed += test_relaxed_to_strict(doc, strlen(doc), -1, exp, 15, "");
+	failed += test_relaxed_to_strict(doc, strlen(doc), -1, exp, 16, "");
 
 	doc = "{ a: { c: d } }  { a: { c: d } }";
 	exp = "{\"a\":{\"c\":d}}{\"a\":{\"c\":d}}";
-	failed += test_relaxed_to_strict(doc, strlen(doc), -1, exp, 32, "");
+	failed += test_relaxed_to_strict(doc, strlen(doc), -1, exp, 33, "");
 
 	doc = "{ a: { c: d } }  { a: { c: d } }";
 	exp = "{\"a\":{\"c\":d}}";
-	failed += test_relaxed_to_strict(doc, strlen(doc), 1, exp, 15, "");
+	failed += test_relaxed_to_strict(doc, strlen(doc), 1, exp, 16, "");
 
 	doc = "{ a: { c: { e: f } } }{ a: { c: { e: f } }}  { a: { c: { e: f } }}";
 
 	exp = "{\"a\":{\"c\":{\"e\":f}}}{\"a\":{\"c\":{\"e\":f}}}{\"a\":{\"c\":{\"e\":f}}}";
-	failed += test_relaxed_to_strict(doc, strlen(doc), -1, exp, 66, "");
-	failed += test_relaxed_to_strict(doc, strlen(doc), 3, exp, 66, "");
-	failed += test_relaxed_to_strict(doc, strlen(doc), 4, exp, 66, "");
+	failed += test_relaxed_to_strict(doc, strlen(doc), -1, exp, 67, "");
+	failed += test_relaxed_to_strict(doc, strlen(doc), 3, exp, 67, "");
+	failed += test_relaxed_to_strict(doc, strlen(doc), 4, exp, 67, "");
 
 	exp = "{\"a\":{\"c\":{\"e\":f}}}";
-	failed += test_relaxed_to_strict(doc, strlen(doc), 1, exp, 22, "");
+	failed += test_relaxed_to_strict(doc, strlen(doc), 1, exp, 23, "");
 
 	exp = "{\"a\":{\"c\":{\"e\":f}}}{\"a\":{\"c\":{\"e\":f}}}";
-	failed += test_relaxed_to_strict(doc, strlen(doc), 2, exp, 43, "");
+	failed += test_relaxed_to_strict(doc, strlen(doc), 2, exp, 44, "");
 
 	/* UTF-8 */
 	/*
