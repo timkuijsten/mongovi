@@ -348,11 +348,18 @@ relaxed_to_strict(unsigned char *dst, size_t dstsize, const char *src,
 	if (firstonly) {
 		/* stop after first document (root) */
 		i = 0;
+		jsmn_init(&parser);
 		do {
-			jsmn_init(&parser);
 			nrtokens = jsmn_parse(&parser, src, i, tokens, TOKENS);
 		} while (i++ < srcsize
 			 && (nrtokens == JSMN_ERROR_PART || nrtokens == 0));
+
+		/* on success reinit to determine proper number of tokens */
+		if (nrtokens > 0) {
+			jsmn_init(&parser);
+			nrtokens = jsmn_parse(&parser, src, i, tokens, TOKENS);
+		}
+
 		i--;
 	} else {
 		jsmn_init(&parser);
