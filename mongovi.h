@@ -96,7 +96,7 @@ int
 idtosel(char *doc, const size_t docsize, const char *sel,
 	const size_t sellen);
 int
-parse_selector(unsigned char *doc, const size_t docsize,
+parse_selector(uint8_t *doc, const size_t docsize,
 	       const char *line, int len);
 int
 parse_path(const char *paths, path_t * newpath, int *dbstart,

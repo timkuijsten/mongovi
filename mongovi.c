@@ -28,8 +28,8 @@ static char progname[MAXPROG];
 static path_t path, prevpath;
 
 /* use as temporary one-time storage while building a query or query results */
-static unsigned char tmpdocs[16 * 1024 * 1024];
-static unsigned char *tmpdoc = tmpdocs;
+static uint8_t tmpdocs[16 * 1024 * 1024];
+static uint8_t *tmpdoc = tmpdocs;
 
 static user_t user;
 static config_t config;
@@ -302,7 +302,7 @@ done:
  * if matches exactly one command and not complete, complete
  * if command is complete and needs args, look at that
  */
-unsigned char
+uint8_t
 complete(EditLine * e, __attribute__((unused)) int ch)
 {
 	char cmd[MAXCMDNAM];
@@ -812,7 +812,7 @@ idtosel(char *doc, const size_t docsize, const char *sel, const size_t sellen)
  * return size of parsed length on success or -1 on failure.
  */
 int
-parse_selector(unsigned char *doc, const size_t docsize, const char *line,
+parse_selector(uint8_t *doc, const size_t docsize, const char *line,
     int len)
 {
 	int offset;
@@ -837,7 +837,7 @@ parse_selector(unsigned char *doc, const size_t docsize, const char *line,
 		offset = fnb + snb;
 	} else {
 		/* try to parse as relaxed json and convert to strict json */
-		if ((offset = relaxed_to_strict(doc, docsize, line, len, 1)) < 0) {
+		if ((offset = relaxed_to_strict((char *)doc, docsize, line, len, 1)) < 0) {
 			warnx("jsonify error: %d", offset);
 			return -1;
 		}
@@ -1293,8 +1293,8 @@ int
 exec_update(mongoc_collection_t * collection, const char *line, int upsert)
 {
 	int offset;
-	unsigned char update_docs[MAXDOC];
-	unsigned char *update_doc = update_docs;
+	uint8_t update_docs[MAXDOC];
+	uint8_t *update_doc = update_docs;
 	bson_error_t error;
 	bson_t *query, *update;
 
@@ -1316,7 +1316,7 @@ exec_update(mongoc_collection_t * collection, const char *line, int upsert)
 
 	/* read second json object */
 	if ((offset =
-	     relaxed_to_strict(update_doc, MAXDOC, line, strlen(line),
+	     relaxed_to_strict((char *)update_doc, MAXDOC, line, strlen(line),
 			       1)) < 0) {
 		warnx("jsonify error: %d", offset);
 		return ILLEGAL;
@@ -1467,7 +1467,7 @@ exec_query(mongoc_collection_t * collection, const char *line, int len,
 		return -1;
 	}
 	if (idsonly)
-		if ((fields = bson_new_from_json((unsigned char *)
+		if ((fields = bson_new_from_json((uint8_t *)
 				    "{ \"projection\": { \"_id\": true } }",
 						 -1, &error)) == NULL) {
 			warnx("%d.%d %s", error.domain, error.code, error.message);
@@ -1484,7 +1484,7 @@ exec_query(mongoc_collection_t * collection, const char *line, int len,
 		str = bson_as_json(doc, &rlen);
 		if (hr && rlen > w.ws_col) {
 			if ((i =
-			     human_readable(tmpdoc, sizeof(tmpdocs), str, rlen)) < 0) {
+			     human_readable((char *)tmpdoc, sizeof(tmpdocs), str, rlen)) < 0) {
 				warnx("jsonify error: %d", i);
 				bson_destroy(query);
 				if (idsonly)
@@ -1530,7 +1530,7 @@ exec_agquery(mongoc_collection_t * collection, const char *line, int len)
 	bson_t *aggr_query;
 
 	/* try to parse as relaxed json and convert to strict json */
-	if ((i = relaxed_to_strict(tmpdoc, sizeof(tmpdocs), line, len, 0)) < 0) {
+	if ((i = relaxed_to_strict((char *)tmpdoc, sizeof(tmpdocs), line, len, 0)) < 0) {
 		warnx("jsonify error: %d", i);
 		return -1;
 	}
