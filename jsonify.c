@@ -313,11 +313,29 @@ human_readable(char *dst, size_t dstsize, const char *src,
 	outsize = dstsize;
 	out[0] = '\0';
 	outidx = 0;
-	if (iterate(src, tokens, nrtokens, human_readable_writer) == -1)
+	if (iterate(src, tokens, nrtokens, NULL, human_readable_writer) == -1)
 		return -11;
 
 	return i;
 }
+
+/*
+static void
+print_tokens(const char *src, jsmntok_t *tokens, int nrtokens)
+{
+	int i;
+
+	for (i = 0; i < nrtokens; i++)
+		printf("%2d T%d, s: %2d, e: %2d, nest: %d \"%.*s\"\n",
+		    i,
+		    tokens[i].type,
+		    tokens[i].start,
+		    tokens[i].end,
+		    tokens[i].size,
+		    tokens[i].end - tokens[i].start,
+		    &src[tokens[i].start]);
+}
+*/
 
 /*
  * Add double quotes to keys that are unquoted by copying src into dst.
