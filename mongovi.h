@@ -17,9 +17,9 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include "jsonify.h"
-#include "shorten.h"
-#include "prefix_match.h"
+#ifndef _XOPEN_SOURCE
+#define _XOPEN_SOURCE 700
+#endif
 
 #include <bson.h>
 #include <mongoc.h>
@@ -39,6 +39,10 @@
 #include <string.h>
 #include <sys/ioctl.h>
 #include <sys/stat.h>
+
+#include "jsonify.h"
+#include "shorten.h"
+#include "prefix_match.h"
 
 #define MAXLINE 16 * 100 * 1024
 #define MAXUSERNAME 100
