@@ -771,8 +771,7 @@ exec_drop(const char *npath)
  * Return 0 on success or -1 on error.
  */
 int
-idtosel(char *doc, const size_t docsize, const char *sel,
-	const size_t sellen)
+idtosel(char *doc, const size_t docsize, const char *sel, const size_t sellen)
 {
 	char *idtpls = "{ \"_id\": \"";
 	char *idtple = "\" }";
@@ -813,8 +812,8 @@ idtosel(char *doc, const size_t docsize, const char *sel,
  * return size of parsed length on success or -1 on failure.
  */
 long
-parse_selector(unsigned char *doc, const size_t docsize,
-	       const char *line, int len)
+parse_selector(unsigned char *doc, const size_t docsize, const char *line,
+    int len)
 {
 	long offset;
 
@@ -1441,7 +1440,7 @@ exec_remove(mongoc_collection_t * collection, const char *line, int len)
  */
 int
 exec_query(mongoc_collection_t * collection, const char *line, int len,
-	   int idsonly)
+   int idsonly)
 {
 	long i;
 	mongoc_cursor_t *cursor;
