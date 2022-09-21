@@ -225,14 +225,16 @@ main_init(int argc, char **argv)
 
 		/* tokenize */
 		tok_reset(t);
-		if (tok_str(t, linecpy, &ac, &av) != 0)
-			errx(1, "can't tokenize line");
+		if (tok_str(t, linecpy, &ac, &av) != 0) {
+			warnx("can't tokenize line");
+			continue;
+		}
 
 		if (ac == 0)
 			continue;
 
 		if (history(h, &he, H_ENTER, linecpy) == -1)
-			errx(1, "can't enter history");
+			warnx("can't enter history");
 
 		cmd = mv_parse_cmd(ac, av, linecpy, &lp);
 		switch (cmd) {
@@ -314,7 +316,7 @@ complete(EditLine * e, __attribute__((unused)) int ch)
 	/* tokenize */
 	t = tok_init(NULL);
 	if (tok_line(t, el_line(e), &ac, &av, &cc, &co) != 0)
-		errx(1, "can't tokenize line");
+		return ret;
 
 	/* empty, print all commands */
 	if (ac == 0) {
