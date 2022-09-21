@@ -87,26 +87,13 @@ enum errors {
 	DBMISSING = 256, COLLMISSING
 };
 
-void usage(void);
-int main_init(int argc, char **argv);
-char *prompt();
-uint8_t complete(EditLine * e, int ch);
 int complete_cmd(EditLine * e, const char *tok, int co);
 int complete_path(EditLine * e, const char *tok, int co);
-int init_user(user_t * usr);
 int set_prompt(const char *dbname, const char *collname);
-int read_config(user_t * usr, config_t * cfg);
-int idtosel(char *doc, const size_t docsize, const char *sel,
-    const size_t sellen);
-int parse_selector(uint8_t *doc, const size_t docsize, const char *line,
-    int len);
 int parse_path(const char *paths, path_t * newpath, int *dbstart,
     int *collstart);
 int mv_parse_file(FILE * fp, config_t * cfg);
-int mv_parse_cmd(int argc, const char *argv[], const char *line, char **lp);
 int exec_cmd(const int cmd, const char **argv, const char *line, int linelen);
-int exec_drop(const char *npath);
-int exec_ls(const char *npath);
 int exec_lsdbs(mongoc_client_t * client, const char *prefix);
 int exec_lscolls(mongoc_client_t * client, char *dbname);
 int exec_chcoll(mongoc_client_t * client, const path_t newpath);
@@ -165,229 +152,6 @@ const char *cmds[] = {
 	"upsert",		/* UPSERT */
 	NULL			/* nul terminate this list */
 };
-
-void
-usage(void)
-{
-	printf("usage: %s [-psih] [/database/collection]\n", progname);
-	exit(0);
-}
-
-int
-main_init(int argc, char **argv)
-{
-	const wchar_t *line;
-	const char **av;
-	char linecpy[MAXLINE], *lp;
-	int i, read, status, ac, cmd, ch;
-	EditLine *e;
-	History *h;
-	HistEvent he;
-	Tokenizer *t;
-	path_t newpath = {"", ""};
-
-	char connect_url[MAXMONGOURL] = "mongodb://localhost:27017";
-
-	setlocale(LC_CTYPE, "");
-
-	assert((MB_CUR_MAX) > 0 && (MB_CUR_MAX) < 8);
-
-	if (strlcpy(progname, basename(argv[0]), MAXPROG) > MAXPROG)
-		errx(1, "program name too long");
-
-	/* default ttys to human readable output */
-	if (isatty(STDIN_FILENO))
-		hr = 1;
-
-	while ((ch = getopt(argc, argv, "psih")) != -1)
-		switch (ch) {
-		case 'p':
-			hr = 1;
-			break;
-		case 's':
-			hr = 0;
-			break;
-		case 'i':
-			import = 1;
-			break;
-		case 'h':
-		case '?':
-			usage();
-			break;
-		}
-	argc -= optind;
-	argv += optind;
-
-	if (argc > 1)
-		usage();
-
-	if (PATH_MAX < 20)
-		errx(1, "can't determine PATH_MAX");
-
-	if (init_user(&user) < 0)
-		errx(1, "can't initialize user");
-
-	if ((status = read_config(&user, &config)) < 0)
-		errx(1, "can't read config file");
-	else if (status > 0)
-		if (strlcpy(connect_url, config.url, MAXMONGOURL) > MAXMONGOURL)
-			errx(1, "url in config too long");
-	/* else use default */
-
-	if ((e = el_init(progname, stdin, stdout, stderr)) == NULL)
-		errx(1, "can't initialize editline");
-	if ((h = history_init()) == NULL)
-		errx(1, "can't initialize history");
-	t = tok_init(NULL);
-
-	history(h, &he, H_SETSIZE, 100);
-	el_set(e, EL_HIST, history, h);
-
-	el_set(e, EL_PROMPT, prompt);
-	el_set(e, EL_EDITOR, "emacs");
-	el_set(e, EL_TERMINAL, NULL);
-
-	/* load user defaults */
-	if (el_source(e, NULL) == -1)
-		warnx("sourcing .editrc failed");
-
-	if (el_get(e, EL_EDITMODE, &i) != 0)
-		errx(1, "can't determine editline status");
-
-	if (i == 0)
-		errx(1, "editline disabled");
-
-	el_set(e, EL_ADDFN, "complete",
-	       "Context sensitive argument completion", complete);
-	el_set(e, EL_BIND, "\t", "complete", NULL);
-
-	/* setup mongo */
-	mongoc_init();
-	if ((client = mongoc_client_new(connect_url)) == NULL)
-		errx(1, "can't connect to mongo");
-
-	if (argc == 1) {
-		if (parse_path(argv[0], &newpath, NULL, NULL) < 0)
-			errx(1, "illegal path spec");
-		if (exec_chcoll(client, newpath) < 0)
-			errx(1, "can't change database or collection");
-	}
-	/* check import mode */
-	if (import)
-		if (isatty(STDIN_FILENO))
-			errx(1, "import mode can only be used non-interactively");
-
-	while ((line = el_wgets(e, &read)) != NULL) {
-		if (read > MAXLINE || wcstombs(NULL, line, 0) + 1 > MAXLINE) {
-			warnx("MAXLINE too short: %ld bytes needed, have %d", wcstombs(NULL, line, 0) + 1, MAXLINE);
-			continue;
-		}
-
-		if (read == 0)
-			goto done;	/* happens on Ubuntu 12.04 without
-					   tty */
-
-		/* make room for a copy */
-		linecpy[0] = '\0';
-
-		if (import) {
-			if (wcstombs(NULL, line, 0) + 1 + 7 > MAXLINE) {
-				warnx("MAXLINE too short: %ld bytes needed, have %d", wcstombs(NULL, line, 0) + 1 + 7, MAXLINE);
-				continue;
-			}
-
-			linecpy[0] = 'i';
-			linecpy[1] = 'n';
-			linecpy[2] = 's';
-			linecpy[3] = 'e';
-			linecpy[4] = 'r';
-			linecpy[5] = 't';
-			linecpy[6] = ' ';
-
-			if (wcstombs(&linecpy[7], line, MAXLINE - 7) == (size_t)-1) {
-				warnx("locale wcstombs error");
-				continue;
-			}
-		} else {
-			if (wcstombs(linecpy, line, MAXLINE) == (size_t)-1) {
-				warnx("locale wcstombs error");
-				continue;
-			}
-		}
-
-		/* trim newline if any (might error on exotic, non-C and non-UTF8 locales) */
-		linecpy[strcspn(linecpy, "\n")] = '\0';
-
-		/* tokenize */
-		tok_reset(t);
-		if (tok_str(t, linecpy, &ac, &av) != 0) {
-			warnx("can't tokenize line");
-			continue;
-		}
-
-		if (ac == 0)
-			continue;
-
-		if (history(h, &he, H_ENTER, linecpy) == -1)
-			warnx("can't enter history");
-
-		cmd = mv_parse_cmd(ac, av, linecpy, &lp);
-		switch (cmd) {
-		case ILLEGAL:
-			warnx("illegal syntax");
-			continue;
-			break;
-		case UNKNOWN:
-			warnx("unknown command");
-			continue;
-			break;
-		case AMBIGUOUS:
-			/* matches more than one command, print list_match */
-			i = 0;
-			while (list_match[i] != NULL)
-				printf("%s\n", list_match[i++]);
-			continue;
-			break;
-		case HELP:
-			i = 0;
-			while (cmds[i] != NULL)
-				printf("%s\n", cmds[i++]);
-			continue;
-			break;
-		case DBMISSING:
-			warnx("no database selected");
-			continue;
-			break;
-		case COLLMISSING:
-			warnx("no collection selected");
-			continue;
-			break;
-		}
-
-		if (exec_cmd(cmd, av, lp, strlen(lp)) == -1)
-			warnx("execution failed");
-	}
-
-done:
-	if (read == -1)
-		err(1, NULL);
-
-	if (ccoll != NULL)
-		mongoc_collection_destroy(ccoll);
-	mongoc_client_destroy(client);
-	mongoc_cleanup();
-
-	tok_end(t);
-	history_end(h);
-	el_end(e);
-
-	free(list_match);
-
-	if (isatty(STDIN_FILENO))
-		printf("\n");
-
-	return 0;
-}
 
 /*
  * tab complete command line
@@ -1808,6 +1572,229 @@ mv_parse_file(FILE * fp, config_t * cfg)
 
 	if (strlcpy(cfg->url, line, MAXMONGOURL) > MAXMONGOURL)
 		return -1;
+
+	return 0;
+}
+
+void
+usage(void)
+{
+	printf("usage: %s [-psih] [/database/collection]\n", progname);
+	exit(0);
+}
+
+int
+main_init(int argc, char **argv)
+{
+	const wchar_t *line;
+	const char **av;
+	char linecpy[MAXLINE], *lp;
+	int i, read, status, ac, cmd, ch;
+	EditLine *e;
+	History *h;
+	HistEvent he;
+	Tokenizer *t;
+	path_t newpath = {"", ""};
+
+	char connect_url[MAXMONGOURL] = "mongodb://localhost:27017";
+
+	setlocale(LC_CTYPE, "");
+
+	assert((MB_CUR_MAX) > 0 && (MB_CUR_MAX) < 8);
+
+	if (strlcpy(progname, basename(argv[0]), MAXPROG) > MAXPROG)
+		errx(1, "program name too long");
+
+	/* default ttys to human readable output */
+	if (isatty(STDIN_FILENO))
+		hr = 1;
+
+	while ((ch = getopt(argc, argv, "psih")) != -1)
+		switch (ch) {
+		case 'p':
+			hr = 1;
+			break;
+		case 's':
+			hr = 0;
+			break;
+		case 'i':
+			import = 1;
+			break;
+		case 'h':
+		case '?':
+			usage();
+			break;
+		}
+	argc -= optind;
+	argv += optind;
+
+	if (argc > 1)
+		usage();
+
+	if (PATH_MAX < 20)
+		errx(1, "can't determine PATH_MAX");
+
+	if (init_user(&user) < 0)
+		errx(1, "can't initialize user");
+
+	if ((status = read_config(&user, &config)) < 0)
+		errx(1, "can't read config file");
+	else if (status > 0)
+		if (strlcpy(connect_url, config.url, MAXMONGOURL) > MAXMONGOURL)
+			errx(1, "url in config too long");
+	/* else use default */
+
+	if ((e = el_init(progname, stdin, stdout, stderr)) == NULL)
+		errx(1, "can't initialize editline");
+	if ((h = history_init()) == NULL)
+		errx(1, "can't initialize history");
+	t = tok_init(NULL);
+
+	history(h, &he, H_SETSIZE, 100);
+	el_set(e, EL_HIST, history, h);
+
+	el_set(e, EL_PROMPT, prompt);
+	el_set(e, EL_EDITOR, "emacs");
+	el_set(e, EL_TERMINAL, NULL);
+
+	/* load user defaults */
+	if (el_source(e, NULL) == -1)
+		warnx("sourcing .editrc failed");
+
+	if (el_get(e, EL_EDITMODE, &i) != 0)
+		errx(1, "can't determine editline status");
+
+	if (i == 0)
+		errx(1, "editline disabled");
+
+	el_set(e, EL_ADDFN, "complete",
+	       "Context sensitive argument completion", complete);
+	el_set(e, EL_BIND, "\t", "complete", NULL);
+
+	/* setup mongo */
+	mongoc_init();
+	if ((client = mongoc_client_new(connect_url)) == NULL)
+		errx(1, "can't connect to mongo");
+
+	if (argc == 1) {
+		if (parse_path(argv[0], &newpath, NULL, NULL) < 0)
+			errx(1, "illegal path spec");
+		if (exec_chcoll(client, newpath) < 0)
+			errx(1, "can't change database or collection");
+	}
+	/* check import mode */
+	if (import)
+		if (isatty(STDIN_FILENO))
+			errx(1, "import mode can only be used non-interactively");
+
+	while ((line = el_wgets(e, &read)) != NULL) {
+		if (read > MAXLINE || wcstombs(NULL, line, 0) + 1 > MAXLINE) {
+			warnx("MAXLINE too short: %ld bytes needed, have %d", wcstombs(NULL, line, 0) + 1, MAXLINE);
+			continue;
+		}
+
+		if (read == 0)
+			goto done;	/* happens on Ubuntu 12.04 without
+					   tty */
+
+		/* make room for a copy */
+		linecpy[0] = '\0';
+
+		if (import) {
+			if (wcstombs(NULL, line, 0) + 1 + 7 > MAXLINE) {
+				warnx("MAXLINE too short: %ld bytes needed, have %d", wcstombs(NULL, line, 0) + 1 + 7, MAXLINE);
+				continue;
+			}
+
+			linecpy[0] = 'i';
+			linecpy[1] = 'n';
+			linecpy[2] = 's';
+			linecpy[3] = 'e';
+			linecpy[4] = 'r';
+			linecpy[5] = 't';
+			linecpy[6] = ' ';
+
+			if (wcstombs(&linecpy[7], line, MAXLINE - 7) == (size_t)-1) {
+				warnx("locale wcstombs error");
+				continue;
+			}
+		} else {
+			if (wcstombs(linecpy, line, MAXLINE) == (size_t)-1) {
+				warnx("locale wcstombs error");
+				continue;
+			}
+		}
+
+		/* trim newline if any (might error on exotic, non-C and non-UTF8 locales) */
+		linecpy[strcspn(linecpy, "\n")] = '\0';
+
+		/* tokenize */
+		tok_reset(t);
+		if (tok_str(t, linecpy, &ac, &av) != 0) {
+			warnx("can't tokenize line");
+			continue;
+		}
+
+		if (ac == 0)
+			continue;
+
+		if (history(h, &he, H_ENTER, linecpy) == -1)
+			warnx("can't enter history");
+
+		cmd = mv_parse_cmd(ac, av, linecpy, &lp);
+		switch (cmd) {
+		case ILLEGAL:
+			warnx("illegal syntax");
+			continue;
+			break;
+		case UNKNOWN:
+			warnx("unknown command");
+			continue;
+			break;
+		case AMBIGUOUS:
+			/* matches more than one command, print list_match */
+			i = 0;
+			while (list_match[i] != NULL)
+				printf("%s\n", list_match[i++]);
+			continue;
+			break;
+		case HELP:
+			i = 0;
+			while (cmds[i] != NULL)
+				printf("%s\n", cmds[i++]);
+			continue;
+			break;
+		case DBMISSING:
+			warnx("no database selected");
+			continue;
+			break;
+		case COLLMISSING:
+			warnx("no collection selected");
+			continue;
+			break;
+		}
+
+		if (exec_cmd(cmd, av, lp, strlen(lp)) == -1)
+			warnx("execution failed");
+	}
+
+done:
+	if (read == -1)
+		err(1, NULL);
+
+	if (ccoll != NULL)
+		mongoc_collection_destroy(ccoll);
+	mongoc_client_destroy(client);
+	mongoc_cleanup();
+
+	tok_end(t);
+	history_end(h);
+	el_end(e);
+
+	free(list_match);
+
+	if (isatty(STDIN_FILENO))
+		printf("\n");
 
 	return 0;
 }
