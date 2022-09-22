@@ -1091,11 +1091,8 @@ exec_update(mongoc_collection_t * collection, const char *line, int upsert)
 		opts |= MONGOC_UPDATE_UPSERT;
 
 	/* read first json object */
-	if ((offset =
-	     parse_selector(tmpdoc, sizeof(tmpdocs), line,
-			    strlen(line))) == -1)
-		return ILLEGAL;
-	if (offset == 0)
+	offset = parse_selector(tmpdoc, sizeof(tmpdocs), line, strlen(line));
+	if (offset <= 0)
 		return ILLEGAL;
 
 	/* shorten line */
@@ -1167,10 +1164,8 @@ exec_insert(mongoc_collection_t * collection, const char *line, int len)
 	bson_t *doc;
 
 	/* read first json object */
-	if ((offset =
-	     parse_selector(tmpdoc, sizeof(tmpdocs), line, len)) == -1)
-		return ILLEGAL;
-	if (offset == 0)
+	offset = parse_selector(tmpdoc, sizeof(tmpdocs), line, len);
+	if (offset <= 0)
 		return ILLEGAL;
 
 	/* try to parse the doc as json and convert to bson */
@@ -1199,10 +1194,8 @@ exec_remove(mongoc_collection_t * collection, const char *line, int len)
 	bson_t *doc;
 
 	/* read first json object */
-	if ((offset =
-	     parse_selector(tmpdoc, sizeof(tmpdocs), line, len)) == -1)
-		return ILLEGAL;
-	if (offset == 0)
+	offset = parse_selector(tmpdoc, sizeof(tmpdocs), line, len);
+	if (offset <= 0)
 		return ILLEGAL;
 
 	/* try to parse the doc as json and convert to bson */
