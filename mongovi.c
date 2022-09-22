@@ -583,46 +583,29 @@ cleanup:
  * Create a mongo extended JSON id selector document. If selector is 24 hex
  * digits treat it as an object id, otherwise as a literal.
  *
- * doc     - resulting json doc is set in doc
- * dosize  - the size of doc
- * sel     - selector, does not have to be NUL terminated
- * sellen  - length of sel, excluding a terminating NUL character, if any
+ * dst     - resulting json doc is written to dst
+ * dstsize - the size of dst
+ * sel     - selector, must be NUL terminated
+ * sellen  - length of sel, excluding the terminating NUL character
  *
  * Return 0 on success or -1 on error.
  */
 int
-idtosel(char *doc, const size_t docsize, const char *sel, const size_t sellen)
+idtosel(char *dst, const size_t dstsize, const char *sel, const size_t sellen)
 {
-	char *idtpls = "{ \"_id\": \"";
-	char *idtple = "\" }";
-	char *oidtpls = "{ \"_id\": { \"$oid\": \"";
-	char *oidtple = "\" } }";
-	char *start, *end;
+	const size_t oidlen = 24;
 
-	if (docsize < 1)
-		return -1;
-	if (sellen < 1)
+	if (dstsize < 1 || sellen < 1)
 		return -1;
 
-	/* if 24 hex chars, assume an object id */
-	if (sellen == 24 && (strspn(sel, "0123456789abcdefABCDEF") == 24)) {
-		start = oidtpls;
-		end = oidtple;
+	/* if 24 hex chars, assume an object id otherwise treat as a literal */
+	if (sellen == oidlen && (strspn(sel, "0123456789abcdefABCDEF") == oidlen)) {
+		if ((size_t)snprintf(dst, dstsize, "{ \"_id\": { \"$oid\": \"%.*s\" } }", (int)oidlen, sel) >= dstsize)
+			return -1;
 	} else {
-		/* otherwise treat as a literal */
-		start = idtpls;
-		end = idtple;
+		if ((size_t)snprintf(dst, dstsize, "{ \"_id\": \"%.*s\" }", (int)sellen, sel) >= dstsize)
+			return -1;
 	}
-
-	if (strlen(start) + sellen + strlen(end) + 1 > docsize)
-		return -1;
-
-	if (strlcpy(doc, start, docsize) > docsize)
-		return -1;
-	strncat(doc, sel, sellen);
-	doc[strlen(start) + sellen] = '\0';	/* ensure NUL termination */
-	if (strlcat(doc, end, docsize) > docsize)
-		return -1;
 
 	return 0;
 }
