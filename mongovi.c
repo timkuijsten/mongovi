@@ -107,8 +107,8 @@ static mongoc_collection_t *ccoll = NULL;	/* current collection */
 int hr = 0;
 
 /*
- * import mode, treat each input line as one canonical MongoDB Extended JSON
- * document and force insert command.
+ * import mode, treat each input line as one MongoDB Extended JSON document and
+ * force insert command.
  */
 int import = 0;
 
@@ -1524,10 +1524,56 @@ main(int argc, char **argv)
 		if (exec_chcoll(client, newpath) < 0)
 			errx(1, "can't change database or collection");
 	}
-	/* check import mode */
-	if (import)
-		if (isatty(STDIN_FILENO))
-			errx(1, "import mode can only be used non-interactively");
+
+	/*
+	 * Handle special import mode, expect one extended json object per
+	 * line.
+	 */
+	if (import) {
+		if (ccoll == NULL)
+			errx(1, "database/collection path required in import mode");
+
+		bson_error_t error;
+		bson_t doc;
+		char *line;
+		ssize_t r;
+		size_t n;
+
+		line = NULL;
+		n = 0;
+		while ((r = getline(&line, &n, stdin)) != -1) {
+			if (r > 0 && line[r - 1] == '\n') {
+				line[r - 1] = '\0';
+				r--;
+			}
+
+			if (r == 0)
+				continue;
+
+			if (bson_init_from_json(&doc, line, r, &error) == false) {
+				warnx("%d.%d %s: when processing: %s",
+				    error.domain, error.code, error.message,
+				    line);
+				continue;
+			}
+
+			if (mongoc_collection_insert_one(ccoll, &doc, NULL,
+			    NULL, &error) == false) {
+				warnx("%d.%d %s when inserting %s",
+				    error.domain, error.code, error.message,
+				    line);
+				continue;
+			}
+		}
+
+		if (ferror(stdin) != 0)
+			err(1, "line read error");
+
+		free(line);
+		bson_destroy(&doc);
+
+		exit(0);
+	}
 
 	while ((line = el_wgets(e, &read)) != NULL) {
 		if (read > MAXLINE || wcstombs(NULL, line, 0) + 1 > MAXLINE) {
@@ -1542,29 +1588,9 @@ main(int argc, char **argv)
 		/* make room for a copy */
 		linecpy[0] = '\0';
 
-		if (import) {
-			if (wcstombs(NULL, line, 0) + 1 + 7 > MAXLINE) {
-				warnx("MAXLINE too short: %ld bytes needed, have %d", wcstombs(NULL, line, 0) + 1 + 7, MAXLINE);
-				continue;
-			}
-
-			linecpy[0] = 'i';
-			linecpy[1] = 'n';
-			linecpy[2] = 's';
-			linecpy[3] = 'e';
-			linecpy[4] = 'r';
-			linecpy[5] = 't';
-			linecpy[6] = ' ';
-
-			if (wcstombs(&linecpy[7], line, MAXLINE - 7) == (size_t)-1) {
-				warnx("locale wcstombs error");
-				continue;
-			}
-		} else {
-			if (wcstombs(linecpy, line, MAXLINE) == (size_t)-1) {
-				warnx("locale wcstombs error");
-				continue;
-			}
+		if (wcstombs(linecpy, line, MAXLINE) == (size_t)-1) {
+			warnx("locale wcstombs error");
+			continue;
 		}
 
 		/* trim newline if any (might error on exotic, non-C and non-UTF8 locales) */

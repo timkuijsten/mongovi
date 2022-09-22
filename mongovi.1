@@ -37,9 +37,9 @@ format.
 This is the default when stdout is not connected to a terminal.
 .It Fl i
 Import mode.
-Insert every document read from stdin.
-Expects exactly one document per line.
-Can only be used non-interactively.
+Read exactly one document per line in MongoDB Extended JSON format and insert it
+into the database.
+The line must contain only the document object and not any commands.
 .It Ar path
 Open a specific database and collection.
 A
