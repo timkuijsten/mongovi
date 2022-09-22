@@ -699,7 +699,7 @@ exec_query(mongoc_collection_t * collection, const char *line, int len,
 	struct winsize w;
 
 	if (sizeof(tmpdocs) < 3)
-		errx(1, "exec_query");
+		abort();
 
 	if (parse_selector(tmpdocs, sizeof(tmpdocs), line, len) == -1)
 		return -1;
@@ -1046,7 +1046,7 @@ exec_count(mongoc_collection_t * collection, const char *line, int len)
 	int64_t count;
 
 	if (sizeof(tmpdocs) < 3)
-		errx(1, "exec_count");
+		abort();
 
 	if (parse_selector(tmpdocs, sizeof(tmpdocs), line, len) == -1)
 		return -1;
