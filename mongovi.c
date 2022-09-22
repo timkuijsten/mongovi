@@ -619,6 +619,7 @@ idtosel(char *dst, const size_t dstsize, const char *sel, const size_t sellen)
  * byte.
  *
  * Return the number of bytes parsed on success or -1 on failure.
+ * On success, if docsize > 0, a null byte is always written to doc.
  */
 int
 parse_selector(uint8_t *doc, const size_t docsize, const char *line, int len)
@@ -665,8 +666,10 @@ parse_selector(uint8_t *doc, const size_t docsize, const char *line, int len)
 		idlen = strcspn(id, " \t");
 
 		if (idlen == 0) {
-			warnx("could not parse selector as unquoted id");
-			return -1;
+			if (docsize > 0)
+				doc[0] = '\0';
+
+			return 0;
 		}
 	}
 
@@ -696,13 +699,16 @@ exec_query(mongoc_collection_t * collection, const char *line, int len,
 
 	if (sizeof(tmpdocs) < 3)
 		errx(1, "exec_query");
-	/* default to all documents */
-	tmpdoc[0] = '{';
-	tmpdoc[1] = '}';
-	tmpdoc[2] = '\0';
 
 	if (parse_selector(tmpdoc, sizeof(tmpdocs), line, len) == -1)
 		return -1;
+
+	/* default to all documents */
+	if (strlen((char *)tmpdoc) == 0) {
+		tmpdoc[0] = '{';
+		tmpdoc[1] = '}';
+		tmpdoc[2] = '\0';
+	}
 
 	/* try to parse it as json and convert to bson */
 	if ((query = bson_new_from_json(tmpdoc, -1, &error)) == NULL) {
@@ -1035,13 +1041,16 @@ exec_count(mongoc_collection_t * collection, const char *line, int len)
 
 	if (sizeof(tmpdocs) < 3)
 		errx(1, "exec_count");
-	/* default to all documents */
-	tmpdoc[0] = '{';
-	tmpdoc[1] = '}';
-	tmpdoc[2] = '\0';
 
 	if (parse_selector(tmpdoc, sizeof(tmpdocs), line, len) == -1)
 		return -1;
+
+	/* default to all documents */
+	if (strlen((char *)tmpdoc) == 0) {
+		tmpdoc[0] = '{';
+		tmpdoc[1] = '}';
+		tmpdoc[2] = '\0';
+	}
 
 	/* try to parse it as json and convert to bson */
 	if ((query = bson_new_from_json(tmpdoc, -1, &error)) == NULL) {
