@@ -5,7 +5,7 @@ PROG=   mongovi
 COMPAT=""
 
 ifeq (${OS},Linux)
-COMPAT=strlcat.o strlcpy.o reallocarray.o
+COMPAT=strlcpy.o reallocarray.o
 endif
 
 ifeq (${OS},Darwin)
