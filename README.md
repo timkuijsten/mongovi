@@ -110,13 +110,15 @@ Change collection from bar to qux:
 /raboof/qux> 
 ```
 
-List all documents where *foo* is *bar*, using `find` which can be abbreviated
-to `f`:
+List all documents where *foo* is *bar*, using `find`.
 
 ```
-/raboof/qux> f { foo: "bar" }
+/raboof/qux> find { foo: "bar" }
 { "foo" : "bar" }
 ```
+
+All commands can be abbreviated to the shortest non-ambigu form, so `find` can
+be abbreviated to `f` since no other command starts with an *f*.
 
 Quick search on object id:
 
@@ -135,10 +137,10 @@ Use an aggregation query to filter on documents where *foo* is *bar*. Note that
 
 ### Non-interactive
 
-List all databases using `f`, an abbreviation of `find`:
+List all databases:
 
 ```sh
-$ echo f | mongovi
+$ echo ls | mongovi
 raboof
 ```
 

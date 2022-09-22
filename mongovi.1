@@ -70,8 +70,13 @@ This string might contain a username and password.
 The following commands are supported:
 .Bl -tag -width Ds
 .It Ic find Op Ar selector
-List all databases or all documents in the currently selected path.
-Documents are output in MongoDB Extended JSON format.
+List all documents in the currently selected collection.
+If connected to a terminal then documents are output in a human readable format
+(which can be overridden with
+.Fl s No ).
+If not connected to a terminal then documents are output in canonical MongoDB
+Extended JSON format (which can be overridden with
+.Fl p No ).
 .It Ic count Op Ar selector
 Count all documents in the currently selected collection.
 .It Ic remove Ar selector
@@ -113,7 +118,12 @@ If
 .Qq -
 or
 .Qq ..
-follow a collection name, these will be treated as part of that collection and won't have the special meaning described before.
+follow a collection name, these will be treated as part of that collection and
+won't have the special meaning described before.
+.It Ic ls Op Ar path
+List the contents of
+.Ar path
+or if path is omitted, the currently selected path.
 .It Ic drop Op Ar path
 drop a collection or database depending on
 .Ar path
@@ -129,14 +139,15 @@ can also be written as
 .Ar f
 since no other command starts with an f.
 .Pp
-If selector is not a JSON document it is treated as a shortcut to search on _id of type string.
+If selector is not a JSON document it is treated as a shortcut to search on _id
+of type string.
 Hexadecimal strings of 24 characters are treated as object ids.
 .Sh EXIT STATUS
 .Ex -std
 .Sh EXAMPLES
 List all databases non-interactively:
 .Bd -literal -offset 4n
-$ echo f | mongovi
+$ echo ls | mongovi
 .Ed
 .Pp
 Open database
