@@ -1215,19 +1215,28 @@ exec_remove(mongoc_collection_t * collection, const char *line, int len)
 int
 exec_agquery(mongoc_collection_t * collection, const char *line, int len)
 {
-	int i;
-	mongoc_cursor_t *cursor;
 	bson_error_t error;
+	bson_t *aggr_query;
+	mongoc_cursor_t *cursor;
 	const bson_t *doc;
 	char *str;
-	bson_t *aggr_query;
 
-	/* try to parse as relaxed json and convert to strict json */
-	if ((i = relaxed_to_strict((char *)tmpdocs, sizeof(tmpdocs), line, len, 0)) < 0) {
-		warnx("jsonify error: %d", i);
+	if (sizeof(tmpdocs) < 3)
+		abort();
+
+	if (relaxed_to_strict((char *)tmpdocs, sizeof(tmpdocs), line, len, 0)
+	    == -1) {
+		warnx("could not parse aggregation query document");
 		return -1;
 	}
-	/* try to parse it as json and convert to bson */
+
+	/* default to all documents */
+	if (strlen((char *)tmpdocs) == 0) {
+		tmpdocs[0] = '[';
+		tmpdocs[1] = ']';
+		tmpdocs[2] = '\0';
+	}
+
 	if ((aggr_query = bson_new_from_json(tmpdocs, -1, &error)) == NULL) {
 		warnx("%d.%d %s", error.domain, error.code, error.message);
 		return -1;
