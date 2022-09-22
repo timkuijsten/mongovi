@@ -288,9 +288,9 @@ complete_path(EditLine * e, const char *npath, int cp)
 	mongoc_database_t *db;
 
 	/* copy current context */
-	if (strlcpy(tmppath.dbname, path.dbname, MAXDBNAME) > MAXDBNAME)
+	if (strlcpy(tmppath.dbname, path.dbname, MAXDBNAME) >= MAXDBNAME)
 		return -1;
-	if (strlcpy(tmppath.collname, path.collname, MAXCOLLNAME) >
+	if (strlcpy(tmppath.collname, path.collname, MAXCOLLNAME) >=
 	    MAXCOLLNAME)
 		return -1;
 
@@ -548,7 +548,7 @@ complete(EditLine * e, __attribute__((unused)) int ch)
 		goto cleanup;
 	}
 	/* init cmd */
-	if (strlcpy(cmd, av[0], MAXCMDNAM) > MAXCMDNAM)
+	if (strlcpy(cmd, av[0], sizeof(cmd)) >= sizeof(cmd))
 		goto cleanup;
 
 	switch (cc) {
@@ -767,9 +767,9 @@ exec_ls(const char *npath)
 	mongoc_collection_t *ccoll;
 
 	/* copy current context */
-	if (strlcpy(tmppath.dbname, path.dbname, MAXDBNAME) > MAXDBNAME)
+	if (strlcpy(tmppath.dbname, path.dbname, MAXDBNAME) >= MAXDBNAME)
 		return -1;
-	if (strlcpy(tmppath.collname, path.collname, MAXCOLLNAME) >
+	if (strlcpy(tmppath.collname, path.collname, MAXCOLLNAME) >=
 	    MAXCOLLNAME)
 		return -1;
 
@@ -798,9 +798,9 @@ exec_drop(const char *npath)
 	bson_error_t error;
 
 	/* copy current context */
-	if (strlcpy(tmppath.dbname, path.dbname, MAXDBNAME) > MAXDBNAME)
+	if (strlcpy(tmppath.dbname, path.dbname, MAXDBNAME) >= MAXDBNAME)
 		return -1;
-	if (strlcpy(tmppath.collname, path.collname, MAXCOLLNAME) >
+	if (strlcpy(tmppath.collname, path.collname, MAXCOLLNAME) >=
 	    MAXCOLLNAME)
 		return -1;
 
@@ -1010,14 +1010,14 @@ exec_chcoll(mongoc_client_t * client, const path_t newpath)
 		warnx("can't update prompt with db and collection name");
 
 	/* update global references */
-	if (strlcpy(prevpath.dbname, path.dbname, MAXDBNAME) > MAXDBNAME)
+	if (strlcpy(prevpath.dbname, path.dbname, MAXDBNAME) >= MAXDBNAME)
 		return -1;
-	if (strlcpy(prevpath.collname, path.collname, MAXCOLLNAME) >
+	if (strlcpy(prevpath.collname, path.collname, MAXCOLLNAME) >=
 	    MAXCOLLNAME)
 		return -1;
-	if (strlcpy(path.dbname, newpath.dbname, MAXDBNAME) > MAXDBNAME)
+	if (strlcpy(path.dbname, newpath.dbname, MAXDBNAME) >= MAXDBNAME)
 		return -1;
-	if (strlcpy(path.collname, newpath.collname, MAXCOLLNAME) >
+	if (strlcpy(path.collname, newpath.collname, MAXCOLLNAME) >=
 	    MAXCOLLNAME)
 		return -1;
 
@@ -1279,18 +1279,18 @@ exec_cmd(const int cmd, const char **argv, const char *line, int linelen)
 	case CHCOLL:
 		/* special case "cd -" */
 		if (argv[1][0] == '-' && argv[1][1] == '\0') {
-			if (strlcpy(tmppath.dbname, prevpath.dbname, MAXDBNAME) >
-			    MAXDBNAME)
+			if (strlcpy(tmppath.dbname, prevpath.dbname, MAXDBNAME)
+			    >= MAXDBNAME)
 				return -1;
-			if (strlcpy(tmppath.collname, prevpath.collname, MAXCOLLNAME) >
-			    MAXCOLLNAME)
+			if (strlcpy(tmppath.collname, prevpath.collname,
+			    MAXCOLLNAME) >= MAXCOLLNAME)
 				return -1;
 		} else {
-			if (strlcpy(tmppath.dbname, path.dbname, MAXDBNAME) >
+			if (strlcpy(tmppath.dbname, path.dbname, MAXDBNAME) >=
 			    MAXDBNAME)
 				return -1;
-			if (strlcpy(tmppath.collname, path.collname, MAXCOLLNAME) >
-			    MAXCOLLNAME)
+			if (strlcpy(tmppath.collname, path.collname,
+			    MAXCOLLNAME) >= MAXCOLLNAME)
 				return -1;
 			if (parse_path(argv[1], &tmppath, NULL, NULL) < 0)
 				return -1;
@@ -1357,7 +1357,7 @@ mv_parse_file(FILE * fp, config_t * cfg)
 	/* trim newline if any */
 	line[strcspn(line, "\n")] = '\0';
 
-	if (strlcpy(cfg->url, line, MAXMONGOURL) > MAXMONGOURL)
+	if (strlcpy(cfg->url, line, MAXMONGOURL) >= MAXMONGOURL)
 		return -1;
 
 	return 0;
@@ -1429,7 +1429,7 @@ main(int argc, char **argv)
 
 	assert((MB_CUR_MAX) > 0 && (MB_CUR_MAX) < 8);
 
-	if (strlcpy(progname, basename(argv[0]), MAXPROG) > MAXPROG)
+	if (strlcpy(progname, basename(argv[0]), MAXPROG) >= MAXPROG)
 		errx(1, "program name too long");
 
 	/* default ttys to human readable output */
@@ -1467,7 +1467,8 @@ main(int argc, char **argv)
 	if ((status = read_config(&user, &config)) < 0)
 		errx(1, "can't read config file");
 	else if (status > 0)
-		if (strlcpy(connect_url, config.url, MAXMONGOURL) > MAXMONGOURL)
+		if (strlcpy(connect_url, config.url, MAXMONGOURL) >=
+		    MAXMONGOURL)
 			errx(1, "url in config too long");
 	/* else use default */
 
