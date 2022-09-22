@@ -319,6 +319,7 @@ print_tokens(const char *src, jsmntok_t *tokens, int nrtokens)
  * Create an indented representation of src with keys unescaped.
  *
  * Returns the number of bytes parsed in src on success, or -1 on error.
+ * On success, if dstsize > 0 a null byte is always written.
  */
 int
 human_readable(char *dst, size_t dstsize, const char *src, size_t srcsize)
@@ -334,9 +335,13 @@ human_readable(char *dst, size_t dstsize, const char *src, size_t srcsize)
 	if (nrtokens < 0)
 		return -1;
 
-	if (nrtokens == 0)
+	if (nrtokens == 0) {
+		if (dstsize > 0)
+			dst[0] = '\0';
+
 		return 0;
-	
+	}
+
 	if (dstsize < 1)
 		return -1;
 
@@ -357,6 +362,7 @@ human_readable(char *dst, size_t dstsize, const char *src, size_t srcsize)
  * Add double quotes to keys that are unquoted by copying src into dst.
  *
  * Returns the number of bytes parsed in src on success, or -1 on error.
+ * On success, if dstsize > 0 a null byte is always written.
  */
 int
 relaxed_to_strict(char *dst, size_t dstsize, const char *src, size_t srcsize,
@@ -373,9 +379,13 @@ relaxed_to_strict(char *dst, size_t dstsize, const char *src, size_t srcsize,
 	if (nrtokens < 0)
 		return -1;
 
-	if (nrtokens == 0)
+	if (nrtokens == 0) {
+		if (dstsize > 0)
+			dst[0] = '\0';
+
 		return 0;
-	
+	}
+
 	if (dstsize < 1)
 		return -1;
 
