@@ -1359,15 +1359,12 @@ int
 read_config(user_t * usr, config_t * cfg)
 {
 	const char *file = ".mongovi";
-	char tmppath[PATH_MAX + 1];
+	char tmppath[PATH_MAX];
 	FILE *fp;
 	struct stat st;
 
-	if (strlcpy(tmppath, usr->home, PATH_MAX) >= PATH_MAX)
-		return -1;
-	if (strlcat(tmppath, "/", PATH_MAX) >= PATH_MAX)
-		return -1;
-	if (strlcat(tmppath, file, PATH_MAX) >= PATH_MAX)
+	if ((size_t)snprintf(tmppath, sizeof(tmppath), "%s/%s", usr->home, file)
+	    >= sizeof(tmppath))
 		return -1;
 
 	if ((fp = fopen(tmppath, "re")) == NULL) {
