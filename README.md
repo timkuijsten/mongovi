@@ -188,7 +188,7 @@ shouldn't be a requirement for running a mongo cli.
 
 ISC
 
-Copyright (c) 2016 Tim Kuijsten
+Copyright (c) 2016, 2022 Tim Kuijsten
 
 Permission to use, copy, modify, and/or distribute this software for any
 purpose with or without fee is hereby granted, provided that the above

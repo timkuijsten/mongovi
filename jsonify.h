@@ -1,6 +1,3 @@
-#ifndef JSONIFY_H
-#define JSONIFY_H
-
 /**
  * Copyright (c) 2016 Tim Kuijsten
  *
@@ -16,6 +13,9 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
+
+#ifndef JSONIFY_H
+#define JSONIFY_H
 
 #include <sys/types.h>
 
