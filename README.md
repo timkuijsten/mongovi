@@ -6,13 +6,13 @@ Features:
 * Emacs-like and vi-like [key bindings] via [libedit]
 * Tab-completion of commands, databases and collections
 * move around databases and collections using the common `cd` idiom
-* integrates into shell pipelines by reading and writing [MongoDB Extended JSON]
-  on stdin/stdout
-* read a username and password from a simple config file
+* easy integration into shell pipelines by reading and writing
+  [MongoDB Extended JSON] via stdin/stdout
+* securely authenticate to MongoDB using ~/.mongovi
 
 Status: **stable**
 
-mongovi is primarily developed on macOS and tested on Debian and Ubuntu.
+mongovi is primarily developed and tested on Debian and Ubuntu.
 
 
 ## Installation
@@ -75,8 +75,8 @@ Then clone, compile and install mongovi:
 
 ### Build requirements
 
-* C compiler (with reasonable C99 support)
-* BSD or GNU make
+* C compiler (with C17 support)
+* GNU make
 * [libedit]
 * [mongo-c-driver] (which needs cmake)
 
@@ -117,18 +117,18 @@ List all documents where *foo* is *bar*, using `find`.
 { "foo" : "bar" }
 ```
 
-All commands can be abbreviated to the shortest non-ambigu form, so `find` can
-be abbreviated to `f` since no other command starts with an *f*.
-
 Quick search on object id:
 
 ```
-/raboof/qux> f 57c6fb00495b576b10996f64
+/raboof/qux> find 57c6fb00495b576b10996f64
 { "_id" : { "$oid" : "57c6fb00495b576b10996f64" }, "foo" : "bar" }
 ```
 
+All commands can be abbreviated to the shortest non-ambiguous form, so `find`
+can be abbreviated to `f` since no other command starts with an *f*.
+
 Use an aggregation query to filter on documents where *foo* is *bar*. Note that
-*aggregate* can be abbreviated to *a*.
+the *aggregate* command can be abbreviated to *a*.
 
 ```
 /raboof/qux> a [{ $project: { foo: true } }, { $match: { foo: "bar" } }]
@@ -144,10 +144,10 @@ $ echo ls | mongovi
 raboof
 ```
 
-Copy some documents from */raboof/qux* to */raboof/baz*:
+Copy all documents where *foo* is *bar* from */raboof/qux* to */bazar/foo*:
 
 ```sh
-$ echo 'f { foo: "bar" }' | mongovi /raboof/qux | mongovi -i /raboof/baz
+$ echo 'f { foo: "bar" }' | mongovi /raboof/qux | mongovi -i /bazar/foo
 ```
 
 ### vi key bindings
@@ -162,8 +162,8 @@ echo "bind -v" >> ~/.editrc
 
 ## Config file
 
-If the file ~/.mongovi exists, the first line is read and expected to be a valid
-mongodb [connection string], possibly containing a username and password.
+If the file `~/.mongovi` exists, the first line is read and expected to be a
+valid mongodb [connection string], possibly containing a username and password.
 
 
 ## Tests
