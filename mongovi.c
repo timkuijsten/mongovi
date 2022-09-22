@@ -717,9 +717,8 @@ exec_query(mongoc_collection_t * collection, const char *line, int len,
 			bson_destroy(query);
 			return -1;
 		}
-	cursor =
-	    mongoc_collection_find_with_opts(collection, query,
-					     idsonly ? fields : NULL, NULL);
+	cursor = mongoc_collection_find_with_opts(collection, query,
+	    idsonly ? fields : NULL, NULL);
 
 	ioctl(0, TIOCGWINSZ, &w);
 
@@ -1237,9 +1236,8 @@ exec_agquery(mongoc_collection_t * collection, const char *line, int len)
 		warnx("%d.%d %s", error.domain, error.code, error.message);
 		return -1;
 	}
-	cursor =
-	    mongoc_collection_aggregate(collection, MONGOC_QUERY_NONE,
-					aggr_query, NULL, NULL);
+	cursor = mongoc_collection_aggregate(collection, MONGOC_QUERY_NONE,
+	    aggr_query, NULL, NULL);
 
 	while (mongoc_cursor_next(cursor, &doc)) {
 		str = bson_as_json(doc, NULL);
