@@ -106,7 +106,10 @@ static mongoc_collection_t *ccoll = NULL;	/* current collection */
 /* print human readable or not */
 int hr = 0;
 
-/* import mode, treat input lines as json documents force insert command */
+/*
+ * import mode, treat each input line as one canonical MongoDB Extended JSON
+ * document and force insert command.
+ */
 int import = 0;
 
 #define NCMDS (sizeof cmds / sizeof cmds[0])
@@ -1161,7 +1164,7 @@ exec_update(mongoc_collection_t * collection, const char *line, int upsert)
 	return 0;
 }
 
-/* parse insert command, expect one json objects, the insert doc and exec */
+/* parse insert command, expect one json object, the insert doc and exec */
 int
 exec_insert(mongoc_collection_t * collection, const char *line, int len)
 {
@@ -1179,9 +1182,10 @@ exec_insert(mongoc_collection_t * collection, const char *line, int len)
 		warnx("%d.%d %s", error.domain, error.code, error.message);
 		return -1;
 	}
+
 	/* execute insert */
-	if (!mongoc_collection_insert
-	    (collection, MONGOC_INSERT_NONE, doc, NULL, &error)) {
+	if (!mongoc_collection_insert(collection, MONGOC_INSERT_NONE, doc, NULL,
+	    &error)) {
 		warnx("%d.%d %s", error.domain, error.code, error.message);
 		bson_destroy(doc);
 		return -1;
