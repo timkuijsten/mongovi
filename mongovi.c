@@ -728,14 +728,21 @@ exec_query(mongoc_collection_t * collection, const char *line, int len,
 	ioctl(0, TIOCGWINSZ, &w);
 
 	while (mongoc_cursor_next(cursor, &doc)) {
-		str = bson_as_json(doc, &rlen);
+		if (hr) {
+			str = bson_as_relaxed_extended_json(doc, &rlen);
+		} else {
+			str = bson_as_canonical_extended_json(doc, &rlen);
+		}
+
 		if (hr && rlen > w.ws_col) {
-			if ((i =
-			     human_readable((char *)tmpdocs, sizeof(tmpdocs), str, rlen)) < 0) {
-				warnx("jsonify error: %d", i);
+			i = human_readable((char *)tmpdocs, sizeof(tmpdocs),
+			    str, rlen);
+			if (i < 0) {
+				warnx("could not make human readable JSON string: %d", i);
 				bson_destroy(query);
 				if (idsonly)
 					bson_destroy(fields);
+
 				return -1;
 			}
 			printf("%s\n", tmpdocs);
@@ -1241,7 +1248,11 @@ exec_agquery(mongoc_collection_t * collection, const char *line, int len)
 	    aggr_query, NULL, NULL);
 
 	while (mongoc_cursor_next(cursor, &doc)) {
-		str = bson_as_json(doc, NULL);
+		if (hr) {
+			str = bson_as_relaxed_extended_json(doc, NULL);
+		} else {
+			str = bson_as_canonical_extended_json(doc, NULL);
+		}
 		printf("%s\n", str);
 		bson_free(str);
 	}
