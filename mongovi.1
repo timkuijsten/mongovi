@@ -62,7 +62,8 @@ will connect to mongodb://localhost:27017.
 It is possible to override this connection string using a file called
 .Qq .mongovi
 in your home directory.
-This file, if it exists, should contain exactly one line, which is a mongodb connection string.
+This file, if it exists, should contain exactly one line, which is a mongodb
+connection string.
 This string might contain a username and password.
 .Sh BUILTIN COMMANDS
 The following commands are supported:
@@ -73,11 +74,13 @@ Documents are output in MongoDB Extended JSON format.
 .It Ic count Op Ar selector
 Count all documents in the currently selected collection.
 .It Ic remove Ar selector
-Remove all documents in the currently selected collection that match the selector.
+Remove all documents in the currently selected collection that match the
+selector.
 .It Ic update Ar selector Ar doc
 Update all documents that match the selector using the provided update document.
 .It Ic upsert Ar selector Ar doc
-Update or insert a document that matches the selector using the provided document.
+Update or insert a document that matches the selector using the provided
+document.
 .It Ic insert Ar doc
 Insert
 .Ar doc
