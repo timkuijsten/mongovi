@@ -690,7 +690,6 @@ int
 exec_query(mongoc_collection_t * collection, const char *line, int len,
    int idsonly)
 {
-	int i;
 	mongoc_cursor_t *cursor;
 	bson_error_t error;
 	size_t rlen;
@@ -717,16 +716,23 @@ exec_query(mongoc_collection_t * collection, const char *line, int len,
 		warnx("%d.%d %s", error.domain, error.code, error.message);
 		return -1;
 	}
-	if (idsonly)
-		if ((fields = bson_new_from_json((uint8_t *)
-				    "{ \"projection\": { \"_id\": true } }",
-						 -1, &error)) == NULL) {
+
+	if (idsonly) {
+		if ((fields = bson_new_from_json(
+		    (uint8_t *)"{ \"projection\": { \"_id\": true } }", -1,
+		    &error)) == NULL) {
 			warnx("%d.%d %s", error.domain, error.code, error.message);
 			bson_destroy(query);
 			return -1;
 		}
+	}
+
 	cursor = mongoc_collection_find_with_opts(collection, query,
 	    idsonly ? fields : NULL, NULL);
+
+	bson_destroy(query);
+	if (idsonly)
+		bson_destroy(fields);
 
 	ioctl(0, TIOCGWINSZ, &w);
 
@@ -738,13 +744,10 @@ exec_query(mongoc_collection_t * collection, const char *line, int len,
 		}
 
 		if (hr && rlen > w.ws_col) {
-			i = human_readable((char *)tmpdocs, sizeof(tmpdocs),
-			    str, rlen);
-			if (i < 0) {
-				warnx("could not make human readable JSON string: %d", i);
-				bson_destroy(query);
-				if (idsonly)
-					bson_destroy(fields);
+			if (human_readable((char *)tmpdocs, sizeof(tmpdocs),
+			    str, rlen) == -1) {
+				warnx("could not make human readable JSON "
+				    "string");
 
 				return -1;
 			}
@@ -752,6 +755,7 @@ exec_query(mongoc_collection_t * collection, const char *line, int len,
 		} else {
 			printf("%s\n", str);
 		}
+
 		bson_free(str);
 	}
 
@@ -759,16 +763,9 @@ exec_query(mongoc_collection_t * collection, const char *line, int len,
 		warnx("cursor failed: %d.%d %s", error.domain, error.code,
 		      error.message);
 		mongoc_cursor_destroy(cursor);
-		bson_destroy(query);
-		if (idsonly)
-			bson_destroy(fields);
 		return -1;
 	}
 	mongoc_cursor_destroy(cursor);
-
-	bson_destroy(query);
-	if (idsonly)
-		bson_destroy(fields);
 
 	return 0;
 }
@@ -1045,8 +1042,8 @@ int
 exec_count(mongoc_collection_t * collection, const char *line, int len)
 {
 	bson_error_t error;
-	int64_t count;
 	bson_t *query;
+	int64_t count;
 
 	if (sizeof(tmpdocs) < 3)
 		errx(1, "exec_count");
@@ -1066,17 +1063,19 @@ exec_count(mongoc_collection_t * collection, const char *line, int len)
 		warnx("%d.%d %s", error.domain, error.code, error.message);
 		return -1;
 	}
-	if ((count =
-	     mongoc_collection_count_documents(collection, query, NULL, NULL,
-					       NULL, &error)) == -1) {
-		warnx("cursor failed: %d.%d %s", error.domain, error.code,
-		      error.message);
-		bson_destroy(query);
-		return -1;
-	}
-	printf("%ld\n", count);
+
+	count = mongoc_collection_count_documents(collection, query, NULL, NULL,
+	    NULL, &error);
 
 	bson_destroy(query);
+
+	if (count == -1) {
+		warnx("cursor failed: %d.%d %s", error.domain, error.code,
+		      error.message);
+		return -1;
+	}
+
+	printf("%ld\n", count);
 
 	return 0;
 }
@@ -1251,6 +1250,8 @@ exec_agquery(mongoc_collection_t * collection, const char *line, int len)
 	cursor = mongoc_collection_aggregate(collection, MONGOC_QUERY_NONE,
 	    aggr_query, NULL, NULL);
 
+	bson_destroy(aggr_query);
+
 	while (mongoc_cursor_next(cursor, &doc)) {
 		if (hr) {
 			str = bson_as_relaxed_extended_json(doc, NULL);
@@ -1265,12 +1266,9 @@ exec_agquery(mongoc_collection_t * collection, const char *line, int len)
 		warnx("cursor failed: %d.%d %s", error.domain, error.code,
 		      error.message);
 		mongoc_cursor_destroy(cursor);
-		bson_destroy(aggr_query);
 		return -1;
 	}
 	mongoc_cursor_destroy(cursor);
-
-	bson_destroy(aggr_query);
 
 	return 0;
 }
