@@ -611,42 +611,71 @@ idtosel(char *dst, const size_t dstsize, const char *sel, const size_t sellen)
 }
 
 /*
- * parse json docs or id only specifications
- * return size of parsed length on success or -1 on failure.
+ * Parse the selector in line, that is the first (relaxed) json object or
+ * literal id. A strictly conforming JSON object is written in "doc" on
+ * success.
+ *
+ * "line" must be null terminated and "len" must exclude the terminating null
+ * byte.
+ *
+ * Return the number of bytes parsed on success or -1 on failure.
  */
 int
-parse_selector(uint8_t *doc, const size_t docsize, const char *line,
-    int len)
+parse_selector(uint8_t *doc, const size_t docsize, const char *line, int len)
 {
+	const char *id;
+	size_t n, idlen;
 	int offset;
 
-	/* support id only selectors */
-	const char *ids;	/* id start */
-	size_t fnb, snb;	/* first and second non-blank characters used
-				   for id selection */
-
-	offset = 0;
-
 	/*
-         * if first non-blank char is not a "{", use it as a literal and convert
-         * to an id selector
+	 * If the first non-blank char is a "{" then try to parse it as a
+	 * relaxed JSON object. Otherwise try to parse it as a literal and
+	 * convert to an id selector.
          */
-	fnb = strspn(line, " \t");
-	if (line[fnb] != '{') {
-		ids = line + fnb;	/* id start */
-		snb = strcspn(ids, " \t");	/* id end */
+	n = strspn(line, " \t");
+	if (line[n] == '{') {
+		offset = relaxed_to_strict((char *)doc, docsize, line, len, 1);
+		if (offset == -1) {
+			warnx("could not parse selector as a JSON object");
+			return -1;
+		}
 
-		idtosel((char *) doc, docsize, ids, snb);
-		offset = fnb + snb;
+		return offset;
+	}
+
+	id = line + n;
+
+	if (id[0] == '"') {
+		id++;
+		idlen = strcspn(id, "\"");
+
+		if (idlen == 0) {
+			warnx("could not parse selector as double quoted id");
+			return -1;
+		}
+	} else if (id[0] == '\'') {
+		id++;
+		idlen = strcspn(id, "'");
+
+		if (idlen == 0) {
+			warnx("could not parse selector as single quoted id");
+			return -1;
+		}
 	} else {
-		/* try to parse as relaxed json and convert to strict json */
-		if ((offset = relaxed_to_strict((char *)doc, docsize, line, len, 1)) < 0) {
-			warnx("jsonify error: %d", offset);
+		idlen = strcspn(id, " \t");
+
+		if (idlen == 0) {
+			warnx("could not parse selector as unquoted id");
 			return -1;
 		}
 	}
 
-	return offset;
+	if (idtosel((char *)doc, docsize, id, idlen) == -1) {
+		warnx("could not parse selector as an id");
+		return -1;
+	}
+
+	return (id - line) + idlen;
 }
 
 /*
