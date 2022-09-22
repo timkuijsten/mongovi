@@ -1443,7 +1443,7 @@ main(int argc, char **argv)
 		errx(1, "program name too long");
 
 	/* default ttys to human readable output */
-	if (isatty(STDIN_FILENO))
+	if (isatty(STDOUT_FILENO))
 		hr = 1;
 
 	while ((ch = getopt(argc, argv, "psih")) != -1)
