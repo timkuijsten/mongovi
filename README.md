@@ -171,11 +171,6 @@ $ make test
 ```
 
 
-## Wanted
-
-* UTF-8 support
-
-
 ## History
 
 This project is a continuation of [node-mongovi]. *node-mongovi* always had a
@@ -204,18 +199,19 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 ---
 
-mongovi uses the JSMN [JSON parser] which is distributed under the MIT license.
+jsmn.h and jsmn.c are part of [JSMN] which is distributed under the MIT
+license.
 
 
 [MongoDB Extended JSON]: https://docs.mongodb.com/manual/reference/mongodb-extended-json/
 [libedit]: http://cvsweb.netbsd.org/bsdweb.cgi/src/lib/libedit/?sortby=date#dirlist
-[mongo-c-driver]: http://mongoc.org/
-[Homebrew]: http://brew.sh/
+[mongo-c-driver]: https://mongoc.org/
+[Homebrew]: https://brew.sh/
 [manpage]: https://netsend.nl/mongovi/mongovi.1.html
-[JSON parser]: http://zserge.com/jsmn.html
-[editrc(5)]: http://man.openbsd.org/editrc.5
-[editline(7)]: http://man.openbsd.org/editline.7
-[editline(3)]: http://man.openbsd.org/editline.3
-[key bindings]: http://man.openbsd.org/editline.7#Input_character_bindings
+[JSMN]: https://zserge.com/jsmn/
+[editrc(5)]: https://man.openbsd.org/editrc.5
+[editline(7)]: https://man.openbsd.org/editline.7
+[editline(3)]: https://man.openbsd.org/editline.3
+[key bindings]: https://man.openbsd.org/editline.7#Input_character_bindings
 [connection string]: https://docs.mongodb.com/manual/reference/connection-string/
 [node-mongovi]: https://www.npmjs.com/package/mongovi
