@@ -2,6 +2,10 @@ OS=$(shell uname)
 
 PROG=   mongovi
 
+VERSION_MAJOR   = 2
+VERSION_MINOR   = 0
+VERSION_PATCH   = 0
+
 COMPAT=""
 
 ifeq (${OS},Linux)
@@ -20,7 +24,7 @@ MANDIR=  $(USRDIR)/share/man
 
 INCDIR=-I$(DESTDIR)/usr/include/libbson-1.0/ -I$(DESTDIR)/usr/include/libmongoc-1.0/ -I$(DESTDIR)/usr/local/include/libbson-1.0/ -I$(DESTDIR)/usr/local/include/libmongoc-1.0/
 
-CFLAGS=-std=c17 -Wall -Wextra -pedantic ${INCDIR}
+CFLAGS=-std=c17 -Wall -Wextra -pedantic ${INCDIR} -DVERSION_MAJOR=${VERSION_MAJOR} -DVERSION_MINOR=${VERSION_MINOR} -DVERSION_PATCH=${VERSION_PATCH}
 LDFLAGS=-lmongoc-1.0 -lbson-1.0 -ledit
 OBJ=jsmn.o jsonify.o mongovi.o shorten.o prefix_match.o parse_path.o
 

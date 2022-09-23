@@ -42,6 +42,12 @@
 #include "prefix_match.h"
 #include "parse_path.h"
 
+#ifndef VERSION_MAJOR
+#define VERSION_MAJOR 0
+#define VERSION_MINOR 0
+#define VERSION_PATCH 0
+#endif
+
 #define MAXLINE 16 * 100 * 1024
 #define MAXUSERNAME 100
 
@@ -1493,10 +1499,16 @@ read_config(user_t * usr, config_t * cfg)
 }
 
 void
-usage(void)
+printversion(int d)
 {
-	printf("usage: %s [-psih] [/database/collection]\n", progname);
-	exit(0);
+	dprintf(d, "%s v%d.%d.%d\n", progname, VERSION_MAJOR,
+	    VERSION_MINOR, VERSION_PATCH);
+}
+
+void
+printusage(int d)
+{
+	dprintf(d, "usage: %s [-psih] [/database/collection]\n", progname);
 }
 
 int
@@ -1505,7 +1517,7 @@ main(int argc, char **argv)
 	const wchar_t *line;
 	const char **av;
 	char linecpy[MAXLINE], *lp;
-	int i, read, status, ac, cmd, ch;
+	int i, read, status, ac, cmd, c;
 	EditLine *e;
 	History *h;
 	HistEvent he;
@@ -1525,8 +1537,8 @@ main(int argc, char **argv)
 	if (isatty(STDOUT_FILENO))
 		hr = 1;
 
-	while ((ch = getopt(argc, argv, "psih")) != -1)
-		switch (ch) {
+	while ((c = getopt(argc, argv, "Vhips")) != -1) {
+		switch (c) {
 		case 'p':
 			hr = 1;
 			break;
@@ -1536,16 +1548,25 @@ main(int argc, char **argv)
 		case 'i':
 			import = 1;
 			break;
+		case 'V':
+			printversion(STDOUT_FILENO);
+			exit(0);
 		case 'h':
+			printusage(STDOUT_FILENO);
+			exit(0);
 		case '?':
-			usage();
-			break;
+			printusage(STDERR_FILENO);
+			exit(1);
 		}
+	}
+
 	argc -= optind;
 	argv += optind;
 
-	if (argc > 1)
-		usage();
+	if (argc > 1) {
+		printusage(STDERR_FILENO);
+		exit(1);
+	}
 
 	if (PATH_MAX < 20)
 		errx(1, "can't determine PATH_MAX");
