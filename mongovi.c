@@ -170,21 +170,20 @@ exec_lsdbs(mongoc_client_t * client, const char *prefix)
  * list collections for the given database return 0 on success, -1 on failure
  */
 int
-exec_lscolls(mongoc_client_t * client, char *dbname)
+exec_lscolls(mongoc_client_t *client, char *dbname)
 {
 	bson_error_t error;
 	mongoc_database_t *db;
 	char **strv;
 	int i;
 
-	if (!strlen(dbname))
+	if (strlen(dbname) == 0)
 		return -1;
 
 	db = mongoc_client_get_database(client, dbname);
 
-	if ((strv =
-	     mongoc_database_get_collection_names_with_opts(db, NULL,
-							    &error)) == NULL)
+	strv = mongoc_database_get_collection_names_with_opts(db, NULL, &error);
+	if (strv == NULL)
 		return -1;
 
 	for (i = 0; strv[i]; i++)
