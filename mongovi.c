@@ -18,25 +18,18 @@
 #define _XOPEN_SOURCE 700
 #endif
 
+#include <sys/ioctl.h>
 #include <locale.h>
 #include <assert.h>
 #include <err.h>
-#include <errno.h>
-#include <fcntl.h>
-#include <unistd.h>
 #include <histedit.h>
 #include <libgen.h>
-#include <limits.h>
 #include <pwd.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/ioctl.h>
-#include <sys/stat.h>
 
 #include <bson.h>
 #include <mongoc.h>
 
+#include "compat/compat.h"
 #include "jsonify.h"
 #include "shorten.h"
 #include "prefix_match.h"
