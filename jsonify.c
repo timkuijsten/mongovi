@@ -18,8 +18,6 @@
 #define _XOPEN_SOURCE 700
 #endif
 
-#include <err.h>
-#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -37,8 +35,11 @@ static char *out;
 static size_t outsize;
 static size_t outidx = 0;
 
-/* pop item from the stack */
-/* return item on the stack on success, -1 on error */
+/*
+ * Pop item from the stack.
+ *
+ * Return item from the stack on success or -1 if empty.
+ */
 static int
 pop()
 {
@@ -47,18 +48,24 @@ pop()
 	return stack[--sp];
 }
 
-/* push new item on the stack */
-/* return 0 on success, -1 on error */
-static int
+/*
+ * Push new item on the stack, all ints except -1 can be pushed.
+ */
+static void
 push(int val)
 {
-	if (val == -1)		/* don't support -1 values, reserved for
-				   errors */
-		return -1;
-	if (sp == MAXSTACK)
-		return -1;
+	/* don't support -1 values, reserved for errors */
+	if (val == -1) {
+		fprintf(stderr, "can not push -1 to stack\n");
+		abort();
+	}
+
+	if (sp == MAXSTACK) {
+		fprintf(stderr, "can not push %d, stack full\n", val);
+		abort();
+	}
+
 	stack[sp++] = val;
-	return 0;
 }
 
 static int
@@ -109,22 +116,20 @@ iterate(const char *src, jsmntok_t * tokens, int nrtokens, int maxroots,
 		tok = &tokens[i];
 		key = strndup(src + tok->start, tok->end - tok->start);
 		if (key == NULL)
-			err(1, NULL);
+			abort();
 
 		switch (tok->type) {
 		case JSMN_OBJECT:
 			push('}');
 			ndepth++;
 			for (j = 0; j < tok->size - 1; j++)
-				if (push(',') == -1)
-					warnx("stack push error");
+				push(',');
 			break;
 		case JSMN_ARRAY:
 			push(']');
 			ndepth++;
 			for (j = 0; j < tok->size - 1; j++)
-				if (push(',') == -1)
-					warnx("stack push error");
+				push(',');
 			break;
 		case JSMN_UNDEFINED:
 		case JSMN_STRING:
@@ -206,7 +211,8 @@ human_readable_writer(jsmntok_t * tok, char *key, int depth, int ndepth,
 		}
 		break;
 	default:
-		warnx("unknown json token type");
+		fprintf(stderr, "unknown json token type: %d\n", tok->type);
+		abort();
 	}
 
 	for (i = 0; i < strlen(closesym); i++) {
@@ -281,7 +287,8 @@ strict_writer(jsmntok_t * tok, char *key, int depth, int ndepth, char *closesym)
 			addout(key, keylen);
 		break;
 	default:
-		warnx("unknown json token type");
+		fprintf(stderr, "unknown json token type: %d\n", tok->type);
+		abort();
 	}
 
 	/* write any closing symbols */
