@@ -22,6 +22,11 @@ endif
 BINDIR=  $(USRDIR)/bin
 MANDIR=  $(USRDIR)/share/man
 
+SRCFILES = shorten.h jsonify.h jsmn.h parse_path.c test/parse_path.c \
+	    test/shorten.c test/jsonify.c test/prefix_match.c compat/compat.h \
+	    compat/strlcpy.c compat/reallocarray.c mongovi.c shorten.c \
+	    jsonify.c prefix_match.h prefix_match.c parse_path.h jsmn.c
+
 INCDIR=-I$(DESTDIR)/usr/include/libbson-1.0/ -I$(DESTDIR)/usr/include/libmongoc-1.0/ -I$(DESTDIR)/usr/local/include/libbson-1.0/ -I$(DESTDIR)/usr/local/include/libmongoc-1.0/
 
 CFLAGS=-std=c17 -Wall -Wextra -pedantic ${INCDIR} -DVERSION_MAJOR=${VERSION_MAJOR} -DVERSION_MINOR=${VERSION_MINOR} -DVERSION_PATCH=${VERSION_PATCH}
@@ -61,6 +66,9 @@ runtest: testshorten testprefixmatch testparsepath testjsonify
 	./testprefixmatch
 	./testparsepath
 	./testjsonify
+
+lint:
+	${CC} ${CFLAGS} -fsyntax-only ${SRCFILES} ${HDRFILES} ${SRCFILES} 2>&1
 
 install:
 	${INSTALL_DIR} ${DESTDIR}${BINDIR}
