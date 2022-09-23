@@ -28,7 +28,7 @@
  * into "src" that match "prefix". On success "matches" must be free(3)d by the
  * caller.
  *
- * Return 0 on success, -1 on error.
+ * Return 0 on success, -1 on reallocarray error.
 */
 int
 prefix_match(char ***matches, const char **src, const char *prefix)

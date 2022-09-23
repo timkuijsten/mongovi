@@ -19,6 +19,10 @@
 #endif
 
 #include <sys/ioctl.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
+
 #include <locale.h>
 #include <assert.h>
 #include <err.h>
@@ -211,8 +215,10 @@ complete_cmd(EditLine * e, const char *tok, int co)
 	size_t cmdlen;
 
 	/* check if cmd matches one or more commands */
-	if (prefix_match(&list_match, cmds, tok) == -1)
-		errx(1, "prefix_match error");
+	if (prefix_match(&list_match, cmds, tok) == -1) {
+		warnx("prefix_match error");
+		abort();
+	}
 
 	/* unknown prefix */
 	if (list_match[0] == NULL)
@@ -360,14 +366,18 @@ complete_path(EditLine * e, const char *npath, int cp)
 		/* otherwise get a list of matching prefixes */
 		strv = mongoc_client_get_database_names_with_opts(client, NULL,
 		    &error);
-		if (strv == NULL)
-			errx(1, "cd db failed %d.%d %s", error.domain,
-			    error.code, error.message);
+		if (strv == NULL) {
+			warnx("cd db failed %d.%d %s", error.domain, error.code,
+			    error.message);
+			return -1;
+		}
 
 		/* check if this matches one or more entries */
 		if (prefix_match(&matches, (const char **)strv, tmppath.dbname)
-		    == -1)
-			errx(1, "prefix_match error");
+		    == -1) {
+			warnx("prefix_match error");
+			abort();
+		}
 
 		/* unknown prefix */
 		if (matches[0] == NULL)
@@ -443,16 +453,20 @@ complete_path(EditLine * e, const char *npath, int cp)
 
 		strv = mongoc_database_get_collection_names_with_opts(db, NULL,
 		    &error);
-		if (strv == NULL)
-			errx(1, "cd coll failed %d.%d %s", error.domain,
+		if (strv == NULL) {
+			warnx("cd coll failed %d.%d %s", error.domain,
 			    error.code, error.message);
+			return -1;
+		}
 
 		mongoc_database_destroy(db);
 
 		/* check if this matches one or more entries */
 		if (prefix_match(&matches, (const char **)strv,
-		    tmppath.collname) == -1)
-			errx(1, "prefix_match error");
+		    tmppath.collname) == -1) {
+			warnx("prefix_match error");
+			abort();
+		}
 
 		/* unknown prefix */
 		if (matches[0] == NULL)
@@ -855,8 +869,10 @@ mv_parse_cmd(int argc, const char *argv[], const char *line, char **lp)
 	const char *cmd;
 
 	/* check if the first token matches one or more commands */
-	if (prefix_match(&list_match, cmds, argv[0]) == -1)
-		errx(1, "prefix_match error");
+	if (prefix_match(&list_match, cmds, argv[0]) == -1) {
+		warnx("prefix_match error");
+		abort();
+	}
 
 	/* unknown prefix */
 	if (list_match[0] == NULL)
@@ -1524,7 +1540,7 @@ main(int argc, char **argv)
 	assert((MB_CUR_MAX) > 0 && (MB_CUR_MAX) < 8);
 
 	if (strlcpy(progname, basename(argv[0]), MAXPROG) >= MAXPROG)
-		errx(1, "program name too long");
+		errx(1, "program name too long: %s", argv[0]);
 
 	/* default ttys to human readable output */
 	if (isatty(STDOUT_FILENO))
