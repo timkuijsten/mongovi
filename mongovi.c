@@ -304,8 +304,10 @@ complete_path(EditLine * e, const char *npath, int cp)
 	    MAXCOLLNAME)
 		return -1;
 
-	if (parse_path(npath, &tmppath, &j, &k) < 0)
-		errx(1, "illegal path spec");
+	if (parse_path(npath, &tmppath, &j, &k) < 0) {
+		warnx("parse_path error: %s", npath);
+		abort();
+	}
 
 	if (strlen(tmppath.collname))
 		compl = CCOLL;
@@ -522,7 +524,8 @@ complete_path(EditLine * e, const char *npath, int cp)
 		}
 		break;
 	default:
-		errx(1, "unexpected completion");
+		warnx("unexpected completion: %d", compl);
+		abort();
 	}
 
 	free(matches);
@@ -798,8 +801,10 @@ exec_ls(const char *npath)
 	    MAXCOLLNAME)
 		return -1;
 
-	if (parse_path(npath, &tmppath, NULL, NULL) < 0)
-		errx(1, "illegal path spec");
+	if (parse_path(npath, &tmppath, NULL, NULL) < 0) {
+		warnx("parse_path error: %s", npath);
+		abort();
+	}
 
 	if (strlen(tmppath.collname)) {	/* print all document ids */
 		ccoll =
@@ -829,8 +834,10 @@ exec_drop(const char *npath)
 	    MAXCOLLNAME)
 		return -1;
 
-	if (parse_path(npath, &tmppath, NULL, NULL) < 0)
-		errx(1, "illegal path spec");
+	if (parse_path(npath, &tmppath, NULL, NULL) < 0) {
+		warnx("parse_path error: %s", npath);
+		abort();
+	}
 
 	if (strlen(tmppath.collname)) {	/* drop collection */
 		coll =
@@ -1317,8 +1324,10 @@ exec_cmd(const int cmd, const char **argv, const char *line, int linelen)
 			if (strlcpy(tmppath.collname, path.collname,
 			    MAXCOLLNAME) >= MAXCOLLNAME)
 				return -1;
-			if (parse_path(argv[1], &tmppath, NULL, NULL) < 0)
-				return -1;
+			if (parse_path(argv[1], &tmppath, NULL, NULL) < 0) {
+				warnx("parse_path error: %s", argv[1]);
+				abort();
+			}
 		}
 		return exec_chcoll(client, tmppath);
 	case COUNT:
@@ -1598,7 +1607,7 @@ main(int argc, char **argv)
 
 	if (argc == 1) {
 		if (parse_path(argv[0], &newpath, NULL, NULL) < 0)
-			errx(1, "illegal path spec");
+			errx(1, "parse_path error: %s", argv[0]);
 		if (exec_chcoll(client, newpath) < 0)
 			errx(1, "can't change database or collection");
 	}
