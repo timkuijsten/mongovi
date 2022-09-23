@@ -145,20 +145,21 @@ exec_lsdbs(mongoc_client_t * client, const char *prefix)
 	if (prefix != NULL)
 		prefixlen = strlen(prefix);
 
-	if ((strv =
-	     mongoc_client_get_database_names_with_opts(client, NULL,
-							&error)) == NULL) {
+	strv = mongoc_client_get_database_names_with_opts(client, NULL, &error);
+	if (strv == NULL) {
 		warnx("cursor failed: %d.%d %s", error.domain, error.code,
 		      error.message);
 		return -1;
 	}
-	for (i = 0; strv[i]; i++)
+
+	for (i = 0; strv[i]; i++) {
 		if (prefix == NULL) {
 			printf("%s\n", strv[i]);
 		} else {
 			if (strncmp(prefix, strv[i], prefixlen) == 0)
 				printf("%s\n", strv[i]);
 		}
+	}
 
 	bson_strfreev(strv);
 
@@ -264,10 +265,11 @@ complete_cmd(EditLine * e, const char *tok, int co)
 }
 
 /*
- * Tab complete path. relative paths depend on current context.
+ * Tab complete path. Relative paths depend on current context.
  *
  * if empty, print all possible arguments
- * if matches more than one component, print all with matching prefix and zip up
+ * if matches more than one component, print all with matching prefix and zip
+ * up
  * if matches exactly one component and not complete, complete
  *
  * npath is the new path, it should not contain any blanks
@@ -357,15 +359,15 @@ complete_path(EditLine * e, const char *npath, int cp)
 			return ret;
 		}
 		/* otherwise get a list of matching prefixes */
-		if ((strv =
-		     mongoc_client_get_database_names_with_opts(client, NULL,
-							   &error)) == NULL)
-			errx(1, "%d.%d %s", error.domain, error.code, error.message);
+		strv = mongoc_client_get_database_names_with_opts(client, NULL,
+		    &error);
+		if (strv == NULL)
+			errx(1, "cd db failed %d.%d %s", error.domain,
+			    error.code, error.message);
 
 		/* check if this matches one or more entries */
-		if (prefix_match
-		    ((const char ***) &matches, (const char **) strv,
-		     tmppath.dbname) == -1)
+		if (prefix_match((const char ***)&matches, (const char **) strv,
+		    tmppath.dbname) == -1)
 			errx(1, "prefix_match error");
 
 		/* unknown prefix */
@@ -440,11 +442,11 @@ complete_path(EditLine * e, const char *npath, int cp)
 		/* otherwise get a list of matching prefixes */
 		db = mongoc_client_get_database(client, tmppath.dbname);
 
-		if ((strv =
-		     mongoc_database_get_collection_names_with_opts(db, NULL,
-								 &error)) ==
-		    NULL)
-			errx(1, "%d.%d %s", error.domain, error.code, error.message);
+		strv = mongoc_database_get_collection_names_with_opts(db, NULL,
+		    &error);
+		if (strv == NULL)
+			errx(1, "cd coll failed %d.%d %s", error.domain,
+			    error.code, error.message);
 
 		mongoc_database_destroy(db);
 
@@ -562,8 +564,8 @@ complete(EditLine * e, __attribute__((unused)) int ch)
 		break;
 	case 1:		/* on argument, try to complete all commands
 				   that support a path parameter */
-		if (strcmp(cmd, "cd") == 0 || strcmp(cmd, "ls") == 0
-		    || strcmp(cmd, "drop") == 0)
+		if (strcmp(cmd, "cd") == 0 || strcmp(cmd, "ls") == 0 ||
+		    strcmp(cmd, "drop") == 0)
 			if (complete_path(e, ac <= 1 ? "" : av[1], co) < 0) {
 				warnx("complete_path error");
 				goto cleanup;
