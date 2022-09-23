@@ -54,6 +54,8 @@
 #define PATH_MAX 1024
 #endif
 
+#define BULKINSERTMAX 10000
+
 #define MAXPROMPTCOLUMNS 30	/* The maximum number of columns the prompt may
 				   use. Should be at least "/x..y/x..y> " = 4 +
 				   4 + 2 * 4 = 16 since x and y can take at
@@ -1372,6 +1374,85 @@ mv_parse_file(FILE * fp, config_t * cfg)
 }
 
 /*
+ * Handle special import mode, expect one extended json object per line.
+ *
+ * Returns the number of inserted objects on success, or -1 on error with errno
+ * set.
+ */
+int
+do_import(mongoc_collection_t * collection)
+{
+	bson_error_t error;
+	bson_t *docs[BULKINSERTMAX];
+	char *line;
+	ssize_t r;
+	size_t n, j;
+	int i;
+
+	for (j = 0; j < BULKINSERTMAX; j++)
+		docs[j] = bson_new();
+
+	line = NULL;
+	n = 0;
+	i = 0;
+	j = 0;
+	while ((r = getline(&line, &n, stdin)) != -1) {
+		if (r > 0 && line[r - 1] == '\n') {
+			line[r - 1] = '\0';
+			r--;
+		}
+
+		if (r == 0)
+			continue;
+
+		if (bson_init_from_json(docs[j], line, r, &error) == false) {
+			warnx("JSON error: %d.%d %s", error.domain, error.code,
+			    error.message);
+			continue;
+		}
+
+		j++;
+
+		if (j == BULKINSERTMAX) {
+			if (mongoc_collection_insert_many(collection,
+			    (const bson_t **)docs, j, NULL, NULL, &error) ==
+			    false) {
+				warnx("insert error: %d.%d %s", error.domain,
+				    error.code, error.message);
+				continue;
+			}
+			i += j;
+			j = 0;
+		}
+	}
+
+	if (j > 0) {
+		if (mongoc_collection_insert_many(collection,
+		    (const bson_t **)docs, j, NULL, NULL, &error) == false) {
+			warnx("insert error: %d.%d %s", error.domain,
+			    error.code, error.message);
+			i = -1;
+			goto exit;
+		}
+
+		i += j;
+		j = 0;
+	}
+
+	if (ferror(stdin) != 0) {
+		i = -1;
+		goto exit;
+	}
+
+exit:
+	free(line);
+	for (j = 0; j < BULKINSERTMAX; j++)
+		bson_destroy(docs[j]);
+
+	return i;
+}
+
+/*
  * try to read ~/.mongovi and set cfg return 1 if config is read and set, 0
  * if no config is found or -1 on failure.
  */
@@ -1480,33 +1561,6 @@ main(int argc, char **argv)
 			errx(1, "url in config too long");
 	/* else use default */
 
-	if ((e = el_init(progname, stdin, stdout, stderr)) == NULL)
-		errx(1, "can't initialize editline");
-	if ((h = history_init()) == NULL)
-		errx(1, "can't initialize history");
-	t = tok_init(NULL);
-
-	history(h, &he, H_SETSIZE, 100);
-	el_set(e, EL_HIST, history, h);
-
-	el_set(e, EL_PROMPT, prompt);
-	el_set(e, EL_EDITOR, "emacs");
-	el_set(e, EL_TERMINAL, NULL);
-
-	/* load user defaults */
-	if (el_source(e, NULL) == -1)
-		warnx("sourcing .editrc failed");
-
-	if (el_get(e, EL_EDITMODE, &i) != 0)
-		errx(1, "can't determine editline status");
-
-	if (i == 0)
-		errx(1, "editline disabled");
-
-	el_set(e, EL_ADDFN, "complete",
-	       "Context sensitive argument completion", complete);
-	el_set(e, EL_BIND, "\t", "complete", NULL);
-
 	/* setup mongo */
 	mongoc_init();
 	if ((client = mongoc_client_new(connect_url)) == NULL)
@@ -1527,47 +1581,48 @@ main(int argc, char **argv)
 		if (ccoll == NULL)
 			errx(1, "database/collection path required in import mode");
 
-		bson_error_t error;
-		bson_t doc;
-		char *line;
-		ssize_t r;
-		size_t n;
+		i = do_import(ccoll);
+		if (i == -1)
+			err(1, NULL);
 
-		line = NULL;
-		n = 0;
-		while ((r = getline(&line, &n, stdin)) != -1) {
-			if (r > 0 && line[r - 1] == '\n') {
-				line[r - 1] = '\0';
-				r--;
-			}
+		printf("inserted %d documents\n", i);
 
-			if (r == 0)
-				continue;
-
-			if (bson_init_from_json(&doc, line, r, &error) == false) {
-				warnx("%d.%d %s: when processing: %s",
-				    error.domain, error.code, error.message,
-				    line);
-				continue;
-			}
-
-			if (mongoc_collection_insert_one(ccoll, &doc, NULL,
-			    NULL, &error) == false) {
-				warnx("%d.%d %s when inserting %s",
-				    error.domain, error.code, error.message,
-				    line);
-				continue;
-			}
-		}
-
-		if (ferror(stdin) != 0)
-			err(1, "line read error");
-
-		free(line);
-		bson_destroy(&doc);
+		mongoc_collection_destroy(ccoll);
+		mongoc_client_destroy(client);
+		mongoc_cleanup();
 
 		exit(0);
 	}
+
+	if ((e = el_init(progname, stdin, stdout, stderr)) == NULL)
+		errx(1, "can't initialize editline");
+
+	if ((h = history_init()) == NULL)
+		errx(1, "can't initialize history");
+
+	t = tok_init(NULL);
+
+	history(h, &he, H_SETSIZE, 100);
+	el_set(e, EL_HIST, history, h);
+
+	el_set(e, EL_PROMPT, prompt);
+	el_set(e, EL_EDITOR, "emacs");
+	el_set(e, EL_TERMINAL, NULL);
+
+	/* load user defaults */
+	if (el_source(e, NULL) == -1)
+		warnx("sourcing .editrc failed");
+
+	if (el_get(e, EL_EDITMODE, &i) != 0)
+		errx(1, "can't determine editline status");
+
+	if (i == 0)
+		errx(1, "editline disabled");
+
+	el_set(e, EL_ADDFN, "complete", "Context sensitive argument completion",
+	    complete);
+
+	el_set(e, EL_BIND, "\t", "complete", NULL);
 
 	while ((line = el_wgets(e, &read)) != NULL) {
 		if (read > MAXLINE || wcstombs(NULL, line, 0) + 1 > MAXLINE) {
