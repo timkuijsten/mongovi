@@ -42,10 +42,9 @@ prefix_match(char ***matches, const char **src, const char *prefix)
 		return -1;
 	(*matches)[listsize - 1] = NULL;
 
-	if (prefsize == 0)
+	if (src == NULL)
 		return 0;
 
-	/* check all strings that start with the given prefix */
 	for (i = 0; src[i] != NULL; i++) {
 		if (strncmp(prefix, src[i], prefsize) != 0)
 			continue;

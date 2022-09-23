@@ -113,6 +113,11 @@ main()
 
 	failed += test_prefix_match(src, "b2a", exp5, 0);
 	failed += test_prefix_match(src, "b2b", exp1, 0);
+
+	char *exp6[] = {"a", "b1", "b2", "b2a", "c", NULL};
+
+	failed += test_prefix_match(src, "", exp6, 0);
+
 	printf("\n");
 
 	printf("test common_prefix:\n");
