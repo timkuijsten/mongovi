@@ -63,35 +63,34 @@ prefix_match(char ***matches, const char **src, const char *prefix)
 }
 
 /*
-   returns the length of the maximum prefix that is common for each entry in
-   av excluding any terminating null character, or -1 on error
-*/
+ * Determine the length of the common prefix shared by all members of "av".
+ *
+ * "av" must be an argv style NULL terminated array with pointers to null
+ * terminated strings.
+ *
+ * Returns the number of bytes of the maximum common prefix for each entry in
+ * "av" (excluding any terminating null character), or -1 on error.
+ */
 int
 common_prefix(const char **av)
 {
 	int i, j;
-	char c, n;		/* current and next character */
+	char c;
 
 	if (av == NULL || av[0] == NULL)
 		return 0;
 
+	c = av[0][0];
 	i = 0;
 	j = 0;
-	c = av[i][j];
-	n = c;
-
-	while (n == c) {
-		if (av[i]) {
-			n = av[i][j];
-			if (n == 0)
-				return j;
-			i++;
-		} else {
-			i = 0;
-			j++;
-			c = av[i][j];
-			n = c;
+	while (c != '\0') {
+		for (i = 0; av[i] != NULL; i++) {
+			if (av[i][j] != c)
+				return j; /* j is a count, not an index */
 		}
+
+		j++;
+		c = av[0][j];
 	}
 
 	return j;
