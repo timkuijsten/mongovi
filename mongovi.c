@@ -1526,7 +1526,11 @@ printversion(int d)
 void
 printusage(int d)
 {
-	dprintf(d, "usage: %s [-psih] [/database/collection]\n", progname);
+	dprintf(d, "usage: %s [-p] [/database/collection]\n", progname);
+	dprintf(d, "       %s [-s] [/database/collection]\n", progname);
+	dprintf(d, "       %s -i /database/collection\n", progname);
+	dprintf(d, "       %s -V\n", progname);
+	dprintf(d, "       %s -h\n", progname);
 }
 
 int
