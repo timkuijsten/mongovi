@@ -37,7 +37,7 @@ INSTALL_DIR=  install -dm 755
 INSTALL_BIN=  install -m 555
 INSTALL_MAN=  install -m 444
 
-${PROG}: ${OBJ} ${COMPAT}
+${PROG}: Makefile ${OBJ} ${COMPAT}
 	$(CC) ${CFLAGS} -o $@ ${OBJ} ${COMPAT} ${LDFLAGS}
 
 %.o: %.c
