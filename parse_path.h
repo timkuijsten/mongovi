@@ -25,7 +25,7 @@ typedef struct {
 	char collname[MAXCOLLNAME];
 } path_t;
 
-int parse_path(const char *paths, path_t *newpath, int *dbstart,
-    int *collstart);
+size_t resolvepath(char *c, size_t csize, const char *n, int *comps);
+int parse_path(path_t *p, const char *path);
 
 #endif

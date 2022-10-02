@@ -270,102 +270,144 @@ complete_cmd(EditLine * e, const char *tok, int co)
 }
 
 /*
- * Tab complete path. Relative paths depend on current context.
+ * Given a word, a cursor position in the word and a list of options, complete
+ * the word to the longest common prefix and print a list of remaining options,
+ * if any.
  *
- * if empty, print all possible arguments
- * if matches more than one component, print all with matching prefix and zip
- * up
- * if matches exactly one component and not complete, complete
+ * Returns 1 if word is now complete to one option in opts (possibly by prefix
+ * extension) or 0 if not.
  *
- * npath is the new path, it should not contain any blanks
- * cp is cursor position in npath
- * return 0 on success or -1 on failure
+ * 0. if no option has the prefix of word or the prefix matches more than one
+ *    option
+ * 1. if word matches one option
  */
 int
-complete_path(EditLine * e, const char *npath, int cp)
+complete_word(EditLine *e, const char *word, size_t wordlen, const char **opts)
 {
-	enum complete {
-		CDB, CCOLL
-	};
-	path_t tmppath;
-	char *c, *found;
-	int i, j, k, ret;
-	bson_error_t error;
-	char **strv;
-	char **matches = NULL;
-	size_t pathlen;
-	enum complete compl;
-	mongoc_database_t *db;
+	char **matches;
+	char *prefix, *lcp;
+	size_t lcplen;
+	int r, i;
 
-	/* copy current context */
-	if (strlcpy(tmppath.dbname, path.dbname, MAXDBNAME) >= MAXDBNAME)
-		return -1;
-	if (strlcpy(tmppath.collname, path.collname, MAXCOLLNAME) >=
-	    MAXCOLLNAME)
-		return -1;
-
-	if (parse_path(npath, &tmppath, &j, &k) < 0) {
-		warnx("parse_path error: %s", npath);
+	prefix = strndup(word, wordlen);
+	if (prefix == NULL) {
+		warn("complete_word strndup");
 		abort();
 	}
 
-	if (strlen(tmppath.collname))
-		compl = CCOLL;
-	else if (strlen(tmppath.dbname)) {
-		/*
-		 * Complete db, unless there is a dbname, followed by a "/" and the cursor
-		 * is beyond it.
-		 */
-		compl = CDB;
+	if (prefix_match(&matches, opts, prefix) == -1) {
+		warn("complete_word prefix_match");
+		abort();
+	}
+	free(prefix);
 
-		if (j >= 0) {	/* explicit dbname in npath */
-			/* check if a "/" terminates the dbname */
-			if ((c = strchr(npath + j, '/')) != NULL) {
-				i = c - npath;
-				if (i < cp)
-					compl = CCOLL;
-			}
-		} else {	/* implicit dbname in npath */
-			/*
-	                 * if the cursor is on a blank and npath is either empty or
-	                 * follows a .. or /, complete collection
-	                 */
-			switch (npath[cp]) {
-			case ' ':
-			case '\0':
-			case '\n':
-			case '\t':
-				if (cp == 0 && npath[cp] == '\0') {	/* npath is empty */
-					compl = CCOLL;
-				} else if (cp > 0 && npath[cp - 1] == '/') {	/* implicit dbname,
-										   possibly via "../" */
-					compl = CCOLL;
-				} else if (cp > 1 && npath[cp - 2] == '.'
-					   && npath[cp - 1] == '.') {
-					compl = CCOLL;
-					/* ensure a trailing "/" */
-					if (el_insertstr(e, "/") < 0)
-						return -1;
-				}
-				break;
-			}
-		}
-	} else
-		compl = CDB;
+	if (matches[0] == NULL) {
+		free(matches);
+		return 0;
+	}
 
-	switch (compl) {
-	case CDB:		/* complete database */
-		/* if tmppath.dbname is empty, print all databases */
-		if (!strlen(tmppath.dbname)) {
-			printf("\n");
-			ret = exec_lsdbs(client, NULL);
-			/* ensure a trailing "/" */
-			if (cp > 0 && npath[cp - 1] != '/')
-				if (el_insertstr(e, "/") < 0)
-					return -1;
-			return ret;
+	/*
+	 * Cut the first option to the longest common prefix and if there is
+	 * more than one match print all matches.
+	 */
+	lcp = matches[0];
+	if (matches[1] == NULL) {
+		lcplen = strlen(lcp);
+	} else {
+		printf("\n");
+		for (i = 0; matches[i] != NULL; i++)
+			printf("%s\n", matches[i]);
+
+		lcplen = common_prefix((const char **)matches);
+		matches[0][lcplen] = '\0';
+
+	}
+
+	// best-effort complete
+	if (lcplen > wordlen) {
+		el_insertstr(e, lcp + wordlen);
+		wordlen = lcplen;
+	}
+
+	r = 0;
+	if (matches[1] == NULL && wordlen == lcplen)
+		r = 1; /* word is complete */
+
+	free(matches);
+	return r;
+}
+
+/*
+ * Complete a /database/collection path.
+ *
+ * If more than one option matches the same prefix, all options are printed and
+ * the common prefix is completed. If exactly one component matches it is
+ * completed.
+ *
+ * Return 0 on success or -1 on failure
+ */
+int
+complete_path(EditLine *e, const char *npath, size_t npathlen)
+{
+	path_t tmppath;
+	bson_error_t error;
+	mongoc_database_t *db;
+	char p[PATH_MAX], p2[PATH_MAX], lastchar;
+	int i, comps;
+	char **strv;
+	size_t n;
+
+	if (npathlen >= sizeof(p2)) {
+		warnx("complete_path p2 too small: %s", npath);
+		return -1;
+	}
+
+	n = strspn(npath, " ");
+	npath += n;
+	npathlen -= n;
+	strncpy(p2, npath, npathlen);
+	p2[npathlen] = '\0';
+
+	if (npathlen > 0) {
+		lastchar = p2[npathlen - 1];
+	} else {
+		lastchar = '\0';
+	}
+
+	/* copy current context */
+	if ((size_t)snprintf(p, sizeof(p), "/%s/%s", path.dbname, path.collname)
+	    >= sizeof(p)) {
+		warnx("complete_path p too small: %s", p2);
+		return -1;
+	}
+
+	n = resolvepath(p, sizeof(p), p2, &comps);
+	if (n == (size_t)-1) {
+		warnx("complete_path resolvepath error: %s", p2);
+		return -1;
+	}
+
+	if (parse_path(&tmppath, p) == -1) {
+		warnx("parse_path error: %s", p2);
+		abort();
+	}
+
+	if (comps > 1 || (comps == 1 && lastchar == '/') || (comps == 1 && lastchar == '\0')) {
+		db = mongoc_client_get_database(client, tmppath.dbname);
+		strv = mongoc_database_get_collection_names_with_opts(db, NULL,
+		    &error);
+		mongoc_database_destroy(db);
+		if (strv == NULL) {
+			warnx("cd coll failed %d.%d %s", error.domain,
+			    error.code, error.message);
+			return -1;
 		}
-		/* otherwise get a list of matching prefixes */
+
+		i = complete_word(e, tmppath.collname, strlen(tmppath.collname),
+		    (const char **)strv);
+		if (i == 1 && lastchar != ' ' && lastchar != '\0')
+			el_insertstr(e, " ");
+	} else {
 		strv = mongoc_client_get_database_names_with_opts(client, NULL,
 		    &error);
 		if (strv == NULL) {
@@ -374,161 +416,13 @@ complete_path(EditLine * e, const char *npath, int cp)
 			return -1;
 		}
 
-		/* check if this matches one or more entries */
-		if (prefix_match(&matches, (const char **)strv, tmppath.dbname)
-		    == -1) {
-			warnx("prefix_match error");
-			abort();
-		}
-
-		/* unknown prefix */
-		if (matches[0] == NULL)
-			break;
-
-		/* matches more than one entry */
-		if (matches[1] != NULL) {
-			i = 0;
-			printf("\n");
-			while (matches[i] != NULL)
-				printf("%s\n", matches[i++]);
-
-			/*
-	                 * ensure path is completed to the longest common
-	                 * prefix
-	                 */
-			i = common_prefix((const char **) matches);
-			matches[0][i] = 0;
-		}
-		/* matches exactly one entry or common prefix */
-		found = matches[0];
-
-		/*
-		 * complete the entry if it's not complete yet but only if the cursor
-		 * is on a blank
-		 */
-		pathlen = strlen(found);
-		if (pathlen >= strlen(tmppath.dbname)) {
-			switch (npath[cp]) {
-			case ' ':
-			case '\0':
-			case '\n':
-			case '\t':
-				if (pathlen > strlen(tmppath.dbname)) {
-					if (el_insertstr(e, found + strlen(tmppath.dbname)) <
-					    0) {
-						free(matches);
-						bson_strfreev(strv);
-						return -1;
-					}
-				}
-				/*
-				 * if exactly one entry matched, ensure dbname ends with "/"
-				 * and print collections
-				 */
-				if (matches[1] == NULL) {
-					if (cp > 0 && npath[cp - 1] != '/')
-						if (el_insertstr(e, "/") < 0) {
-							free(matches);
-							bson_strfreev(strv);
-							return -1;
-						}
-					/* and print all collections */
-					printf("\n");
-					if (exec_lscolls(client, found) == -1) {
-						free(matches);
-						bson_strfreev(strv);
-						return -1;
-					}
-				}
-				break;
-			}
-		}
-		break;
-	case CCOLL:		/* complete collection */
-		/* if tmppath.collname is empty, print all collections */
-		if (!strlen(tmppath.collname)) {
-			printf("\n");
-			return exec_lscolls(client, tmppath.dbname);
-		}
-		/* otherwise get a list of matching prefixes */
-		db = mongoc_client_get_database(client, tmppath.dbname);
-
-		strv = mongoc_database_get_collection_names_with_opts(db, NULL,
-		    &error);
-		if (strv == NULL) {
-			warnx("cd coll failed %d.%d %s", error.domain,
-			    error.code, error.message);
-			return -1;
-		}
-
-		mongoc_database_destroy(db);
-
-		/* check if this matches one or more entries */
-		if (prefix_match(&matches, (const char **)strv,
-		    tmppath.collname) == -1) {
-			warnx("prefix_match error");
-			abort();
-		}
-
-		/* unknown prefix */
-		if (matches[0] == NULL)
-			break;
-
-		/* matches more than one entry */
-		if (matches[1] != NULL) {
-			i = 0;
-			printf("\n");
-			while (matches[i] != NULL)
-				printf("%s\n", matches[i++]);
-
-			/*
-	                 * ensure path is completed to the longest common
-	                 * prefix
-	                 */
-			i = common_prefix((const char **) matches);
-			matches[0][i] = 0;
-		}
-		/* matches exactly one entry */
-		found = matches[0];
-
-		/*
-		 * complete the entry if it's not complete yet but only if the cursor
-		 * is on a blank or '/'
-		 */
-		pathlen = strlen(found);
-		if (pathlen >= strlen(tmppath.collname)) {
-			switch (npath[cp]) {
-			case ' ':
-			case '\0':
-			case '\n':
-			case '\t':
-				if (pathlen > strlen(tmppath.collname)) {
-					if (el_insertstr(e, found + strlen(tmppath.collname)) <
-					    0) {
-						free(matches);
-						bson_strfreev(strv);
-						return -1;
-					}
-				}
-				/* append " " if exactly one command matched */
-				if (matches[1] == NULL) {
-					if (cp > 0 && npath[cp - 1] != '/')
-						if (el_insertstr(e, " ") < 0) {
-							free(matches);
-							bson_strfreev(strv);
-							return -1;
-						}
-				}
-				break;
-			}
-		}
-		break;
-	default:
-		warnx("unexpected completion: %d", compl);
-		abort();
+		i = complete_word(e, tmppath.dbname, strlen(tmppath.dbname),
+		    (const char **)strv);
+		/* append trailing "/" if word is completed or relative root */
+		if ((i == 1 && lastchar != '/') || (comps == 0 && lastchar != '/'))
+			el_insertstr(e, "/");
 	}
 
-	free(matches);
 	bson_strfreev(strv);
 
 	return 0;
@@ -543,9 +437,8 @@ complete_path(EditLine * e, const char *npath, int cp)
  * if command is complete and needs args, look at that
  */
 uint8_t
-complete(EditLine * e, __attribute__((unused)) int ch)
+complete(EditLine *e, __attribute__((unused)) int ch)
 {
-	char cmd[MAXCMDNAM];
 	Tokenizer *t;
 	const char **av;
 	int i, ret, ac, cc, co;
@@ -567,30 +460,29 @@ complete(EditLine * e, __attribute__((unused)) int ch)
 		ret = CC_REDISPLAY;
 		goto cleanup;
 	}
-	/* init cmd */
-	if (strlcpy(cmd, av[0], sizeof(cmd)) >= sizeof(cmd))
-		goto cleanup;
 
-	switch (cc) {
-	case 0:		/* on command */
-		if (complete_cmd(e, cmd, co) < 0)
+	/*
+	 * If the first word is currently selected, try to complete as a
+	 * command, if the second word is selected and the command (first word)
+	 * supports a path argument, try to complete as a path.
+	 */
+	if (cc == 0) {
+		if (complete_cmd(e, av[cc], co) < 0)
 			goto cleanup;
+
 		ret = CC_REDISPLAY;
-		break;
-	case 1:		/* on argument, try to complete all commands
-				   that support a path parameter */
-		if (strcmp(cmd, "cd") == 0 || strcmp(cmd, "ls") == 0 ||
-		    strcmp(cmd, "drop") == 0)
-			if (complete_path(e, ac <= 1 ? "" : av[1], co) < 0) {
+	} else if (cc == 1) {
+		if (strcmp(av[0], "cd") == 0 || strcmp(av[0], "ls") == 0 ||
+		    strcmp(av[0], "drop") == 0) {
+			if (complete_path(e, av[cc], co) == -1) {
 				warnx("complete_path error");
 				goto cleanup;
 			}
+		}
 		ret = CC_REDISPLAY;
-		goto cleanup;
-	default:
+	} else {
 		/* ignore subsequent words */
 		ret = CC_NORM;
-		goto cleanup;
 	}
 
 cleanup:
@@ -792,16 +684,23 @@ exec_ls(const char *npath)
 {
 	int ret;
 	path_t tmppath;
+	char p[PATH_MAX];
 	mongoc_collection_t *ccoll;
 
 	/* copy current context */
-	if (strlcpy(tmppath.dbname, path.dbname, MAXDBNAME) >= MAXDBNAME)
+	if ((size_t)snprintf(p, sizeof(p), "/%s/%s", path.dbname, path.collname)
+	    >= sizeof(p)) {
+		warnx("exec_ls p too small: %s", npath);
 		return -1;
-	if (strlcpy(tmppath.collname, path.collname, MAXCOLLNAME) >=
-	    MAXCOLLNAME)
-		return -1;
+	}
 
-	if (parse_path(npath, &tmppath, NULL, NULL) < 0) {
+	npath += strspn(npath, " ");
+	if (resolvepath(p, sizeof(p), npath, NULL) == (size_t)-1) {
+		warnx("exec_ls resolvepath error: %s", npath);
+		return -1;
+	}
+
+	if (parse_path(&tmppath, p) == -1) {
 		warnx("parse_path error: %s", npath);
 		abort();
 	}
@@ -822,19 +721,26 @@ exec_ls(const char *npath)
 int
 exec_drop(const char *npath)
 {
+	char p[PATH_MAX];
 	path_t tmppath;
 	mongoc_collection_t *coll;
 	mongoc_database_t *db;
 	bson_error_t error;
 
 	/* copy current context */
-	if (strlcpy(tmppath.dbname, path.dbname, MAXDBNAME) >= MAXDBNAME)
+	if ((size_t)snprintf(p, sizeof(p), "/%s/%s", path.dbname, path.collname)
+	    >= sizeof(p)) {
+		warnx("p too small: %s", npath);
 		return -1;
-	if (strlcpy(tmppath.collname, path.collname, MAXCOLLNAME) >=
-	    MAXCOLLNAME)
-		return -1;
+	}
 
-	if (parse_path(npath, &tmppath, NULL, NULL) < 0) {
+	npath += strspn(npath, " ");
+	if (resolvepath(p, sizeof(p), npath, NULL) == (size_t)-1) {
+		warnx("resolvepath error: %s", npath);
+		return -1;
+	}
+
+	if (parse_path(&tmppath, p) == -1) {
 		warnx("parse_path error: %s", npath);
 		abort();
 	}
@@ -1299,6 +1205,7 @@ exec_agquery(mongoc_collection_t * collection, const char *line, int len)
 int
 exec_cmd(const int cmd, const char **argv, const char *line, int linelen)
 {
+	char p[PATH_MAX];
 	path_t tmppath;
 
 	switch (cmd) {
@@ -1318,13 +1225,18 @@ exec_cmd(const int cmd, const char **argv, const char *line, int linelen)
 			    MAXCOLLNAME) >= MAXCOLLNAME)
 				return -1;
 		} else {
-			if (strlcpy(tmppath.dbname, path.dbname, MAXDBNAME) >=
-			    MAXDBNAME)
+			if ((size_t)snprintf(p, sizeof(p), "/%s/%s",
+			    path.dbname, path.collname) >= sizeof(p)) {
+				warnx("p too small: %s", argv[1]);
 				return -1;
-			if (strlcpy(tmppath.collname, path.collname,
-			    MAXCOLLNAME) >= MAXCOLLNAME)
+			}
+
+			if (resolvepath(p, sizeof(p), argv[1], NULL) == (size_t)-1) {
+				warnx("resolvepath error: %s", argv[1]);
 				return -1;
-			if (parse_path(argv[1], &tmppath, NULL, NULL) < 0) {
+			}
+
+			if (parse_path(&tmppath, p) == -1) {
 				warnx("parse_path error: %s", argv[1]);
 				abort();
 			}
@@ -1538,6 +1450,7 @@ main(int argc, char **argv)
 {
 	const wchar_t *line;
 	const char **av;
+	char p[PATH_MAX];
 	char linecpy[MAXLINE], *lp;
 	int i, read, status, ac, cmd, c;
 	EditLine *e;
@@ -1610,8 +1523,14 @@ main(int argc, char **argv)
 		errx(1, "can't connect to mongo");
 
 	if (argc == 1) {
-		if (parse_path(argv[0], &newpath, NULL, NULL) < 0)
+		p[0] = '/';
+		p[1] = '\0';
+		if (resolvepath(p, sizeof(p), argv[0], NULL) == (size_t)-1)
+			errx(1, "resolvepath error: %s", argv[0]);
+
+		if (parse_path(&newpath, p) == -1)
 			errx(1, "parse_path error: %s", argv[0]);
+
 		if (exec_chcoll(client, newpath) < 0)
 			errx(1, "can't change database or collection");
 	}

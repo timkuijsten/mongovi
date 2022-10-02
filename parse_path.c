@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2016 Tim Kuijsten
+ * Copyright (c) 2016, 2022 Tim Kuijsten
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -24,166 +24,148 @@
 
 #include "parse_path.h"
 
+/*
+ * Modify n into an absolute path and write the results in c. "." and ".." will
+ * be resolved and extraneous slashes will be removed.
+ *
+ * Note that if n is absolute then c is ignored, otherwise c must be a null
+ * terminated absolute path. csize must be the total number of bytes available
+ * in c and must be >= 2. c and n may point to the same address.
+ *
+ * If comps is not NULL it will be updated to contain the number of resulting
+ * components in c.
+ *
+ * Returns the new length of c on success excluding the terminating null (which
+ * is always >= 1) or (size_t)-1 on failure. If the returned value is >= csize
+ * there was not enough space in c to write the terminating null byte.
+ */
+size_t
+resolvepath(char *c, size_t csize, const char *n, int *comps)
+{
+	char *cp;
+	size_t i, j;
+	int comp;
+
+	if (csize <= 1)
+		return (size_t)-1;
+
+	if (comps == NULL)
+		comps = &comp;
+
+	*comps = 0;
+
+	/*
+	 * cp invariant:
+	 * Let cp point to the position where a next "/comp" should be written.
+	 * Points to the slash in the case of a root only, else one position
+	 * after the last character of the last component (which should be
+	 * '\0').
+	 */
+
+	cp = c;
+
+	if (*n == '/') {
+		cp[0] = '/';
+		n++;
+	} else {
+		if (c[0] != '/')
+			return (size_t)-1;
+
+		i = resolvepath(c, csize, c, comps);
+		if (i == (size_t)-1 || i >= csize)
+			return i;
+
+		cp = &c[i - 1];
+
+		/* maintain cp invariant */
+		if (i > 1)
+			cp++;
+	}
+
+	for(;;) {
+		j = strcspn(n, "/");
+
+		if (j == 1 && n[0] == '.') {
+			n += 1;
+			continue;
+		} else if (j == 2 && n[0] == '.' && n[1] == '.') {
+			while (*cp != '/')
+				cp--;
+
+			if (cp > c)
+				*cp = '\0';
+
+			n += 2;
+			if (*comps > 0)
+				*comps -= 1;
+			continue;
+		}
+
+		if (j > 0) {
+			/* append */
+			if (csize - (cp - c) < j + 2)
+				return (cp - c) + j + 1;
+
+			*cp = '/';
+			cp++;
+
+			for (i = 0; i < j; i++)
+				cp[i] = n[i];
+
+			cp += j;
+			n += j;
+			*comps += 1;
+		}
+
+		j = strspn(n, "/");
+		if (j == 0) {
+			if (cp == c)
+				cp++;
+
+			*cp = '\0';
+			return cp - c;
+		}
+
+		n += j;
+
+		/* support c == n so terminate cp after n is increased */
+		if (cp > c)
+			*cp = '\0';
+	}
+}
 
 /*
- * Parse path that consists of a database name and or a collection name. Support
- * both absolute and relative paths.
- * Absolute paths always start with a / followed by a database name.
- * Relative paths depend on the db and collection values in newpath.
- * paths must be null terminated.
- * ".." is supported as a way to go up, but only if it does not follow a
- * collection name, since "/" and ".." are valid characters for a collection and
- * are thus treated as part of that collection name.
- *
- * if dbstart is not NULL the byte index is set to the start of the database
- * component
- * if collstart is not NULL the byte index is set to the start of the
- * collection component both are -1 if not in paths
+ * Parse an absolute path that may consist of a database and a collection name.
  *
  * Return 0 on success, -1 on failure.
  */
 int
-parse_path(const char *paths, path_t *newpath, int *dbstart, int *collstart)
+parse_path(path_t *p, const char *path)
 {
-	enum levels {
-		LNONE, LDB, LCOLL
-	};
-	int i, ac, ds, cs;
-	enum levels level;
-	const char **av;
-	Tokenizer *t;
-	char *path, *cp;
+	int i;
+	char *coll;
 
-	ds = -1;		/* dbstart index */
-	cs = -1;		/* collstart index */
-
-	/* init indices on request */
-	if (dbstart != NULL)
-		*dbstart = ds;
-
-	if (collstart != NULL)
-		*collstart = cs;
-
-	i = strlen(paths);
-	if (!i)
-		return 0;
-
-	if ((path = strdup(paths)) == NULL)
+	if (*path != '/')
 		return -1;
 
-	cp = path;
+	p->dbname[0] = '\0';
+	p->collname[0] = '\0';
 
-	/* trim trailing blanks */
-	while (cp[i - 1] == ' ' || cp[i - 1] == '\t' || cp[i - 1] == '\n')
-		cp[--i] = '\0';
+	coll = strchr(path + 1, '/');
+	if (coll == NULL) {
+		i = snprintf(p->dbname, sizeof(p->dbname), "%s", path + 1);
+		if ((size_t)i >= sizeof(p->dbname))
+			return -1;
+	} else {
+		i = snprintf(p->dbname, sizeof(p->dbname), "%.*s",
+		    (int)(coll - (path + 1)), path + 1);
+		if ((size_t)i >= sizeof(p->dbname))
+			return -1;
 
-	/* trim leading blanks */
-	while (*cp == ' ' || *cp == '\t' || *cp == '\n')
-		cp++;
-
-	/* before we start parsing, determine current depth level */
-	if (cp[0] == '/') {	/* absolute path, reset db and collection */
-		level = LNONE;	/* not in db or collection */
-		newpath->dbname[0] = '\0';
-		newpath->collname[0] = '\0';
-	} else {		/* relative path */
-		if (strlen(newpath->collname))
-			level = LCOLL;	/* in collection (and thus db) */
-		else if (strlen(newpath->dbname))
-			level = LDB;	/* in db */
-		else
-			level = LNONE;	/* no db or collection set */
+		i = snprintf(p->collname, sizeof(p->collname), "%s", coll + 1);
+		if ((size_t)i >= sizeof(p->collname))
+			return -1;
 	}
-
-	t = tok_init("/");
-	tok_str(t, cp, &ac, &av);
-
-	/* now start parsing cp */
-	i = 0;
-	if (cp[0] == '/')
-		cp++;
-
-	while (i < ac) {
-		switch (level) {
-		case LNONE:
-			if (strcmp(av[i], "..") == 0) {	/* skip */
-				cp += 2 + 1;
-			} else {
-				/* use component as database name */
-				if ((size_t)snprintf(newpath->dbname,
-				    sizeof(newpath->dbname), "%s", av[i]) >=
-				    sizeof(newpath->dbname))
-					goto cleanuperr;
-
-				ds = cp - path;
-				cp += strlen(av[i]) + 1;
-				level = LDB;
-			}
-			break;
-		case LDB:
-			if (strcmp(av[i], "..") == 0) {	/* go up */
-				newpath->dbname[0] = '\0';
-				cp += 2 + 1;
-				ds = -1;
-				level = LNONE;
-			} else {
-				/*
-				 * use all remaining tokens as the name of
-				 * the collection:
-				 */
-				if ((size_t)snprintf(newpath->collname,
-				    sizeof(newpath->collname), "%s", cp) >=
-				    sizeof(newpath->collname))
-					goto cleanuperr;
-				cs = cp - path;
-				cp += strlen(av[i]) + 1;
-				/* we're done */
-				i = ac;
-			}
-			break;
-		case LCOLL:
-			if (strcmp(av[i], "..") == 0) {	/* go up */
-				newpath->collname[0] = '\0';
-				cp += 2 + 1;
-				cs = -1;
-				level = LDB;
-			} else {
-				/*
-				 * use all remaining tokens as the name of
-				 * the collection:
-				 */
-				if ((size_t)snprintf(newpath->collname,
-				    sizeof(newpath->collname), "%s", cp) >=
-				    sizeof(newpath->collname))
-					goto cleanuperr;
-				cs = cp - path;
-				cp += strlen(av[i]) + 1;
-				level = LDB;
-				/* we're done */
-				i = ac;
-			}
-			break;
-		default:
-			goto cleanuperr;
-		}
-		i++;
-	}
-
-	/* update indices on request */
-	if (dbstart != NULL)
-		*dbstart = ds;
-
-	if (collstart != NULL)
-		*collstart = cs;
-
-	tok_end(t);
-	free(path);
 
 	return 0;
-
-cleanuperr:
-	tok_end(t);
-	free(path);
-
-	return -1;
 }
