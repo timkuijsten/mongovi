@@ -277,15 +277,19 @@ complete_cmd(EditLine * e, const char *tok, int co)
  * Returns 1 if word is now complete to one option in opts (possibly by prefix
  * extension) or 0 if not.
  *
+ * If one option is selected and *selected is not NULL, it is updated to point
+ * into **opts to the selected option.
+ *
  * 0. if no option has the prefix of word or the prefix matches more than one
  *    option
  * 1. if word matches one option
  */
 int
-complete_word(EditLine *e, const char *word, size_t wordlen, const char **opts)
+complete_word(EditLine *e, const char *word, size_t wordlen, const char **opts,
+    const char **selected)
 {
-	char **matches;
-	char *prefix, *lcp;
+	const char **matches;
+	char *prefix;
 	size_t lcplen;
 	int r, i;
 
@@ -306,32 +310,37 @@ complete_word(EditLine *e, const char *word, size_t wordlen, const char **opts)
 		return 0;
 	}
 
-	/*
-	 * Cut the first option to the longest common prefix and if there is
-	 * more than one match print all matches.
-	 */
-	lcp = matches[0];
 	if (matches[1] == NULL) {
-		lcplen = strlen(lcp);
+		lcplen = strlen(matches[0]);
 	} else {
 		printf("\n");
 		for (i = 0; matches[i] != NULL; i++)
 			printf("%s\n", matches[i]);
 
-		lcplen = common_prefix((const char **)matches);
-		matches[0][lcplen] = '\0';
-
+		lcplen = common_prefix(matches);
 	}
 
-	// best-effort complete
 	if (lcplen > wordlen) {
-		el_insertstr(e, lcp + wordlen);
+		/* zip up */
+		prefix = strndup(&matches[0][wordlen], lcplen - wordlen);
+		if (prefix == NULL) {
+			warn("complete_word strndup matches[0]");
+			abort();
+		}
+		el_insertstr(e, prefix);
+		free(prefix);
+
 		wordlen = lcplen;
 	}
 
 	r = 0;
-	if (matches[1] == NULL && wordlen == lcplen)
-		r = 1; /* word is complete */
+	if (matches[1] == NULL) {
+		/* word is complete */
+		if (selected != NULL)
+			*selected = matches[0];
+
+		r = 1;
+	}
 
 	free(matches);
 	return r;
@@ -404,7 +413,7 @@ complete_path(EditLine *e, const char *npath, size_t npathlen)
 		}
 
 		i = complete_word(e, tmppath.collname, strlen(tmppath.collname),
-		    (const char **)strv);
+		    (const char **)strv, NULL);
 		if (i == 1 && lastchar != ' ' && lastchar != '\0')
 			el_insertstr(e, " ");
 	} else {
@@ -417,7 +426,7 @@ complete_path(EditLine *e, const char *npath, size_t npathlen)
 		}
 
 		i = complete_word(e, tmppath.dbname, strlen(tmppath.dbname),
-		    (const char **)strv);
+		    (const char **)strv, NULL);
 		/* append trailing "/" if word is completed or relative root */
 		if ((i == 1 && lastchar != '/') || (comps == 0 && lastchar != '/'))
 			el_insertstr(e, "/");
