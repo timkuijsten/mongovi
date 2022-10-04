@@ -17,7 +17,7 @@
 #ifndef PREFIX_MATCH_H
 #define PREFIX_MATCH_H
 
-int prefix_match(char ***dst, const char **src, const char *prefix);
+int prefix_match(const char ***dst, const char **src, const char *prefix);
 int common_prefix(const char **av);
 
 #endif

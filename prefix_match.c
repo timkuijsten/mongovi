@@ -31,7 +31,7 @@
  * Return 0 on success, -1 on reallocarray error.
 */
 int
-prefix_match(char ***matches, const char **src, const char *prefix)
+prefix_match(const char ***matches, const char **src, const char *prefix)
 {
 	int i, listsize, prefsize;
 
