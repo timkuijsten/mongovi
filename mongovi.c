@@ -77,15 +77,6 @@ typedef struct {
 	char url[MAXMONGOURL];
 } config_t;
 
-enum cmd {
-	ILLEGAL =
-	-1, UNKNOWN, AMBIGUOUS, DROP, LS, CHCOLL, COUNT, UPDATE, UPSERT,
-	INSERT, REMOVE, FIND, AGQUERY, HELP
-};
-enum errors {
-	DBMISSING = 256, COLLMISSING
-};
-
 static char progname[MAXPROG];
 
 static path_t path, prevpath;
@@ -95,8 +86,6 @@ static uint8_t tmpdocs[16 * 1024 * 1024];
 
 static user_t user;
 static config_t config;
-static char **list_match = NULL;/* contains all ambiguous prefix_match
-				   commands */
 
 /*
  * Make sure the prompt can hold MAXPROMPTCOLUMNS + a trailing null. Since
@@ -196,76 +185,6 @@ exec_lscolls(mongoc_client_t *client, char *dbname)
 	bson_strfreev(strv);
 	mongoc_database_destroy(db);
 
-	return 0;
-}
-
-/*
- * tab complete command
- *
- * if matches more than one command, print all
- * if matches exactly one command and not complete, complete
- *
- * return 0 on success or -1 on failure
- */
-int
-complete_cmd(EditLine * e, const char *tok, int co)
-{
-	char *cmd;		/* completed command */
-	int i;
-	size_t cmdlen;
-
-	/* check if cmd matches one or more commands */
-	if (prefix_match(&list_match, cmds, tok) == -1) {
-		warnx("prefix_match error");
-		abort();
-	}
-
-	/* unknown prefix */
-	if (list_match[0] == NULL)
-		return 0;
-
-	/* matches more than one command, print list_match */
-	if (list_match[1] != NULL) {
-		i = 0;
-		printf("\n");
-		while (list_match[i] != NULL)
-			printf("%s\n", list_match[i++]);
-
-		/* ensure path is completed to the longest common prefix */
-		i = common_prefix((const char **) list_match);
-		cmd = strndup(list_match[0], i);
-	} else {
-		cmd = strdup(list_match[0]);
-	}
-
-	/* matches one command from cmds or has a common prefix */
-
-	/*
-         * complete the command if it's not complete yet but only if the cursor
-         * is on a blank
-         */
-	cmdlen = strlen(cmd);
-	if (cmdlen >= strlen(tok)) {
-		switch (tok[co]) {
-		case ' ':
-		case '\0':
-		case '\n':
-		case '\t':
-			if (cmdlen > strlen(tok))
-				if (el_insertstr(e, cmd + strlen(tok)) < 0) {
-					free(cmd);
-					return -1;
-				}
-			/* append " " if exactly one command matched */
-			if (list_match[1] == NULL)
-				if (el_insertstr(e, " ") < 0) {
-					free(cmd);
-					return -1;
-				}
-			break;
-		}
-	}
-	free(cmd);
 	return 0;
 }
 
@@ -371,9 +290,6 @@ complete_path(EditLine *e, const char *npath, size_t npathlen)
 		return -1;
 	}
 
-	n = strspn(npath, " ");
-	npath += n;
-	npathlen -= n;
 	strncpy(p2, npath, npathlen);
 	p2[npathlen] = '\0';
 
@@ -476,8 +392,10 @@ complete(EditLine *e, __attribute__((unused)) int ch)
 	 * supports a path argument, try to complete as a path.
 	 */
 	if (cc == 0) {
-		if (complete_cmd(e, av[cc], co) < 0)
-			goto cleanup;
+		/* append trailing " " if command is complete(d) */
+		i = complete_word(e, av[cc], co, cmds, NULL);
+		if (i == 1)
+			el_insertstr(e, " ");
 
 		ret = CC_REDISPLAY;
 	} else if (cc == 1) {
@@ -498,6 +416,17 @@ cleanup:
 	tok_end(t);
 
 	return ret;
+}
+
+/*
+ * Update **line and return size of the token pointed to. The separator is
+ * always an ASCII SPACE (0x20).
+ */
+static size_t
+nexttok(const char **line)
+{
+	*line = &(*line)[strspn(*line, " ")];
+	return strcspn(*line, " ");
 }
 
 /*
@@ -703,7 +632,6 @@ exec_ls(const char *npath)
 		return -1;
 	}
 
-	npath += strspn(npath, " ");
 	if (resolvepath(p, sizeof(p), npath, NULL) == (size_t)-1) {
 		warnx("exec_ls resolvepath error: %s", npath);
 		return -1;
@@ -743,7 +671,6 @@ exec_drop(const char *npath)
 		return -1;
 	}
 
-	npath += strspn(npath, " ");
 	if (resolvepath(p, sizeof(p), npath, NULL) == (size_t)-1) {
 		warnx("resolvepath error: %s", npath);
 		return -1;
@@ -782,95 +709,6 @@ exec_drop(const char *npath)
 	}
 
 	return 0;
-}
-
-/* return command code */
-int
-mv_parse_cmd(int argc, const char *argv[], const char *line, char **lp)
-{
-	const char *cmd;
-
-	/* check if the first token matches one or more commands */
-	if (prefix_match(&list_match, cmds, argv[0]) == -1) {
-		warnx("prefix_match error");
-		abort();
-	}
-
-	/* unknown prefix */
-	if (list_match[0] == NULL)
-		return UNKNOWN;
-
-	/* matches more than one command */
-	if (list_match[1] != NULL)
-		return AMBIGUOUS;
-
-	/* matches exactly one command from cmds */
-	cmd = list_match[0];
-
-	if (strcmp("cd", cmd) == 0) {
-		*lp = strstr(line, argv[0]) + strlen(argv[0]);
-		switch (argc) {
-		case 2:
-			return CHCOLL;
-		default:
-			return ILLEGAL;
-		}
-	} else if (strcmp("help", cmd) == 0) {
-		*lp = strstr(line, argv[0]) + strlen(argv[0]);
-		return HELP;
-	}
-	if (strcmp("ls", cmd) == 0) {
-		*lp = strstr(line, argv[0]) + strlen(argv[0]);
-		switch (argc) {
-		case 1:
-		case 2:
-			return LS;
-		default:
-			return ILLEGAL;
-		}
-	}
-	if (strcmp("drop", cmd) == 0) {
-		*lp = strstr(line, argv[0]) + strlen(argv[0]);
-		switch (argc) {
-		case 1:
-		case 2:
-			return DROP;
-		default:
-			return ILLEGAL;
-		}
-	}
-	/*
-         * all the other commands need a database and collection to be
-         * selected
-         */
-	if (!strlen(path.dbname))
-		return DBMISSING;
-	if (!strlen(path.collname))
-		return COLLMISSING;
-
-	if (strcmp("count", cmd) == 0) {
-		*lp = strstr(line, argv[0]) + strlen(argv[0]);
-		return COUNT;
-	} else if (strcmp("update", cmd) == 0) {
-		*lp = strstr(line, argv[0]) + strlen(argv[0]);
-		return UPDATE;
-	} else if (strcmp("upsert", cmd) == 0) {
-		*lp = strstr(line, argv[0]) + strlen(argv[0]);
-		return UPSERT;
-	} else if (strcmp("insert", cmd) == 0) {
-		*lp = strstr(line, argv[0]) + strlen(argv[0]);
-		return INSERT;
-	} else if (strcmp("remove", cmd) == 0) {
-		*lp = strstr(line, argv[0]) + strlen(argv[0]);
-		return REMOVE;
-	} else if (strcmp("find", cmd) == 0) {
-		*lp = strstr(line, argv[0]) + strlen(argv[0]);
-		return FIND;
-	} else if (strcmp("aggregate", cmd) == 0) {
-		*lp = strstr(line, argv[0]) + strlen(argv[0]);
-		return AGQUERY;
-	}
-	return UNKNOWN;
 }
 
 /*
@@ -1037,13 +875,13 @@ exec_update(mongoc_collection_t * collection, const char *line, int upsert)
 	/* expect two json objects */
 	offset = parse_selector(tmpdocs, sizeof(tmpdocs), line, strlen(line));
 	if (offset <= 0)
-		return ILLEGAL;
+		return -1;
 
 	line += offset;
 
 	offset = relaxed_to_strict((char *)update_doc, MAXDOC, line, strlen(line), 1);
 	if (offset <= 0)
-		return ILLEGAL;
+		return -1;
 
 	line += offset;
 
@@ -1099,7 +937,7 @@ exec_insert(mongoc_collection_t * collection, const char *line, int len)
 
 	offset = parse_selector(tmpdocs, sizeof(tmpdocs), line, len);
 	if (offset <= 0)
-		return ILLEGAL;
+		return -1;
 
 	if ((doc = bson_new_from_json(tmpdocs, -1, &error)) == NULL) {
 		warnx("%d.%d %s", error.domain, error.code, error.message);
@@ -1129,7 +967,7 @@ exec_remove(mongoc_collection_t * collection, const char *line, int len)
 
 	offset = parse_selector(tmpdocs, sizeof(tmpdocs), line, len);
 	if (offset <= 0)
-		return ILLEGAL;
+		return -1;
 
 	if ((doc = bson_new_from_json(tmpdocs, -1, &error)) == NULL) {
 		warnx("%d.%d %s", error.domain, error.code, error.message);
@@ -1209,24 +1047,41 @@ exec_agquery(mongoc_collection_t * collection, const char *line, int len)
 }
 
 /*
- * execute command with given arguments return 0 on success, -1 on failure
+ * Execute command with given arguments.
+ *
+ * Return 0 on success, -1 on failure.
  */
 int
-exec_cmd(const int cmd, const char **argv, const char *line, int linelen)
+exec_cmd(const char *cmd, const char *allcmds[], const char *line, size_t linelen)
 {
 	char p[PATH_MAX];
+	const char *arg1, *arg2;
+	char *arg;
+	size_t i, arg1len, arg2len;
 	path_t tmppath;
 
-	switch (cmd) {
-	case LS:
-		return exec_ls(line);
-	case DROP:
-		return exec_drop(line);
-	case ILLEGAL:
-		break;
-	case CHCOLL:
+	arg1 = line;
+	arg1len = nexttok(&arg1);
+
+	arg2len = 0;
+	if (arg1len > 0) {
+		arg2 = &arg1[arg1len];
+		arg2len = nexttok(&arg2);
+	}
+
+	if (strcmp("cd", cmd) == 0) {
+		if (arg1len == 0) {
+			warnx("cd requires one path argument: cd path");
+			return -1;
+		}
+
+		if (arg2len > 0) {
+			warnx("cd requires only one path argument: cd path");
+			return -1;
+		}
+
 		/* special case "cd -" */
-		if (argv[1][0] == '-' && argv[1][1] == '\0') {
+		if (arg1len == 1 && arg1[0] == '-') {
 			if (strlcpy(tmppath.dbname, prevpath.dbname, MAXDBNAME)
 			    >= MAXDBNAME)
 				return -1;
@@ -1236,37 +1091,88 @@ exec_cmd(const int cmd, const char **argv, const char *line, int linelen)
 		} else {
 			if ((size_t)snprintf(p, sizeof(p), "/%s/%s",
 			    path.dbname, path.collname) >= sizeof(p)) {
-				warnx("p too small: %s", argv[1]);
+				warnx("p too small: %s", line);
 				return -1;
 			}
 
-			if (resolvepath(p, sizeof(p), argv[1], NULL) == (size_t)-1) {
-				warnx("resolvepath error: %s", argv[1]);
+			arg = strndup(arg1, arg1len);
+			if (arg == NULL) {
+				warn("exec_cmd strndup");
+				abort();
+			}
+
+			if (resolvepath(p, sizeof(p), arg, NULL) == (size_t)-1) {
+				warnx("resolvepath error: %s", line);
+				free(arg);
 				return -1;
 			}
+			free(arg);
 
 			if (parse_path(&tmppath, p) == -1) {
-				warnx("parse_path error: %s", argv[1]);
+				warnx("parse_path error: %s", line);
 				abort();
 			}
 		}
+
 		return exec_chcoll(client, tmppath);
-	case COUNT:
+	}
+
+	if (strcmp("help", cmd) == 0) {
+		for (i = 0; allcmds[i] != NULL; i++)
+			printf("%s\n", allcmds[i]);
+
+		return 0;
+	}
+
+	if (strcmp("ls", cmd) == 0) {
+		if (arg2len > 0) {
+			warnx("ls takes at most one argument: ls [path]");
+			return -1;
+		}
+
+		return exec_ls(line);
+	}
+
+	if (strcmp("drop", cmd) == 0) {
+		if (arg2len > 0) {
+			warnx("drop takes at most one argument: ls [path]");
+			return -1;
+		}
+
+		return exec_drop(line);
+	}
+
+	/*
+	 * All the other commands need a database and collection to be
+	 * selected.
+         */
+	if (strlen(path.dbname) == 0) {
+		warnx("no database selected");
+		return -1;
+	}
+
+	if (strlen(path.collname) == 0) {
+		warnx("no collection selected");
+		return -1;
+	}
+
+	if (strcmp("count", cmd) == 0) {
 		return exec_count(ccoll, line, linelen);
-	case UPDATE:
+	} else if (strcmp("update", cmd) == 0) {
 		return exec_update(ccoll, line, 0);
-	case UPSERT:
+	} else if (strcmp("upsert", cmd) == 0) {
 		return exec_update(ccoll, line, 1);
-	case INSERT:
+	} else if (strcmp("insert", cmd) == 0) {
 		return exec_insert(ccoll, line, linelen);
-	case REMOVE:
+	} else if (strcmp("remove", cmd) == 0) {
 		return exec_remove(ccoll, line, linelen);
-	case FIND:
+	} else if (strcmp("find", cmd) == 0) {
 		return exec_query(ccoll, line, linelen, 0);
-	case AGQUERY:
+	} else if (strcmp("aggregate", cmd) == 0) {
 		return exec_agquery(ccoll, line, linelen);
 	}
 
+	warnx("unknown command: \"%s\"", line);
 	return -1;
 }
 
@@ -1458,14 +1364,14 @@ int
 main(int argc, char **argv)
 {
 	const wchar_t *line;
-	const char **av;
+	const char *cmd, *args;
 	char p[PATH_MAX];
 	char linecpy[MAXLINE], *lp;
-	int i, read, status, ac, cmd, c;
+	size_t n;
+	int i, read, status, c;
 	EditLine *e;
 	History *h;
 	HistEvent he;
-	Tokenizer *t;
 	path_t newpath = {"", ""};
 
 	char connect_url[MAXMONGOURL] = "mongodb://localhost:27017";
@@ -1571,8 +1477,6 @@ main(int argc, char **argv)
 	if ((h = history_init()) == NULL)
 		errx(1, "can't initialize history");
 
-	t = tok_init(NULL);
-
 	history(h, &he, H_SETSIZE, 100);
 	el_set(e, EL_HIST, history, h);
 
@@ -1596,73 +1500,62 @@ main(int argc, char **argv)
 	el_set(e, EL_BIND, "\t", "complete", NULL);
 
 	while ((line = el_wgets(e, &read)) != NULL) {
-		if (read > MAXLINE || wcstombs(NULL, line, 0) + 1 > MAXLINE) {
-			warnx("MAXLINE too short: %ld bytes needed, have %d", wcstombs(NULL, line, 0) + 1, MAXLINE);
-			continue;
-		}
-
 		if (read == 0)
 			goto done;	/* happens on Ubuntu 12.04 without
 					   tty */
 
-		/* make room for a copy */
 		linecpy[0] = '\0';
-
-		if (wcstombs(linecpy, line, MAXLINE) == (size_t)-1) {
-			warnx("locale wcstombs error");
+		n = wcstombs(linecpy, line, sizeof(linecpy));
+		if (n == (size_t)-1 || n == sizeof(linecpy)) {
+			warnx("linecpy too short: %ld bytes needed, have %ld",
+			    wcstombs(NULL, line, 0) + 1, sizeof(linecpy));
 			continue;
 		}
 
-		/* trim newline if any (might error on exotic, non-C and non-UTF8 locales) */
-		linecpy[strcspn(linecpy, "\n")] = '\0';
-
-		/* tokenize */
-		tok_reset(t);
-		if (tok_str(t, linecpy, &ac, &av) != 0) {
-			warnx("can't tokenize line");
+		if (n == 0)
 			continue;
+
+		/*
+		 * Trim trailing newline if any (might error on exotic, non-C
+		 * and non-UTF8 locales).
+		 */
+		if (linecpy[n - 1] == '\n') {
+			linecpy[n - 1] = '\0';
+			n--;
 		}
 
-		if (ac == 0)
+		if (n == 0)
 			continue;
 
 		if (history(h, &he, H_ENTER, linecpy) == -1)
 			warnx("can't enter history");
 
-		cmd = mv_parse_cmd(ac, av, linecpy, &lp);
-		switch (cmd) {
-		case ILLEGAL:
-			warnx("illegal syntax");
+		/*
+		 * Parse command and let args point to the first token after
+		 * the command.
+		 */
+		lp = linecpy;
+		n = nexttok((const char **)&lp);
+
+		if (n == 0)
 			continue;
-			break;
-		case UNKNOWN:
-			warnx("unknown command");
-			continue;
-			break;
-		case AMBIGUOUS:
-			/* matches more than one command, print list_match */
-			i = 0;
-			while (list_match[i] != NULL)
-				printf("%s\n", list_match[i++]);
-			continue;
-			break;
-		case HELP:
-			i = 0;
-			while (cmds[i] != NULL)
-				printf("%s\n", cmds[i++]);
-			continue;
-			break;
-		case DBMISSING:
-			warnx("no database selected");
-			continue;
-			break;
-		case COLLMISSING:
-			warnx("no collection selected");
-			continue;
-			break;
+
+		cmd = lp;
+		if (lp[n] == '\0') {
+			args = "";
+		} else {
+			args = &lp[n];
+			nexttok(&args);
+			lp[n] = '\0';
 		}
 
-		if (exec_cmd(cmd, av, lp, strlen(lp)) == -1)
+		i = complete_word(e, cmd, n, cmds, &cmd);
+		if (i == 0) {
+			warnx("unknown command: \"%s\"", cmd);
+			continue;
+		}
+
+		if (exec_cmd(cmd, cmds, args, strlen(args)) == -1)
 			warnx("execution failed");
 	}
 
@@ -1675,11 +1568,8 @@ done:
 	mongoc_client_destroy(client);
 	mongoc_cleanup();
 
-	tok_end(t);
 	history_end(h);
 	el_end(e);
-
-	free(list_match);
 
 	if (isatty(STDIN_FILENO))
 		printf("\n");
