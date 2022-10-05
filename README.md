@@ -12,85 +12,6 @@ Features:
 
 Status: **stable**
 
-mongovi is primarily developed and tested on Debian and Ubuntu.
-
-
-## Installation
-
-### Debian and Ubuntu
-
-Using the binary package is the easiest way to get started on a Debian based
-system. On either Debian Stretch or Ubuntu 16.04 the following should be issued:
-
-```sh
-
-$ wget https://netsend.nl/mongovi/mongovi_1.0.0~rc5-2_amd64.deb
-$ sha256sum mongovi_1.0.0~rc5-2_amd64.deb    # only proceed if this checksum matches
-9a1639684d3337b72baaf8f2ce96caa36faeb150e2dfb6a5cc74be7452d7ccdf  mongovi_1.0.0~rc5-2_amd64.deb
-$ sudo apt-get install -y libmongoc-1.0-0
-$ sudo dpkg -i mongovi_1.0.0~rc5-2_amd64.deb
-```
-
-
-### macOS
-
-*(tested on macOS 10.15)*
-
-Download, verify and compile the [mongo-c-driver] version 1.14.1 (which needs
-cmake).
-
-```sh
-% cd ~
-% curl -sLO https://github.com/mongodb/mongo-c-driver/releases/download/1.14.1/mongo-c-driver-1.14.1.tar.gz
-% shasum -a 256 mongo-c-driver-1.14.1.tar.gz
-84fca347a6818e5ed6db50e06eb6d33538346b49bf0ba7475d7dbcecacac2ec6  mongo-c-driver-1.14.1.tar.gz
-% tar zxf mongo-c-driver-1.14.1.tar.gz
-% export _mongoc=~/mongo-c-driver-1.14.1
-% cd "$_mongoc"/build
-% cmake -DENABLE_SSL=OFF -DENABLE_SASL=OFF -DENABLE_ZLIB=OFF ..
-% make
-```
-
-Then clone, compile and install mongovi:
-
-```sh
-% cd ~
-% git clone https://github.com/timkuijsten/mongovi.git
-% cd mongovi
-% cc \
-  -I "$_mongoc"/src/libmongoc/src \
-  -I "$_mongoc"/src/libmongoc/src/mongoc \
-  -I "$_mongoc"/src/libbson/src \
-  -I "$_mongoc"/src/libbson/src/bson \
-  -I "$_mongoc"/build/src/libbson/src \
-  -I "$_mongoc"/build/src/libmongoc/src \
-  -o mongovi mongovi.c jsonify.c main.c  prefix_match.c shorten.c jsmn.c \
-  compat/reallocarray.c \
-  "$_mongoc"/build/src/libmongoc/libmongoc-static-1.0.a \
-  "$_mongoc"/build/src/libbson/libbson-static-1.0.a \
-  -ledit -lresolv
-% sudo make install
-```
-
-
-### Build requirements
-
-* C compiler (with C17 support)
-* GNU make
-* [libedit]
-* [mongo-c-driver] (which needs cmake)
-
-
-### Run-time requirements
-
-* [libedit]
-* [mongo-c-driver]
-
-
-## Documentation
-
-For documentation please refer to the [manpage].
-
 
 ## Usage examples
 
@@ -166,11 +87,108 @@ If the file `~/.mongovi` exists, the first line is read and expected to be a
 valid mongodb [connection string], possibly containing a username and password.
 
 
+## Installation
+
+### Build requirements
+
+* C compiler (with C17 support)
+* make
+* [libedit]
+* [mongo-c-driver]
+
+
+### Run-time requirements
+
+* [libedit]
+* [mongo-c-driver]
+
+
+### Pre-compiled .deb package for Debian and Ubuntu
+
+Using the binary package is the easiest way to get started on a Debian based
+system. On either Debian Stretch or Ubuntu 16.04 the following should be
+issued:
+
+```sh
+$ wget https://netsend.nl/mongovi/mongovi_1.0.0~rc5-2_amd64.deb
+$ sha256sum mongovi_1.0.0~rc5-2_amd64.deb    # only proceed if this checksum matches
+9a1639684d3337b72baaf8f2ce96caa36faeb150e2dfb6a5cc74be7452d7ccdf  mongovi_1.0.0~rc5-2_amd64.deb
+$ sudo apt-get install -y libmongoc-1.0-0
+$ sudo dpkg -i mongovi_1.0.0~rc5-2_amd64.deb
+```
+
+### Compile latest version on Debian/Ubuntu
+
+*(tested on Ubuntu 22.04)*
+
+
+First install gcc, make, libedit-dev and libmongoc-dev.
+
+```sh
+% sudo apt install make gcc libmongoc-dev libedit-dev
+```
+
+Then clone, compile and install mongovi:
+
+```sh
+$ git clone https://github.com/timkuijsten/mongovi.git
+$ cd mongovi
+$ make
+$ sudo make install
+```
+
+
+### Compile on macOS
+
+*(tested on macOS 10.15)*
+
+Download, verify and compile the [mongo-c-driver] version 1.14.1 (which needs
+cmake).
+
+```sh
+% cd ~
+% curl -sLO https://github.com/mongodb/mongo-c-driver/releases/download/1.14.1/mongo-c-driver-1.14.1.tar.gz
+% shasum -a 256 mongo-c-driver-1.14.1.tar.gz
+84fca347a6818e5ed6db50e06eb6d33538346b49bf0ba7475d7dbcecacac2ec6  mongo-c-driver-1.14.1.tar.gz
+% tar zxf mongo-c-driver-1.14.1.tar.gz
+% export _mongoc=~/mongo-c-driver-1.14.1
+% cd "$_mongoc"/build
+% cmake -DENABLE_SSL=OFF -DENABLE_SASL=OFF -DENABLE_ZLIB=OFF ..
+% make
+```
+
+Then clone, compile and install mongovi:
+
+```sh
+% cd ~
+% git clone https://github.com/timkuijsten/mongovi.git
+% cd mongovi
+% cc \
+  -I "$_mongoc"/src/libmongoc/src \
+  -I "$_mongoc"/src/libmongoc/src/mongoc \
+  -I "$_mongoc"/src/libbson/src \
+  -I "$_mongoc"/src/libbson/src/bson \
+  -I "$_mongoc"/build/src/libbson/src \
+  -I "$_mongoc"/build/src/libmongoc/src \
+  -o mongovi mongovi.c jsonify.c main.c  prefix_match.c shorten.c jsmn.c \
+  compat/reallocarray.c \
+  "$_mongoc"/build/src/libmongoc/libmongoc-static-1.0.a \
+  "$_mongoc"/build/src/libbson/libbson-static-1.0.a \
+  -ledit -lresolv
+% sudo make install
+```
+
+
 ## Tests
 
 ```sh
-$ make test
+$ make runtests
 ```
+
+
+## Documentation
+
+For documentation please refer to the [manpage].
 
 
 ## History
