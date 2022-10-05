@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (c) 2016, 2022 Tim Kuijsten
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -95,20 +95,12 @@ static config_t config;
 static char pmpt[8 * MAXPROMPTCOLUMNS + 8] = "/> ";
 
 static mongoc_client_t *client;
-static mongoc_collection_t *ccoll = NULL;	/* current collection */
+static mongoc_collection_t *ccoll;	/* current collection */
 
 /* print human readable or not */
 int hr = 0;
 
-/*
- * import mode, treat each input line as one MongoDB Extended JSON document and
- * force insert command.
- */
 int import = 0;
-
-#define NCMDS (sizeof cmds / sizeof cmds[0])
-#define MAXCMDNAM (sizeof cmds)	/* broadly define maximum length of a command
-				   name */
 
 const char *cmds[] = {
 	"aggregate",		/* AGQUERY */
@@ -126,7 +118,9 @@ const char *cmds[] = {
 };
 
 /*
- * list database for the given client return 0 on success, -1 on failure
+ * List database for the given client.
+ *
+ * Return 0 on success, -1 on failure.
  */
 int
 exec_lsdbs(mongoc_client_t * client, const char *prefix)
@@ -160,7 +154,9 @@ exec_lsdbs(mongoc_client_t * client, const char *prefix)
 }
 
 /*
- * list collections for the given database return 0 on success, -1 on failure
+ * List collections for the given database.
+ *
+ * Return 0 on success, -1 on failure.
  */
 int
 exec_lscolls(mongoc_client_t *client, char *dbname)
@@ -272,7 +268,7 @@ complete_word(EditLine *e, const char *word, size_t wordlen, const char **opts,
  * the common prefix is completed. If exactly one component matches it is
  * completed.
  *
- * Return 0 on success or -1 on failure
+ * Return 0 on success or -1 on failure.
  */
 int
 complete_path(EditLine *e, const char *npath, size_t npathlen)
@@ -354,7 +350,7 @@ complete_path(EditLine *e, const char *npath, size_t npathlen)
 }
 
 /*
- * tab complete command line
+ * Tab complete commands and path arguments.
  *
  * if empty, print all commands
  * if matches more than one command, print all with matching prefix
@@ -366,23 +362,20 @@ complete(EditLine *e, __attribute__((unused)) int ch)
 {
 	Tokenizer *t;
 	const char **av;
-	int i, ret, ac, cc, co;
+	int i, rc, ac, cc, co;
 
-	/* default exit code to error */
-	ret = CC_ERROR;
+	rc = CC_ERROR;
 
-	/* tokenize */
 	t = tok_init(NULL);
 	if (tok_line(t, el_line(e), &ac, &av, &cc, &co) != 0)
-		return ret;
+		return rc;
 
-	/* empty, print all commands */
 	if (ac == 0) {
 		i = 0;
 		printf("\n");
 		while (cmds[i] != NULL)
 			printf("%s\n", cmds[i++]);
-		ret = CC_REDISPLAY;
+		rc = CC_REDISPLAY;
 		goto cleanup;
 	}
 
@@ -397,7 +390,7 @@ complete(EditLine *e, __attribute__((unused)) int ch)
 		if (i == 1)
 			el_insertstr(e, " ");
 
-		ret = CC_REDISPLAY;
+		rc = CC_REDISPLAY;
 	} else if (cc == 1) {
 		if (strcmp(av[0], "cd") == 0 || strcmp(av[0], "ls") == 0 ||
 		    strcmp(av[0], "drop") == 0) {
@@ -406,16 +399,16 @@ complete(EditLine *e, __attribute__((unused)) int ch)
 				goto cleanup;
 			}
 		}
-		ret = CC_REDISPLAY;
+		rc = CC_REDISPLAY;
 	} else {
 		/* ignore subsequent words */
-		ret = CC_NORM;
+		rc = CC_NORM;
 	}
 
 cleanup:
 	tok_end(t);
 
-	return ret;
+	return rc;
 }
 
 /*
@@ -438,22 +431,28 @@ nexttok(const char **line)
  * sel     - selector, must be NUL terminated
  * sellen  - length of sel, excluding the terminating NUL character
  *
- * Return 0 on success or -1 on error.
+ * Return 0 on success, -1 on failure.
  */
 int
-idtosel(char *dst, const size_t dstsize, const char *sel, const size_t sellen)
+idtosel(char *dst, size_t dstsize, const char *sel, size_t sellen)
 {
 	const size_t oidlen = 24;
+	size_t n;
 
 	if (dstsize < 1 || sellen < 1)
 		return -1;
 
 	/* if 24 hex chars, assume an object id otherwise treat as a literal */
-	if (sellen == oidlen && (strspn(sel, "0123456789abcdefABCDEF") == oidlen)) {
-		if ((size_t)snprintf(dst, dstsize, "{ \"_id\": { \"$oid\": \"%.*s\" } }", (int)oidlen, sel) >= dstsize)
+	if (sellen == oidlen && (strspn(sel, "0123456789abcdefABCDEF") ==
+	    oidlen)) {
+		n = snprintf(dst, dstsize,
+		    "{ \"_id\": { \"$oid\": \"%.*s\" } }", (int)oidlen, sel);
+		if (n >= dstsize)
 			return -1;
 	} else {
-		if ((size_t)snprintf(dst, dstsize, "{ \"_id\": \"%.*s\" }", (int)sellen, sel) >= dstsize)
+		n = snprintf(dst, dstsize, "{ \"_id\": \"%.*s\" }", (int)sellen,
+		    sel);
+		if (n >= dstsize)
 			return -1;
 	}
 
@@ -465,14 +464,14 @@ idtosel(char *dst, const size_t dstsize, const char *sel, const size_t sellen)
  * literal id. A strictly conforming JSON object is written in "doc" on
  * success.
  *
- * "line" must be null terminated and "len" must exclude the terminating null
- * byte.
+ * "line" must be null terminated and "linelen" must exclude the terminating
+ * null byte.
  *
  * Return the number of bytes parsed on success or -1 on failure.
  * On success, if docsize > 0, a null byte is always written to doc.
  */
 int
-parse_selector(uint8_t *doc, const size_t docsize, const char *line, int len)
+parse_selector(uint8_t *doc, size_t docsize, const char *line, size_t linelen)
 {
 	const char *id;
 	size_t n, idlen;
@@ -485,7 +484,8 @@ parse_selector(uint8_t *doc, const size_t docsize, const char *line, int len)
          */
 	n = strspn(line, " \t");
 	if (line[n] == '{') {
-		offset = relaxed_to_strict((char *)doc, docsize, line, len, 1);
+		offset = relaxed_to_strict((char *)doc, docsize, line, linelen,
+		    1);
 		if (offset == -1) {
 			warnx("could not parse selector as a JSON object");
 			return -1;
@@ -532,10 +532,12 @@ parse_selector(uint8_t *doc, const size_t docsize, const char *line, int len)
 }
 
 /*
- * execute a query return 0 on success, -1 on failure
+ * Execute a query.
+ *
+ * Return 0 on success, -1 on failure.
  */
 int
-exec_query(mongoc_collection_t * collection, const char *line, int len,
+exec_query(mongoc_collection_t * collection, const char *line, size_t linelen,
    int idsonly)
 {
 	mongoc_cursor_t *cursor;
@@ -549,7 +551,7 @@ exec_query(mongoc_collection_t * collection, const char *line, int len,
 	if (sizeof(tmpdocs) < 3)
 		abort();
 
-	if (parse_selector(tmpdocs, sizeof(tmpdocs), line, len) == -1)
+	if (parse_selector(tmpdocs, sizeof(tmpdocs), line, linelen) == -1)
 		return -1;
 
 	/* default to all documents */
@@ -568,7 +570,8 @@ exec_query(mongoc_collection_t * collection, const char *line, int len,
 		if ((fields = bson_new_from_json(
 		    (uint8_t *)"{ \"projection\": { \"_id\": true } }", -1,
 		    &error)) == NULL) {
-			warnx("%d.%d %s", error.domain, error.code, error.message);
+			warnx("%d.%d %s", error.domain, error.code,
+			    error.message);
 			bson_destroy(query);
 			return -1;
 		}
@@ -620,7 +623,7 @@ exec_query(mongoc_collection_t * collection, const char *line, int len,
 int
 exec_ls(const char *npath)
 {
-	int ret;
+	int rc;
 	path_t tmppath;
 	char p[PATH_MAX];
 	mongoc_collection_t *ccoll;
@@ -642,17 +645,18 @@ exec_ls(const char *npath)
 		abort();
 	}
 
-	if (strlen(tmppath.collname)) {	/* print all document ids */
-		ccoll =
-		    mongoc_client_get_collection(client, tmppath.dbname,
-						 tmppath.collname);
-		ret = exec_query(ccoll, "{}", 2, 1);
+	if (strlen(tmppath.collname) > 0) {
+		/* print all document ids */
+		ccoll = mongoc_client_get_collection(client, tmppath.dbname,
+		    tmppath.collname);
+		rc = exec_query(ccoll, "{}", 2, 1);
 		mongoc_collection_destroy(ccoll);
-		return ret;
-	} else if (strlen(tmppath.dbname))
+		return rc;
+	} else if (strlen(tmppath.dbname) > 0) {
 		return exec_lscolls(client, tmppath.dbname);
-	else
-		return exec_lsdbs(client, NULL);
+	}
+
+	return exec_lsdbs(client, NULL);
 }
 
 int
@@ -681,23 +685,22 @@ exec_drop(const char *npath)
 		abort();
 	}
 
-	if (strlen(tmppath.collname)) {	/* drop collection */
-		coll =
-		    mongoc_client_get_collection(client, tmppath.dbname,
-						 tmppath.collname);
+	if (strlen(tmppath.collname) > 0) {	/* drop collection */
+		coll = mongoc_client_get_collection(client, tmppath.dbname,
+		    tmppath.collname);
 		if (!mongoc_collection_drop(coll, &error)) {
-			warnx("cursor failed: %d.%d %s", error.domain, error.code,
-			      error.message);
+			warnx("cursor failed: %d.%d %s", error.domain,
+			    error.code, error.message);
 			mongoc_collection_destroy(coll);
 			return -1;
 		}
 		mongoc_collection_destroy(coll);
 		printf("dropped /%s/%s\n", tmppath.dbname, tmppath.collname);
-	} else if (strlen(tmppath.dbname)) {
+	} else if (strlen(tmppath.dbname) > 0) {
 		db = mongoc_client_get_database(client, tmppath.dbname);
 		if (!mongoc_database_drop(db, &error)) {
-			warnx("cursor failed: %d.%d %s", error.domain, error.code,
-			      error.message);
+			warnx("cursor failed: %d.%d %s", error.domain,
+			    error.code, error.message);
 			mongoc_database_destroy(db);
 			return -1;
 		}
@@ -733,7 +736,7 @@ int
 set_prompt(const char *dbname, const char *collname)
 {
 	char c1[sizeof(pmpt)], c2[sizeof(pmpt)];
-	size_t fixedcolumns;
+	size_t n;
 
 	if (dbname == NULL && collname == NULL) {
 		if ((size_t)snprintf(pmpt, sizeof(pmpt), "/> ") >= sizeof(pmpt))
@@ -749,25 +752,27 @@ set_prompt(const char *dbname, const char *collname)
 	c2[0] = '\0';
 
 	/* default to db only prompt */
-	fixedcolumns = strlen("/> ");
+	n = strlen("/> ");
 	if (strlcpy(c1, dbname, sizeof(c1)) >= sizeof(c1))
 		return -1;
 
 	if (collname != NULL) {
 		/* make dbname + collname prompt */
-		fixedcolumns = strlen("//> ");
+		n = strlen("//> ");
 		if (strlcpy(c2, collname, sizeof(c2)) >= sizeof(c2))
 			return -1;
 	}
 
-	if (shorten_comps(c1, c2, MAXPROMPTCOLUMNS - fixedcolumns) == (size_t)-1)
+	if (shorten_comps(c1, c2, MAXPROMPTCOLUMNS - n) == (size_t)-1)
 		return -1;
 
 	if (collname == NULL) {
-		if ((size_t)snprintf(pmpt, sizeof(pmpt), "/%s> ", c1) >= sizeof(pmpt))
+		n = snprintf(pmpt, sizeof(pmpt), "/%s> ", c1);
+		if (n >= sizeof(pmpt))
 			return -1;
 	} else {
-		if ((size_t)snprintf(pmpt, sizeof(pmpt), "/%s/%s> ", c1, c2) >= sizeof(pmpt))
+		n = snprintf(pmpt, sizeof(pmpt), "/%s/%s> ", c1, c2);
+		if (n >= sizeof(pmpt))
 			return -1;
 	}
 
@@ -775,8 +780,9 @@ set_prompt(const char *dbname, const char *collname)
 }
 
 /*
- * change dbname and/or collname, set ccoll and update prompt.
- * return 0 on success, -1 on failure
+ * Change dbname and/or collname, set ccoll and update prompt.
+ *
+ * Return 0 on success, -1 on failure.
  */
 int
 exec_chcoll(mongoc_client_t * client, const path_t newpath)
@@ -787,10 +793,9 @@ exec_chcoll(mongoc_client_t * client, const path_t newpath)
 		ccoll = NULL;
 	}
 	/* if there is a new collection, change to it */
-	if (strlen(newpath.dbname) && strlen(newpath.dbname))
-		ccoll =
-		    mongoc_client_get_collection(client, newpath.dbname,
-						 newpath.collname);
+	if (strlen(newpath.dbname) > 0 && strlen(newpath.dbname) > 0)
+		ccoll = mongoc_client_get_collection(client, newpath.dbname,
+		    newpath.collname);
 
 	/* update prompt to show whatever we've changed to */
 	if (set_prompt(newpath.dbname, newpath.collname) == -1)
@@ -812,10 +817,12 @@ exec_chcoll(mongoc_client_t * client, const path_t newpath)
 }
 
 /*
- * count number of documents in collection return 0 on success, -1 on failure
+ * Count number of documents in collection.
+ *
+ * Return 0 on success, -1 on failure.
  */
 int
-exec_count(mongoc_collection_t * collection, const char *line, int len)
+exec_count(mongoc_collection_t * collection, const char *line, size_t linelen)
 {
 	bson_error_t error;
 	bson_t *query;
@@ -824,7 +831,7 @@ exec_count(mongoc_collection_t * collection, const char *line, int len)
 	if (sizeof(tmpdocs) < 3)
 		abort();
 
-	if (parse_selector(tmpdocs, sizeof(tmpdocs), line, len) == -1)
+	if (parse_selector(tmpdocs, sizeof(tmpdocs), line, linelen) == -1)
 		return -1;
 
 	/* default to all documents */
@@ -846,7 +853,7 @@ exec_count(mongoc_collection_t * collection, const char *line, int len)
 
 	if (count == -1) {
 		warnx("cursor failed: %d.%d %s", error.domain, error.code,
-		      error.message);
+		    error.message);
 		return -1;
 	}
 
@@ -860,7 +867,8 @@ exec_count(mongoc_collection_t * collection, const char *line, int len)
  * doc.
  */
 int
-exec_update(mongoc_collection_t * collection, const char *line, int upsert)
+exec_update(mongoc_collection_t * collection, const char *line, size_t linelen,
+    int upsert)
 {
 	uint8_t update_docs[MAXDOC];
 	uint8_t *update_doc = update_docs;
@@ -873,17 +881,20 @@ exec_update(mongoc_collection_t * collection, const char *line, int upsert)
 		opts |= MONGOC_UPDATE_UPSERT;
 
 	/* expect two json objects */
-	offset = parse_selector(tmpdocs, sizeof(tmpdocs), line, strlen(line));
+	offset = parse_selector(tmpdocs, sizeof(tmpdocs), line, linelen);
 	if (offset <= 0)
 		return -1;
 
 	line += offset;
+	linelen -= offset;
 
-	offset = relaxed_to_strict((char *)update_doc, MAXDOC, line, strlen(line), 1);
+	offset = relaxed_to_strict((char *)update_doc, MAXDOC, line, linelen,
+	    1);
 	if (offset <= 0)
 		return -1;
 
 	line += offset;
+	linelen -= offset;
 
 	if ((query = bson_new_from_json(tmpdocs, -1, &error)) == NULL) {
 		warnx("%d.%d %s", error.domain, error.code, error.message);
@@ -910,7 +921,8 @@ exec_update(mongoc_collection_t * collection, const char *line, int upsert)
 				goto cleanuperr;
 			}
 		} else {
-			warnx("%d.%d %s", error.domain, error.code, error.message);
+			warnx("%d.%d %s", error.domain, error.code,
+			    error.message);
 			goto cleanuperr;
 		}
 	}
@@ -929,13 +941,13 @@ cleanuperr:
 
 /* parse insert command, expect one json object, the insert doc and exec */
 int
-exec_insert(mongoc_collection_t * collection, const char *line, int len)
+exec_insert(mongoc_collection_t * collection, const char *line, size_t linelen)
 {
 	bson_error_t error;
 	bson_t *doc;
 	int offset;
 
-	offset = parse_selector(tmpdocs, sizeof(tmpdocs), line, len);
+	offset = parse_selector(tmpdocs, sizeof(tmpdocs), line, linelen);
 	if (offset <= 0)
 		return -1;
 
@@ -959,13 +971,13 @@ exec_insert(mongoc_collection_t * collection, const char *line, int len)
 
 /* parse remove command, expect one selector */
 int
-exec_remove(mongoc_collection_t * collection, const char *line, int len)
+exec_remove(mongoc_collection_t * collection, const char *line, size_t linelen)
 {
 	int offset;
 	bson_error_t error;
 	bson_t *doc;
 
-	offset = parse_selector(tmpdocs, sizeof(tmpdocs), line, len);
+	offset = parse_selector(tmpdocs, sizeof(tmpdocs), line, linelen);
 	if (offset <= 0)
 		return -1;
 
@@ -987,10 +999,12 @@ exec_remove(mongoc_collection_t * collection, const char *line, int len)
 }
 
 /*
- * execute an aggregation pipeline return 0 on success, -1 on failure
+ * Execute an aggregation pipeline.
+ *
+ * Return 0 on success, -1 on failure.
  */
 int
-exec_agquery(mongoc_collection_t * collection, const char *line, int len)
+exec_agquery(mongoc_collection_t * collection, const char *line, size_t linelen)
 {
 	bson_error_t error;
 	bson_t *aggr_query;
@@ -1001,8 +1015,8 @@ exec_agquery(mongoc_collection_t * collection, const char *line, int len)
 	if (sizeof(tmpdocs) < 3)
 		abort();
 
-	if (relaxed_to_strict((char *)tmpdocs, sizeof(tmpdocs), line, len, 0)
-	    == -1) {
+	if (relaxed_to_strict((char *)tmpdocs, sizeof(tmpdocs), line, linelen,
+	    0) == -1) {
 		warnx("could not parse aggregation query document");
 		return -1;
 	}
@@ -1036,7 +1050,7 @@ exec_agquery(mongoc_collection_t * collection, const char *line, int len)
 
 	if (mongoc_cursor_error(cursor, &error)) {
 		warnx("cursor failed: %d.%d %s", error.domain, error.code,
-		      error.message);
+		    error.message);
 		mongoc_cursor_destroy(cursor);
 		return -1;
 	}
@@ -1101,7 +1115,8 @@ exec_cmd(const char *cmd, const char *allcmds[], const char *line, size_t linele
 				abort();
 			}
 
-			if (resolvepath(p, sizeof(p), arg, NULL) == (size_t)-1) {
+			if (resolvepath(p, sizeof(p), arg, NULL) == (size_t)-1)
+			    {
 				warnx("resolvepath error: %s", line);
 				free(arg);
 				return -1;
@@ -1159,9 +1174,9 @@ exec_cmd(const char *cmd, const char *allcmds[], const char *line, size_t linele
 	if (strcmp("count", cmd) == 0) {
 		return exec_count(ccoll, line, linelen);
 	} else if (strcmp("update", cmd) == 0) {
-		return exec_update(ccoll, line, 0);
+		return exec_update(ccoll, line, linelen, 0);
 	} else if (strcmp("upsert", cmd) == 0) {
-		return exec_update(ccoll, line, 1);
+		return exec_update(ccoll, line, linelen, 1);
 	} else if (strcmp("insert", cmd) == 0) {
 		return exec_insert(ccoll, line, linelen);
 	} else if (strcmp("remove", cmd) == 0) {
@@ -1177,13 +1192,15 @@ exec_cmd(const char *cmd, const char *allcmds[], const char *line, size_t linele
 }
 
 char *
-prompt()
+prompt(void)
 {
 	return pmpt;
 }
 
 /*
- * set username and home dir return 0 on success or -1 on failure.
+ * Set username and home dir.
+ *
+ * Return 0 on success, -1 on failure.
  */
 int
 init_user(user_t * usr)
@@ -1192,8 +1209,10 @@ init_user(user_t * usr)
 
 	if ((pw = getpwuid(getuid())) == NULL)
 		return -1;	/* user not found */
+
 	if (strlcpy(usr->name, pw->pw_name, MAXUSERNAME) >= MAXUSERNAME)
 		return -1;	/* username truncated */
+
 	if (strlcpy(usr->home, pw->pw_dir, PATH_MAX) >= PATH_MAX)
 		return -1;	/* home dir truncated */
 
@@ -1201,8 +1220,9 @@ init_user(user_t * usr)
 }
 
 /*
- * read the credentials from a users config file return 0 on success or -1 on
- * failure.
+ * Read the credentials from a users config file.
+ *
+ * Return 0 on success, -1 on failure.
  */
 int
 mv_parse_file(FILE * fp, config_t * cfg)
@@ -1213,6 +1233,7 @@ mv_parse_file(FILE * fp, config_t * cfg)
 	if (fgets(line, sizeof(line), fp) == NULL) {
 		if (ferror(fp))
 			err(1, "mv_parse_file");
+
 		return 0;	/* empty line */
 	}
 	/* trim newline if any */
@@ -1225,7 +1246,8 @@ mv_parse_file(FILE * fp, config_t * cfg)
 }
 
 /*
- * Handle special import mode, expect one extended json object per line.
+ * Handle special import mode, treat each input line as one MongoDB Extended
+ * JSON document and force insert command.
  *
  * Returns the number of inserted objects on success, or -1 on error with errno
  * set.
@@ -1325,21 +1347,24 @@ read_config(user_t * usr, config_t * cfg)
 
 		return -1;
 	}
+
 	if (fstat(fileno(fp), &st) < 0)
 		err(1, "read_config");
 
 	if (st.st_mode & (S_IROTH | S_IWOTH)) {
 		fprintf(stderr,
-			"ignoring %s, because it is readable and/or writable by others\n",
-			tmppath);
+		    "ignoring %s, because it is readable and/or writable by others\n",
+		    tmppath);
 		fclose(fp);
 		return 0;
 	}
+
 	if (mv_parse_file(fp, cfg) < 0) {
 		fclose(fp);
 		return -1;
 	}
 	fclose(fp);
+
 	return 1;
 }
 
