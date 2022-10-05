@@ -20,8 +20,11 @@
 .Nd command line interface for MongoDB
 .Sh SYNOPSIS
 .Nm
-.Op Fl psi
+.Op Fl ps
 .Op Ar path
+.Nm
+.Fl i
+.Ar path
 .Sh DESCRIPTION
 .Nm
 is a cli for MongoDB that uses
@@ -31,15 +34,21 @@ for line editing and key bindings.
 .It Fl p
 Print output in a human readable format.
 This is the default when stdout is connected to a terminal.
+Mutually exclusive with
+.Fl s .
 .It Fl s
 Print each JSON document on a single line in canonical MongoDB Extended JSON
 format.
 This is the default when stdout is not connected to a terminal.
+Mutually exclusive with
+.Fl p .
 .It Fl i
 Import mode.
-Read exactly one document per line in MongoDB Extended JSON format and insert it
-into the database.
-The line must contain only the document object and not any commands.
+Read MongoDB Extended JSON documents from stdin and insert them into the
+database.
+Each line must contain one document and not any
+.Nm
+commands.
 .It Ar path
 Open a specific database and collection.
 A
@@ -53,19 +62,15 @@ The default key bindings are Emacs-like.
 .Xr vi 1 Ns -like
 key bindings can be enabled by putting
 .Qq bind -v
-into your
+into the
 .Xr editrc 5
 file.
 .Pp
 By default
 .Nm
-will connect to mongodb://localhost:27017.
-It is possible to override this connection string using a file called
-.Qq .mongovi
-in your home directory.
-This file, if it exists, should contain exactly one line, which is a mongodb
-connection string.
-This string might contain a username and password.
+will connect to mongodb://localhost:27017 unless it is overridden with a
+connection string in
+.Pa ~/.mongovi .
 .Sh BUILTIN COMMANDS
 The following commands are supported:
 .Bl -tag -width Ds
@@ -142,6 +147,10 @@ since no other command starts with an f.
 If selector is not a JSON document it is treated as a shortcut to search on _id
 of type string.
 Hexadecimal strings of 24 characters are treated as object ids.
+.Sh FILES
+.Pa ~/.mongovi
+If it exists the first line is read and used as a MongoDB connection string.
+This string can contain a username and password.
 .Sh EXIT STATUS
 .Ex -std
 .Sh EXAMPLES
@@ -198,6 +207,9 @@ $ echo f | mongovi /foo/bar | mongovi -i /qux/baz
 .Sh SEE ALSO
 .Xr editrc 5 ,
 .Xr editline 7
+.Pp
+.Lk https://www.mongodb.com/docs/manual/reference/connection-string/ "Connection String URI Format" ,
+.Lk https://www.mongodb.com/docs/manual/reference/mongodb-extended-json/ "MongoDB Extended JSON (v2)"
 .Sh AUTHORS
 .An -nosplit
 .An Tim Kuijsten
