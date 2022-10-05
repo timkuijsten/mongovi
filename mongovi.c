@@ -487,7 +487,8 @@ parse_selector(uint8_t *doc, size_t docsize, const char *line, size_t linelen)
 		offset = relaxed_to_strict((char *)doc, docsize, line, linelen,
 		    1);
 		if (offset == -1) {
-			warnx("could not parse selector as a JSON object");
+			warnx("could not parse line as JSON object(s): %.*s",
+			    (int)linelen, line);
 			return -1;
 		}
 
@@ -501,7 +502,8 @@ parse_selector(uint8_t *doc, size_t docsize, const char *line, size_t linelen)
 		idlen = strcspn(id, "\"");
 
 		if (idlen == 0) {
-			warnx("could not parse selector as double quoted id");
+			warnx("could not parse selector as double quoted id: "
+			    "\"%.*s\"", (int)linelen, line);
 			return -1;
 		}
 	} else if (id[0] == '\'') {
@@ -509,7 +511,8 @@ parse_selector(uint8_t *doc, size_t docsize, const char *line, size_t linelen)
 		idlen = strcspn(id, "'");
 
 		if (idlen == 0) {
-			warnx("could not parse selector as single quoted id");
+			warnx("could not parse selector as single quoted id: "
+			    "\"%.*s\"", (int)linelen, line);
 			return -1;
 		}
 	} else {
@@ -524,7 +527,8 @@ parse_selector(uint8_t *doc, size_t docsize, const char *line, size_t linelen)
 	}
 
 	if (idtosel((char *)doc, docsize, id, idlen) == -1) {
-		warnx("could not parse selector as an id");
+		warnx("could not parse selector as an id: \"%.*s\"", (int)idlen,
+		    id);
 		return -1;
 	}
 
@@ -1017,7 +1021,8 @@ exec_agquery(mongoc_collection_t * collection, const char *line, size_t linelen)
 
 	if (relaxed_to_strict((char *)tmpdocs, sizeof(tmpdocs), line, linelen,
 	    0) == -1) {
-		warnx("could not parse aggregation query document");
+		warnx("could not parse line as JSON object(s): %.*s",
+		    (int)linelen, line);
 		return -1;
 	}
 
