@@ -98,7 +98,8 @@ static mongoc_client_t *client;
 static mongoc_collection_t *ccoll;	/* current collection */
 
 /* print human readable or not */
-int hr = 0;
+int hr;
+int ttyin, ttyout;
 
 int import = 0;
 
@@ -588,7 +589,13 @@ exec_query(mongoc_collection_t * collection, const char *line, size_t linelen,
 	if (idsonly)
 		bson_destroy(fields);
 
-	ioctl(0, TIOCGWINSZ, &w);
+	w.ws_row = 0;
+	w.ws_col = 0;
+	if (hr && ttyout) {
+		if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &w) == -1)
+			warn("could not determine window size: %d %d", w.ws_row,
+			    w.ws_col);
+	}
 
 	while (mongoc_cursor_next(cursor, &doc)) {
 		if (hr) {
@@ -1413,8 +1420,14 @@ main(int argc, char **argv)
 	if (strlcpy(progname, basename(argv[0]), MAXPROG) >= MAXPROG)
 		errx(1, "program name too long: %s", argv[0]);
 
-	/* default ttys to human readable output */
+	if (isatty(STDIN_FILENO))
+		ttyin = 1;
+
 	if (isatty(STDOUT_FILENO))
+		ttyout = 1;
+
+	/* default ttys to human readable output */
+	if (ttyout)
 		hr = 1;
 
 	while ((c = getopt(argc, argv, "Vhips")) != -1) {
@@ -1596,7 +1609,7 @@ main(int argc, char **argv)
 	history_end(h);
 	el_end(e);
 
-	if (isatty(STDIN_FILENO))
+	if (ttyin)
 		printf("\n");
 
 	return 0;
