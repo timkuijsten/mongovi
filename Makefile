@@ -58,5 +58,9 @@ install:
 	${INSTALL_BIN} mongovi ${DESTDIR}${BINDIR}
 	${INSTALL_MAN} mongovi.1 ${DESTDIR}${MANDIR}/man1
 
+manhtml:
+	mandoc -T html -Ostyle=man.css mongovi.1 > mongovi.1.html
+
 clean:
-	rm -f *.o mongovi testshorten testprefixmatch testparsepath testjsonify
+	rm -f *.o *.html mongovi testshorten testprefixmatch testparsepath \
+	    testjsonify
