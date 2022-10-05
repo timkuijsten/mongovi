@@ -1525,10 +1525,6 @@ main(int argc, char **argv)
 	el_set(e, EL_BIND, "\t", "complete", NULL);
 
 	while ((line = el_wgets(e, &read)) != NULL) {
-		if (read == 0)
-			goto done;	/* happens on Ubuntu 12.04 without
-					   tty */
-
 		linecpy[0] = '\0';
 		n = wcstombs(linecpy, line, sizeof(linecpy));
 		if (n == (size_t)-1 || n == sizeof(linecpy)) {
@@ -1584,7 +1580,6 @@ main(int argc, char **argv)
 			warnx("execution failed");
 	}
 
-done:
 	if (read == -1)
 		err(1, NULL);
 
