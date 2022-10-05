@@ -1,5 +1,6 @@
 #include "../prefix_match.c"
 
+#include <locale.h>
 #include <err.h>
 #include <stdio.h>
 #include <string.h>
@@ -90,6 +91,8 @@ main()
 		NULL
 	};
 
+	setlocale(LC_CTYPE, "");
+
 	printf("test prefix_match:\n");
 
 	const char *exp1[] = {NULL};
@@ -152,6 +155,16 @@ main()
 	};
 
 	failed += test_common_prefix(src4, "", 0);
+
+	/* test UTF-8 */
+	const char *src5[] = {
+		"x\xef\xbc\x84", /* ＄ */
+		"x\xef\xbc\x85", /* ％ */
+		"x\xef\xbc\x86", /* ＆ */
+		NULL
+	};
+
+	failed += test_common_prefix(src5, "x", 1);
 
 	return failed;
 }

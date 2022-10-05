@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2016 Tim Kuijsten
+ * Copyright (c) 2016, 2022 Tim Kuijsten
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -73,23 +73,31 @@ prefix_match(const char ***matches, const char **src, const char *prefix)
 int
 common_prefix(const char **av)
 {
-	int i, j;
-	char c;
+	int i, j, k, n;
 
 	if (av == NULL || av[0] == NULL)
 		return 0;
 
-	c = av[0][0];
-	i = 0;
+	mblen(NULL, MB_CUR_MAX);
+	n = mblen(&av[0][0], MB_CUR_MAX);
+	if (n == -1)
+		return -1;
+
 	j = 0;
-	while (c != '\0') {
-		for (i = 0; av[i] != NULL; i++) {
-			if (av[i][j] != c)
-				return j; /* j is a count, not an index */
+	while (n != 0) {
+		/* compare each av with av[0] */
+		for (i = 1; av[i] != NULL; i++) {
+			for (k = j; k < j + n; k++) {
+				if (av[i][k] != av[0][k])
+					return j; /* j is a count, not an index */
+			}
 		}
 
-		j++;
-		c = av[0][j];
+		j += n;
+
+		n = mblen(&av[0][j], MB_CUR_MAX);
+		if (n == -1)
+			return -1;
 	}
 
 	return j;
