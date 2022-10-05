@@ -18,9 +18,9 @@
 #define _XOPEN_SOURCE 700
 #endif
 
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <histedit.h>
 
 #include "parse_path.h"
 

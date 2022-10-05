@@ -20,6 +20,8 @@
 #define MAXDBNAME 200
 #define MAXCOLLNAME 200
 
+#include <stddef.h>
+
 typedef struct {
 	char dbname[MAXDBNAME];
 	char collname[MAXCOLLNAME];
