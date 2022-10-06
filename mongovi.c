@@ -93,18 +93,18 @@ int ttyin, ttyout;
 int import = 0;
 
 const char *cmds[] = {
-	"aggregate",		/* AGQUERY */
-	"cd",			/* CHCOLL,  change database and/or collection */
-	"count",		/* COUNT */
-	"drop",			/* DROP */
-	"find",			/* FIND */
-	"help",			/* print usage */
-	"insert",		/* INSERT */
-	"ls",			/* LS */
-	"remove",		/* REMOVE */
-	"update",		/* UPDATE */
-	"upsert",		/* UPSERT */
-	NULL			/* nul terminate this list */
+	"aggregate",
+	"cd",
+	"count",
+	"drop",
+	"find",
+	"help",
+	"insert",
+	"ls",
+	"remove",
+	"update",
+	"upsert",
+	NULL
 };
 
 /*
