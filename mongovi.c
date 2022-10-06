@@ -48,7 +48,10 @@
 #define MAXLINE 16 * 100 * 1024
 #define MAXUSERNAME 100
 
+#define DFLMONGOURL "mongodb://localhost:27017"
 #define MAXMONGOURL 200
+
+#define DOTFILE ".mongovi"
 
 #define MAXPROG 10
 #define MAXDOC 16 * 100 * 1024	/* maximum size of a json document */
@@ -66,26 +69,12 @@
 				   NOTE: some UTF-8 characters consume 0 or 2
 				   columns. */
 
-/* shell specific user info */
-typedef struct {
-	char name[MAXUSERNAME];
-	char home[PATH_MAX];
-} user_t;
-
-/* mongo specific db info */
-typedef struct {
-	char url[MAXMONGOURL];
-} config_t;
-
 static char progname[MAXPROG];
 
 static path_t path, prevpath;
 
 /* use as temporary one-time storage while building a query or query results */
 static uint8_t tmpdocs[16 * 1024 * 1024];
-
-static user_t user;
-static config_t config;
 
 /*
  * Make sure the prompt can hold MAXPROMPTCOLUMNS + a trailing null. Since
@@ -1210,49 +1199,62 @@ prompt(void)
 }
 
 /*
- * Set username and home dir.
+ * Load the first line from ~/mongovi into "line".
  *
  * Return 0 on success, -1 on failure.
  */
 int
-init_user(user_t * usr)
+loaddotfile(char *line, size_t linelen)
 {
+	struct stat st;
 	struct passwd *pw;
+	FILE *fp;
+	size_t n;
 
-	if ((pw = getpwuid(getuid())) == NULL)
-		return -1;	/* user not found */
-
-	if (strlcpy(usr->name, pw->pw_name, MAXUSERNAME) >= MAXUSERNAME)
-		return -1;	/* username truncated */
-
-	if (strlcpy(usr->home, pw->pw_dir, PATH_MAX) >= PATH_MAX)
-		return -1;	/* home dir truncated */
-
-	return 0;
-}
-
-/*
- * Read the credentials from a users config file.
- *
- * Return 0 on success, -1 on failure.
- */
-int
-mv_parse_file(FILE * fp, config_t * cfg)
-{
-	char line[MAXMONGOURL + 1];
-
-	/* expect url on first line */
-	if (fgets(line, sizeof(line), fp) == NULL) {
-		if (ferror(fp))
-			err(1, "mv_parse_file");
-
-		return 0;	/* empty line */
-	}
-	/* trim newline if any */
-	line[strcspn(line, "\n")] = '\0';
-
-	if (strlcpy(cfg->url, line, MAXMONGOURL) >= MAXMONGOURL)
+	if ((pw = getpwuid(getuid())) == NULL) {
+		warn("could not load ~/%s: getpwuid failed", DOTFILE);
 		return -1;
+	}
+
+	n = snprintf(line, linelen, "%s/%s", pw->pw_dir, DOTFILE);
+	if (n >= linelen) {
+		warnx("could not load ~/%s: path to homedir too long: %s",
+		    DOTFILE, pw->pw_dir);
+		return -1;
+	}
+
+	if ((fp = fopen(line, "r")) == NULL) {
+		if (errno == ENOENT)
+			return -1;
+
+		warn("could not load %s", line);
+		return -1;
+	}
+
+	if (fstat(fileno(fp), &st) == -1) {
+		warn("could stat %s", line);
+		fclose(fp);
+		return -1;
+	}
+
+	if (st.st_mode & (S_IROTH | S_IWOTH)) {
+		warnx("~/%s not used because it is readable and/or writable by "
+		    "others\n\trun `chmod o-rw %s` to fix permissions", DOTFILE,
+		    line);
+		fclose(fp);
+		return -1;
+	}
+
+	if (fgets(line, linelen, fp) == NULL) {
+		if (ferror(fp)) {
+			warn("could not read first line of ~/%s", DOTFILE);
+			fclose(fp);
+			return -1;
+		}
+	}
+
+	fclose(fp);
+	line[strcspn(line, "\n")] = '\0';
 
 	return 0;
 }
@@ -1337,49 +1339,6 @@ exit:
 	return i;
 }
 
-/*
- * try to read ~/.mongovi and set cfg return 1 if config is read and set, 0
- * if no config is found or -1 on failure.
- */
-int
-read_config(user_t * usr, config_t * cfg)
-{
-	const char *file = ".mongovi";
-	char tmppath[PATH_MAX];
-	FILE *fp;
-	struct stat st;
-
-	if ((size_t)snprintf(tmppath, sizeof(tmppath), "%s/%s", usr->home, file)
-	    >= sizeof(tmppath))
-		return -1;
-
-	if ((fp = fopen(tmppath, "re")) == NULL) {
-		if (errno == ENOENT)
-			return 0;
-
-		return -1;
-	}
-
-	if (fstat(fileno(fp), &st) < 0)
-		err(1, "read_config");
-
-	if (st.st_mode & (S_IROTH | S_IWOTH)) {
-		fprintf(stderr,
-		    "ignoring %s, because it is readable and/or writable by others\n",
-		    tmppath);
-		fclose(fp);
-		return 0;
-	}
-
-	if (mv_parse_file(fp, cfg) < 0) {
-		fclose(fp);
-		return -1;
-	}
-	fclose(fp);
-
-	return 1;
-}
-
 void
 printversion(int d)
 {
@@ -1403,15 +1362,14 @@ main(int argc, char **argv)
 	const wchar_t *line;
 	const char *cmd, *args;
 	char p[PATH_MAX];
+	char connurl[MAXMONGOURL];
 	char linecpy[MAXLINE], *lp;
 	size_t n;
-	int i, read, status, c;
+	int i, read, c;
 	EditLine *e;
 	History *h;
 	HistEvent he;
 	path_t newpath = {"", ""};
-
-	char connect_url[MAXMONGOURL] = "mongodb://localhost:27017";
 
 	setlocale(LC_CTYPE, "");
 
@@ -1464,21 +1422,17 @@ main(int argc, char **argv)
 	if (PATH_MAX < 20)
 		errx(1, "can't determine PATH_MAX");
 
-	if (init_user(&user) < 0)
-		errx(1, "can't initialize user");
-
-	if ((status = read_config(&user, &config)) < 0)
-		errx(1, "can't read config file");
-	else if (status > 0)
-		if (strlcpy(connect_url, config.url, MAXMONGOURL) >=
-		    MAXMONGOURL)
+	if (loaddotfile(connurl, sizeof(connurl)) == -1) {
+		if (strlcpy(connurl, DFLMONGOURL, sizeof(connurl)) >=
+		    sizeof(connurl))
 			errx(1, "url in config too long");
-	/* else use default */
+	}
 
 	/* setup mongo */
 	mongoc_init();
-	if ((client = mongoc_client_new(connect_url)) == NULL)
-		errx(1, "can't connect to mongo");
+	if ((client = mongoc_client_new(connurl)) == NULL)
+		errx(1, "can't connect to mongo using connection string \"%s\"",
+		    connurl);
 
 	if (argc == 1) {
 		p[0] = '/';
