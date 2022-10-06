@@ -108,73 +108,6 @@ const char *cmds[] = {
 };
 
 /*
- * List database for the given client.
- *
- * Return 0 on success, -1 on failure.
- */
-int
-exec_lsdbs(mongoc_client_t * client, const char *prefix)
-{
-	bson_error_t error;
-	char **strv;
-	int i, prefixlen;
-
-	if (prefix != NULL)
-		prefixlen = strlen(prefix);
-
-	strv = mongoc_client_get_database_names_with_opts(client, NULL, &error);
-	if (strv == NULL) {
-		warnx("cursor failed: %d.%d %s", error.domain, error.code,
-		      error.message);
-		return -1;
-	}
-
-	for (i = 0; strv[i]; i++) {
-		if (prefix == NULL) {
-			printf("%s\n", strv[i]);
-		} else {
-			if (strncmp(prefix, strv[i], prefixlen) == 0)
-				printf("%s\n", strv[i]);
-		}
-	}
-
-	bson_strfreev(strv);
-
-	return 0;
-}
-
-/*
- * List collections for the given database.
- *
- * Return 0 on success, -1 on failure.
- */
-int
-exec_lscolls(mongoc_client_t *client, char *dbname)
-{
-	bson_error_t error;
-	mongoc_database_t *db;
-	char **strv;
-	int i;
-
-	if (strlen(dbname) == 0)
-		return -1;
-
-	db = mongoc_client_get_database(client, dbname);
-
-	strv = mongoc_database_get_collection_names_with_opts(db, NULL, &error);
-	if (strv == NULL)
-		return -1;
-
-	for (i = 0; strv[i]; i++)
-		printf("%s\n", strv[i]);
-
-	bson_strfreev(strv);
-	mongoc_database_destroy(db);
-
-	return 0;
-}
-
-/*
  * Given a word, a cursor position in the word and a list of options, complete
  * the word to the longest common prefix and print a list of remaining options,
  * if any.
@@ -525,6 +458,144 @@ parse_selector(uint8_t *doc, size_t docsize, const char *line, size_t linelen)
 	return (id - line) + idlen;
 }
 
+char *
+prompt(void)
+{
+	return pmpt;
+}
+
+/*
+ * Update the prompt with the given dbname and collname. If the prompt exceeds
+ * MAXPROMPTCOLUMNS than shorten the dbname and collname.
+ *
+ * The following cases can arise:
+ * 1. dbname and collname are NULL, then prompt will be "/> "
+ * 2. dbname is not NULL and collname is NULL:
+ *   a. if columns("/> ") + columns(dbname) is <= MAXPROMPTCOLUMNS
+ *      then the prompt will be "/dbname> "
+ *   b. if columns("/> ") + columns(dbname) is > MAXPROMPTCOLUMNS
+ *      then dbname will be shortened and the prompt will be "/db..me> "
+ * 3. dbname is not NULL and collname is not NULL:
+ *   a. if columns("//> ") + columns(dbname) + columns(collname) is <= MAXPROMPTCOLUMNS
+ *      then the prompt will be "/dbname/collname> "
+ *   b. if columns("//> ") + columns(dbname) + columns(collname) is > MAXPROMPTCOLUMNS
+ *      then dbname and collname will be shortened and the prompt will be
+ *      "/db..me/co..me> ".
+ */
+int
+set_prompt(const char *dbname, const char *collname)
+{
+	char c1[sizeof(pmpt)], c2[sizeof(pmpt)];
+	size_t n;
+
+	if (dbname == NULL && collname == NULL) {
+		if ((size_t)snprintf(pmpt, sizeof(pmpt), "/> ") >= sizeof(pmpt))
+			return -1;
+	}
+
+	if (dbname == NULL) {
+		/* only collname is provided */
+		return -1;
+	}
+
+	c1[0] = '\0';
+	c2[0] = '\0';
+
+	/* default to db only prompt */
+	n = strlen("/> ");
+	if (strlcpy(c1, dbname, sizeof(c1)) >= sizeof(c1))
+		return -1;
+
+	if (collname != NULL) {
+		/* make dbname + collname prompt */
+		n = strlen("//> ");
+		if (strlcpy(c2, collname, sizeof(c2)) >= sizeof(c2))
+			return -1;
+	}
+
+	if (shorten_comps(c1, c2, MAXPROMPTCOLUMNS - n) == (size_t)-1)
+		return -1;
+
+	if (collname == NULL) {
+		n = snprintf(pmpt, sizeof(pmpt), "/%s> ", c1);
+		if (n >= sizeof(pmpt))
+			return -1;
+	} else {
+		n = snprintf(pmpt, sizeof(pmpt), "/%s/%s> ", c1, c2);
+		if (n >= sizeof(pmpt))
+			return -1;
+	}
+
+	return 0;
+}
+
+/*
+ * List database for the given client.
+ *
+ * Return 0 on success, -1 on failure.
+ */
+int
+exec_lsdbs(mongoc_client_t * client, const char *prefix)
+{
+	bson_error_t error;
+	char **strv;
+	int i, prefixlen;
+
+	if (prefix != NULL)
+		prefixlen = strlen(prefix);
+
+	strv = mongoc_client_get_database_names_with_opts(client, NULL, &error);
+	if (strv == NULL) {
+		warnx("cursor failed: %d.%d %s", error.domain, error.code,
+		      error.message);
+		return -1;
+	}
+
+	for (i = 0; strv[i]; i++) {
+		if (prefix == NULL) {
+			printf("%s\n", strv[i]);
+		} else {
+			if (strncmp(prefix, strv[i], prefixlen) == 0)
+				printf("%s\n", strv[i]);
+		}
+	}
+
+	bson_strfreev(strv);
+
+	return 0;
+}
+
+/*
+ * List collections for the given database.
+ *
+ * Return 0 on success, -1 on failure.
+ */
+int
+exec_lscolls(mongoc_client_t *client, char *dbname)
+{
+	bson_error_t error;
+	mongoc_database_t *db;
+	char **strv;
+	int i;
+
+	if (strlen(dbname) == 0)
+		return -1;
+
+	db = mongoc_client_get_database(client, dbname);
+
+	strv = mongoc_database_get_collection_names_with_opts(db, NULL, &error);
+	if (strv == NULL)
+		return -1;
+
+	for (i = 0; strv[i]; i++)
+		printf("%s\n", strv[i]);
+
+	bson_strfreev(strv);
+	mongoc_database_destroy(db);
+
+	return 0;
+}
+
 /*
  * Execute a query.
  *
@@ -709,71 +780,6 @@ exec_drop(const char *npath)
 	} else {
 		/* illegal context */
 		return -1;
-	}
-
-	return 0;
-}
-
-/*
- * Update the prompt with the given dbname and collname. If the prompt exceeds
- * MAXPROMPTCOLUMNS than shorten the dbname and collname.
- *
- * The following cases can arise:
- * 1. dbname and collname are NULL, then prompt will be "/> "
- * 2. dbname is not NULL and collname is NULL:
- *   a. if columns("/> ") + columns(dbname) is <= MAXPROMPTCOLUMNS
- *      then the prompt will be "/dbname> "
- *   b. if columns("/> ") + columns(dbname) is > MAXPROMPTCOLUMNS
- *      then dbname will be shortened and the prompt will be "/db..me> "
- * 3. dbname is not NULL and collname is not NULL:
- *   a. if columns("//> ") + columns(dbname) + columns(collname) is <= MAXPROMPTCOLUMNS
- *      then the prompt will be "/dbname/collname> "
- *   b. if columns("//> ") + columns(dbname) + columns(collname) is > MAXPROMPTCOLUMNS
- *      then dbname and collname will be shortened and the prompt will be
- *      "/db..me/co..me> ".
- */
-int
-set_prompt(const char *dbname, const char *collname)
-{
-	char c1[sizeof(pmpt)], c2[sizeof(pmpt)];
-	size_t n;
-
-	if (dbname == NULL && collname == NULL) {
-		if ((size_t)snprintf(pmpt, sizeof(pmpt), "/> ") >= sizeof(pmpt))
-			return -1;
-	}
-
-	if (dbname == NULL) {
-		/* only collname is provided */
-		return -1;
-	}
-
-	c1[0] = '\0';
-	c2[0] = '\0';
-
-	/* default to db only prompt */
-	n = strlen("/> ");
-	if (strlcpy(c1, dbname, sizeof(c1)) >= sizeof(c1))
-		return -1;
-
-	if (collname != NULL) {
-		/* make dbname + collname prompt */
-		n = strlen("//> ");
-		if (strlcpy(c2, collname, sizeof(c2)) >= sizeof(c2))
-			return -1;
-	}
-
-	if (shorten_comps(c1, c2, MAXPROMPTCOLUMNS - n) == (size_t)-1)
-		return -1;
-
-	if (collname == NULL) {
-		n = snprintf(pmpt, sizeof(pmpt), "/%s> ", c1);
-		if (n >= sizeof(pmpt))
-			return -1;
-	} else {
-		n = snprintf(pmpt, sizeof(pmpt), "/%s/%s> ", c1, c2);
-		if (n >= sizeof(pmpt))
-			return -1;
 	}
 
 	return 0;
@@ -1190,12 +1196,6 @@ exec_cmd(const char *cmd, const char *allcmds[], const char *line, size_t linele
 
 	warnx("unknown command: \"%s\"", line);
 	return -1;
-}
-
-char *
-prompt(void)
-{
-	return pmpt;
 }
 
 /*
