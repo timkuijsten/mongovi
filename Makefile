@@ -46,7 +46,7 @@ testparsepath: parse_path.c test/parse_path.c
 testjsonify: jsonify.c test/jsonify.c jsmn.o
 	${CC} ${CFLAGS} -o $@ test/jsonify.c jsmn.o
 
-runtests: testshorten testprefixmatch testparsepath testjsonify
+test: testshorten testprefixmatch testparsepath testjsonify
 	./testshorten
 	./testprefixmatch
 	./testparsepath
