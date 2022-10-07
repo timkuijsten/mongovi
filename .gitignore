@@ -1,4 +1,8 @@
 *.o
 mongovi
-shorten-test
-prefix_match-test
+testjsonify
+testparsepath
+testprefixmatch
+testshorten
+tags
+.plan
