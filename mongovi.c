@@ -241,6 +241,7 @@ complete_path(EditLine *e, const char *npath, size_t npathlen)
 		strv = mongoc_database_get_collection_names_with_opts(db, NULL,
 		    &error);
 		mongoc_database_destroy(db);
+		db = NULL;
 		if (strv == NULL) {
 			warnx("cd coll failed %d.%d %s", error.domain,
 			    error.code, error.message);
@@ -249,6 +250,9 @@ complete_path(EditLine *e, const char *npath, size_t npathlen)
 
 		i = complete_word(e, tmppath.collname, strlen(tmppath.collname),
 		    (const char **)strv, NULL);
+		bson_strfreev(strv);
+		strv = NULL;
+
 		if (i == 1 && lastchar != ' ' && lastchar != '\0')
 			el_insertstr(e, " ");
 	} else {
@@ -262,12 +266,13 @@ complete_path(EditLine *e, const char *npath, size_t npathlen)
 
 		i = complete_word(e, tmppath.dbname, strlen(tmppath.dbname),
 		    (const char **)strv, NULL);
+		bson_strfreev(strv);
+		strv = NULL;
+
 		/* append trailing "/" if word is completed or relative root */
 		if ((i == 1 && lastchar != '/') || (comps == 0 && lastchar != '/'))
 			el_insertstr(e, "/");
 	}
-
-	bson_strfreev(strv);
 
 	return 0;
 }
@@ -561,6 +566,7 @@ exec_lsdbs(mongoc_client_t * client, const char *prefix)
 	}
 
 	bson_strfreev(strv);
+	strv = NULL;
 
 	return 0;
 }
@@ -582,16 +588,20 @@ exec_lscolls(mongoc_client_t *client, char *dbname)
 		return -1;
 
 	db = mongoc_client_get_database(client, dbname);
-
 	strv = mongoc_database_get_collection_names_with_opts(db, NULL, &error);
-	if (strv == NULL)
+	mongoc_database_destroy(db);
+	db = NULL;
+	if (strv == NULL) {
+		warnx("lscolls failed %d.%d %s", error.domain, error.code,
+		    error.message);
 		return -1;
+	}
 
 	for (i = 0; strv[i]; i++)
 		printf("%s\n", strv[i]);
 
 	bson_strfreev(strv);
-	mongoc_database_destroy(db);
+	strv = NULL;
 
 	return 0;
 }
@@ -682,11 +692,14 @@ exec_query(mongoc_collection_t * collection, const char *line, size_t linelen,
 
 	if (mongoc_cursor_error(cursor, &error)) {
 		warnx("cursor failed: %d.%d %s", error.domain, error.code,
-		      error.message);
+		    error.message);
 		mongoc_cursor_destroy(cursor);
+		cursor = NULL;
 		return -1;
 	}
+
 	mongoc_cursor_destroy(cursor);
+	cursor = NULL;
 
 	return 0;
 }
@@ -722,6 +735,7 @@ exec_ls(const char *npath)
 		    tmppath.collname);
 		rc = exec_query(ccoll, "{}", 2, 1);
 		mongoc_collection_destroy(ccoll);
+		ccoll = NULL;
 		return rc;
 	} else if (strlen(tmppath.dbname) > 0) {
 		return exec_lscolls(client, tmppath.dbname);
@@ -763,9 +777,11 @@ exec_drop(const char *npath)
 			warnx("cursor failed: %d.%d %s", error.domain,
 			    error.code, error.message);
 			mongoc_collection_destroy(coll);
+			coll = NULL;
 			return -1;
 		}
 		mongoc_collection_destroy(coll);
+		coll = NULL;
 		printf("dropped /%s/%s\n", tmppath.dbname, tmppath.collname);
 	} else if (strlen(tmppath.dbname) > 0) {
 		db = mongoc_client_get_database(client, tmppath.dbname);
@@ -773,9 +789,11 @@ exec_drop(const char *npath)
 			warnx("cursor failed: %d.%d %s", error.domain,
 			    error.code, error.message);
 			mongoc_database_destroy(db);
+			db = NULL;
 			return -1;
 		}
 		mongoc_database_destroy(db);
+		db = NULL;
 		printf("dropped %s\n", tmppath.dbname);
 	} else {
 		/* illegal context */
@@ -1059,10 +1077,12 @@ exec_agquery(mongoc_collection_t * collection, const char *line, size_t linelen)
 		warnx("cursor failed: %d.%d %s", error.domain, error.code,
 		    error.message);
 		mongoc_cursor_destroy(cursor);
+		cursor = NULL;
 		return -1;
 	}
 
 	mongoc_cursor_destroy(cursor);
+	cursor = NULL;
 
 	return 0;
 }
@@ -1462,7 +1482,11 @@ main(int argc, char **argv)
 		printf("inserted %d documents\n", i);
 
 		mongoc_collection_destroy(ccoll);
+		ccoll = NULL;
+
 		mongoc_client_destroy(client);
+		client = NULL;
+
 		mongoc_cleanup();
 
 		exit(0);
@@ -1555,9 +1579,12 @@ main(int argc, char **argv)
 	if (read == -1)
 		err(1, NULL);
 
-	if (ccoll != NULL)
-		mongoc_collection_destroy(ccoll);
+	mongoc_collection_destroy(ccoll);
+	ccoll = NULL;
+
 	mongoc_client_destroy(client);
+	client = NULL;
+
 	mongoc_cleanup();
 
 	history_end(h);
