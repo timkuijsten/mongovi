@@ -11,27 +11,32 @@ static int verbose = 0;
 /*
  * return 0 if test passes, 1 if test fails, -1 on internal error
  */
-int
-test_relaxed_to_strict(const char *input, size_t inputlen, int maxobj, const char *exp, const int exp_exit, const char *msg)
+static int
+test_relaxed_to_strict(const char *input, size_t inputlen, int maxobj,
+    const char *exp, const int exp_exit, const char *msg)
 {
-	int exit;
 	char dst[MAXSTR];
+	int exit;
 
 	if (inputlen >= MAXSTR)
 		abort();
 
-	if ((exit = relaxed_to_strict(dst, sizeof(dst), input, inputlen, maxobj)) != exp_exit) {
-		fprintf(stderr, "FAIL: %s %d = exit: %d, expected: %d\t%s\n", input, maxobj, exit, exp_exit, msg);
+	exit = relaxed_to_strict(dst, sizeof(dst), input, inputlen, maxobj);
+	if (exit != exp_exit) {
+		fprintf(stderr, "FAIL: %s %d = exit: %d, expected: %d\t%s\n",
+		    input, maxobj, exit, exp_exit, msg);
 		return 1;
 	}
 
 	if (strcmp(dst, exp) == 0) {
 		if (verbose)
-			printf("PASS: %s %d = \"%s\"\t%s\n", input, maxobj, dst, msg);
+			printf("PASS: %s %d = \"%s\"\t%s\n", input, maxobj, dst,
+			    msg);
 
 		return 0;
 	} else {
-		fprintf(stderr, "FAIL: %s %d = \"%s\" instead of \"%s\"\t%s\n", input, maxobj, dst, exp, msg);
+		fprintf(stderr, "FAIL: %s %d = \"%s\" instead of \"%s\"\t%s\n",
+		    input, maxobj, dst, exp, msg);
 		return 1;
 	}
 
@@ -39,7 +44,7 @@ test_relaxed_to_strict(const char *input, size_t inputlen, int maxobj, const cha
 }
 
 int
-main()
+main(void)
 {
 	char *doc, *exp;
 	int failed = 0;
@@ -71,9 +76,11 @@ main()
 	exp = "{\"a\":{\"c\":d}}";
 	failed += test_relaxed_to_strict(doc, strlen(doc), 1, exp, 16, "");
 
-	doc = "{ a: { c: { e: f } } }{ a: { c: { e: f } }}  { a: { c: { e: f } }}";
+	doc = "{ a: { c: { e: f } } }{ a: { c: { e: f } }}  { a: { c: { e: f } "
+	    "}}";
 
-	exp = "{\"a\":{\"c\":{\"e\":f}}}{\"a\":{\"c\":{\"e\":f}}}{\"a\":{\"c\":{\"e\":f}}}";
+	exp = "{\"a\":{\"c\":{\"e\":f}}}{\"a\":{\"c\":{\"e\":f}}}{\"a\":{\"c\":"
+	    "{\"e\":f}}}";
 	failed += test_relaxed_to_strict(doc, strlen(doc), -1, exp, 67, "");
 	failed += test_relaxed_to_strict(doc, strlen(doc), 3, exp, 67, "");
 	failed += test_relaxed_to_strict(doc, strlen(doc), 4, exp, 67, "");

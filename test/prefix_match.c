@@ -12,8 +12,10 @@ static int verbose = 0;
 #endif
 
 /*
- * compare two null terminated string arrays, containing null terminated strings
- * return 0 if both are equal, 1 if not, -1 on error.
+ * Compare two null terminated string arrays, containing null terminated
+ * strings.
+ *
+ * Return 0 if both are equal, 1 if not, -1 on error.
  */
 static int
 arrcmp(const char **a1, const char **a2)
@@ -43,15 +45,19 @@ arrcmp(const char **a1, const char **a2)
  * return 0 if test passes, 1 if test fails, -1 on internal error
  */
 static int
-test_prefix_match(const char **src, const char *prefix, const char **exp, const int exp_exit)
+test_prefix_match(const char **src, const char *prefix, const char **exp,
+    const int exp_exit)
 {
 	int exit;
 	const char **dst;
 
 	if ((exit = prefix_match(&dst, src, prefix)) != exp_exit) {
-		warnx("FAIL: %s = exit: %d, expected: %d\n", prefix, exit, exp_exit);
+		warnx("FAIL: %s = exit: %d, expected: %d\n", prefix, exit,
+		    exp_exit);
+
 		if (exit != -1)
 			free(dst);
+
 		return 1;
 	}
 	if (arrcmp(dst, exp) == 0) {
@@ -76,7 +82,9 @@ test_common_prefix(const char **src, const char *prefix, const int exp_exit)
 	int exit;
 
 	if ((exit = common_prefix(src)) != exp_exit) {
-		warnx("FAIL: %s = exit: %d, expected: %d\n", prefix, exit, exp_exit);
+		warnx("FAIL: %s = exit: %d, expected: %d\n", prefix, exit,
+		    exp_exit);
+
 		return 1;
 	} else {
 		if (verbose)
@@ -89,7 +97,7 @@ test_common_prefix(const char **src, const char *prefix, const int exp_exit)
 }
 
 int
-main()
+main(void)
 {
 	int failed = 0;
 	const char *src[] = {
