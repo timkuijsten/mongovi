@@ -2,6 +2,12 @@
 
 #define MAXSTR 1024
 
+#ifdef VERBOSE
+static int verbose = 1;
+#else
+static int verbose = 0;
+#endif
+
 /*
  * return 0 if test passes, 1 if test fails, -1 on internal error
  */
@@ -18,8 +24,11 @@ test_relaxed_to_strict(const char *input, size_t inputlen, int maxobj, const cha
 		fprintf(stderr, "FAIL: %s %d = exit: %d, expected: %d\t%s\n", input, maxobj, exit, exp_exit, msg);
 		return 1;
 	}
+
 	if (strcmp(dst, exp) == 0) {
-		printf("PASS: %s %d = \"%s\"\t%s\n", input, maxobj, dst, msg);
+		if (verbose)
+			printf("PASS: %s %d = \"%s\"\t%s\n", input, maxobj, dst, msg);
+
 		return 0;
 	} else {
 		fprintf(stderr, "FAIL: %s %d = \"%s\" instead of \"%s\"\t%s\n", input, maxobj, dst, exp, msg);
@@ -35,7 +44,8 @@ main()
 	char *doc, *exp;
 	int failed = 0;
 
-	printf("test relaxed_to_strict:\n");
+	if (verbose)
+		printf("test relaxed_to_strict:\n");
 
 	doc = "{ a: 'b' }";
 	exp = "{\"a\":\"b\"}";

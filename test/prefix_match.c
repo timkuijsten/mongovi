@@ -5,6 +5,12 @@
 #include <stdio.h>
 #include <string.h>
 
+#ifdef VERBOSE
+static int verbose = 1;
+#else
+static int verbose = 0;
+#endif
+
 /*
  * compare two null terminated string arrays, containing null terminated strings
  * return 0 if both are equal, 1 if not, -1 on error.
@@ -49,7 +55,9 @@ test_prefix_match(const char **src, const char *prefix, const char **exp, const 
 		return 1;
 	}
 	if (arrcmp(dst, exp) == 0) {
-		printf("PASS: %s\n", prefix);
+		if (verbose)
+			printf("PASS: %s\n", prefix);
+
 		return 0;
 	} else {
 		warnx("FAIL: %s\n", prefix);
@@ -71,7 +79,9 @@ test_common_prefix(const char **src, const char *prefix, const int exp_exit)
 		warnx("FAIL: %s = exit: %d, expected: %d\n", prefix, exit, exp_exit);
 		return 1;
 	} else {
-		printf("PASS: %s\n", prefix);
+		if (verbose)
+			printf("PASS: %s\n", prefix);
+
 		return 0;
 	}
 
@@ -93,7 +103,8 @@ main()
 
 	setlocale(LC_CTYPE, "");
 
-	printf("test prefix_match:\n");
+	if (verbose)
+		printf("test prefix_match:\n");
 
 	const char *exp1[] = {NULL};
 
@@ -121,9 +132,8 @@ main()
 
 	failed += test_prefix_match(src, "", exp6, 0);
 
-	printf("\n");
-
-	printf("test common_prefix:\n");
+	if (verbose)
+		printf("\ntest common_prefix:\n");
 
 	const char *src2[] = {
 		"daa",

@@ -7,6 +7,12 @@
 
 #define MAXSTR 100
 
+#ifdef VERBOSE
+static int verbose = 1;
+#else
+static int verbose = 0;
+#endif
+
 int test_shorten(const char *input, const int maxlen, const char *exp, const int exp_exit, const char *msg);
 int test_shorten_comps(const char *comp1, const char *comp2, const int maxlen, const char *exp1, const char *exp2, const int exp_exit, const char *msg);
 
@@ -17,7 +23,9 @@ main()
 
 	setlocale(LC_CTYPE, "");
 
-	printf("test shorten:\n");
+	if (verbose)
+		printf("test shorten:\n");
+
 	failed += test_shorten("", 1, "", -1, "");
 	failed += test_shorten("foo", 1, "foo", -1, "");
 	failed += test_shorten("", 5, "", 0, "");
@@ -74,9 +82,10 @@ main()
 	failed += test_shorten("£ह€한𐍈＄", 6, "£ह..＄", 6, "");
 	failed += test_shorten("£ह€한𐍈＄", 7, "£ह€..＄", 7, "");
 	failed += test_shorten("£ह€한𐍈＄", 8, "£ह€한𐍈＄", 8, "");
-	printf("\n");
 
-	printf("test shorten_comps:\n");
+	if (verbose)
+		printf("\ntest shorten_comps:\n");
+
 	failed += test_shorten_comps("f", "b", 8, "f", "b", 2, "");
 	failed += test_shorten_comps("foof", "barb", 8, "foof", "barb", 8, "");
 	failed += test_shorten_comps("foof", "barba", 8, "foof", "b..a", 8, "");
@@ -132,8 +141,11 @@ test_shorten(const char *input, const int maxlen, const char *exp, const int exp
 		fprintf(stderr, "FAIL: %s %d = exit: %d, expected: %d\t%s\n", input, maxlen, exit, exp_exit, msg);
 		return 1;
 	}
+
 	if (strcmp(str, exp) == 0) {
-		printf("PASS: %s %d = \"%s\"\t%s\n", input, maxlen, str, msg);
+		if (verbose)
+			printf("PASS: %s %d = \"%s\"\t%s\n", input, maxlen, str, msg);
+
 		return 0;
 	} else {
 		fprintf(stderr, "FAIL: %s %d = \"%s\" instead of \"%s\"\t%s\n", input, maxlen, str, exp, msg);
@@ -160,8 +172,11 @@ test_shorten_comps(const char *comp1, const char *comp2, const int maxlen, const
 		fprintf(stderr, "FAIL: %s %s %d = exit: %d, expected: %d\t%s\n", comp1, comp2, maxlen, exit, exp_exit, msg);
 		return 1;
 	}
+
 	if (strcmp(c1, exp1) == 0 && strcmp(c2, exp2) == 0) {
-		printf("PASS: %s %s %d = \"%s\" \"%s\" \t%s\n", comp1, comp2, maxlen, c1, c2, msg);
+		if (verbose)
+			printf("PASS: %s %s %d = \"%s\" \"%s\" \t%s\n", comp1, comp2, maxlen, c1, c2, msg);
+
 		return 0;
 	} else {
 		fprintf(stderr, "FAIL: %s %s %d = \"%s\" and \"%s\" instead of \"%s\" and \"%s\" \t%s\n", comp1, comp2, maxlen, c1, c2, exp1, exp2, msg);

@@ -4,6 +4,12 @@
 #include <stdio.h>
 #include <string.h>
 
+#ifdef VERBOSE
+static int verbose = 1;
+#else
+static int verbose = 0;
+#endif
+
 struct expfmt {
 	const char *path;	/* path string */
 	const path_t exppath;	/* expected path */
@@ -43,12 +49,18 @@ test_parse_path(const char *path, const path_t *exp, const int exp_exit)
 		warnx("FAIL: \"%s\" = exit: %d, expected: %d\n", path, exit, exp_exit);
 		return 1;
 	}
+
 	if (exit == exp_exit && exit == -1) {
-		printf("PASS: \"%s\" = exit: %d, expected: %d\n", path, exit, exp_exit);
+		if (verbose)
+			printf("PASS: \"%s\" = exit: %d, expected: %d\n", path, exit, exp_exit);
+
 		return 0;
 	}
+
 	if (strcmp(npath.dbname, exp->dbname) == 0 && strcmp(npath.collname, exp->collname) == 0) {
-		printf("PASS: %s\n", path);
+		if (verbose)
+			printf("PASS: %s\n", path);
+
 		return 0;
 	} else {
 		warnx("FAIL: \"%s\", db: \"%s\", coll: \"%s\"\n", path, npath.dbname, npath.collname);
@@ -109,13 +121,19 @@ test_resolvepath(char *cpath, size_t cpathsize, const char *newpath,
 	exit = resolvepath(cpath, cpathsize, newpath, &comps);
 
 	if (exit == exp_exit && exit == (size_t)-1) {
-		printf("PASS -1 \"%s\"\n", newpath);
+		if (verbose)
+			printf("PASS -1 \"%s\"\n", newpath);
+
 		return 0;
 	} else if (exit == exp_exit && exit >= cpathsize) {
-		printf("PASS overflow \"%s\"\n", newpath);
+		if (verbose)
+			printf("PASS overflow \"%s\"\n", newpath);
+
 		return 0;
 	} else if (exit == exp_exit && strcmp(cpath, exp) == 0 && comps == exp_comps) {
-		printf("PASS equal \"%s\"\n", cpath);
+		if (verbose)
+			printf("PASS equal \"%s\"\n", cpath);
+
 		return 0;
 	}
 
@@ -145,7 +163,8 @@ main()
 
 	total = sizeof(exps) / sizeof(exps[0]);
 	cexp = exps;
-	printf("test parse_path %d:\n", total);
+	if (verbose)
+		printf("test parse_path %d:\n", total);
 
 	for (i = 0; i < total; i++) {
 		failed += test_parse_path(cexp->path, &cexp->exppath,
@@ -153,7 +172,8 @@ main()
 		cexp++;
 	}
 
-	printf("\ntest resolvepath:\n");
+	if (verbose)
+		printf("\ntest resolvepath:\n");
 
 	total = sizeof(exps2) / sizeof(exps2[0]);
 	for (i = 0; i < total; i++) {
