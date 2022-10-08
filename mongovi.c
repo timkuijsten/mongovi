@@ -87,12 +87,12 @@ static mongoc_client_t *client;
 static mongoc_collection_t *ccoll;	/* current collection */
 
 /* print human readable or not */
-int hr;
-int ttyin, ttyout;
+static int hr;
+static int ttyin, ttyout;
 
-int import = 0;
+static int import = 0;
 
-const char *cmds[] = {
+static const char *cmds[] = {
 	"aggregate",
 	"cd",
 	"count",
@@ -122,7 +122,7 @@ const char *cmds[] = {
  *    option
  * 1. if word matches one option
  */
-int
+static int
 complete_word(EditLine *e, const char *word, size_t wordlen, const char **opts,
     const char **selected)
 {
@@ -193,7 +193,7 @@ complete_word(EditLine *e, const char *word, size_t wordlen, const char **opts,
  *
  * Return 0 on success or -1 on failure.
  */
-int
+static int
 complete_path(EditLine *e, const char *npath, size_t npathlen)
 {
 	path_t tmppath;
@@ -280,7 +280,7 @@ complete_path(EditLine *e, const char *npath, size_t npathlen)
  * if matches exactly one command and not complete, complete
  * if command is complete and needs args, look at that
  */
-uint8_t
+static uint8_t
 complete(EditLine *e, __attribute__((unused)) int ch)
 {
 	Tokenizer *t;
@@ -356,7 +356,7 @@ nexttok(const char **line)
  *
  * Return 0 on success, -1 on failure.
  */
-int
+static int
 idtosel(char *dst, size_t dstsize, const char *sel, size_t sellen)
 {
 	const size_t oidlen = 24;
@@ -393,7 +393,7 @@ idtosel(char *dst, size_t dstsize, const char *sel, size_t sellen)
  * Return the number of bytes parsed on success or -1 on failure.
  * On success, if docsize > 0, a null byte is always written to doc.
  */
-int
+static int
 parse_selector(uint8_t *doc, size_t docsize, const char *line, size_t linelen)
 {
 	const char *id;
@@ -458,7 +458,7 @@ parse_selector(uint8_t *doc, size_t docsize, const char *line, size_t linelen)
 	return (id - line) + idlen;
 }
 
-char *
+static char *
 prompt(void)
 {
 	return pmpt;
@@ -482,7 +482,7 @@ prompt(void)
  *      then dbname and collname will be shortened and the prompt will be
  *      "/db..me/co..me> ".
  */
-int
+static int
 set_prompt(const char *dbname, const char *collname)
 {
 	char c1[sizeof(pmpt)], c2[sizeof(pmpt)];
@@ -534,7 +534,7 @@ set_prompt(const char *dbname, const char *collname)
  *
  * Return 0 on success, -1 on failure.
  */
-int
+static int
 exec_lsdbs(mongoc_client_t * client, const char *prefix)
 {
 	bson_error_t error;
@@ -570,7 +570,7 @@ exec_lsdbs(mongoc_client_t * client, const char *prefix)
  *
  * Return 0 on success, -1 on failure.
  */
-int
+static int
 exec_lscolls(mongoc_client_t *client, char *dbname)
 {
 	bson_error_t error;
@@ -601,7 +601,7 @@ exec_lscolls(mongoc_client_t *client, char *dbname)
  *
  * Return 0 on success, -1 on failure.
  */
-int
+static int
 exec_query(mongoc_collection_t * collection, const char *line, size_t linelen,
    int idsonly)
 {
@@ -691,7 +691,7 @@ exec_query(mongoc_collection_t * collection, const char *line, size_t linelen,
 	return 0;
 }
 
-int
+static int
 exec_ls(const char *npath)
 {
 	int rc;
@@ -730,7 +730,7 @@ exec_ls(const char *npath)
 	return exec_lsdbs(client, NULL);
 }
 
-int
+static int
 exec_drop(const char *npath)
 {
 	char p[PATH_MAX];
@@ -790,7 +790,7 @@ exec_drop(const char *npath)
  *
  * Return 0 on success, -1 on failure.
  */
-int
+static int
 exec_chcoll(mongoc_client_t * client, const path_t newpath)
 {
 	/* unset current collection */
@@ -827,7 +827,7 @@ exec_chcoll(mongoc_client_t * client, const path_t newpath)
  *
  * Return 0 on success, -1 on failure.
  */
-int
+static int
 exec_count(mongoc_collection_t * collection, const char *line, size_t linelen)
 {
 	bson_error_t error;
@@ -872,7 +872,7 @@ exec_count(mongoc_collection_t * collection, const char *line, size_t linelen)
  * Parse update command, expect two json objects, a selector, and an update
  * doc.
  */
-int
+static int
 exec_update(mongoc_collection_t * collection, const char *line, size_t linelen,
     int upsert)
 {
@@ -946,7 +946,7 @@ cleanuperr:
 }
 
 /* parse insert command, expect one json object, the insert doc and exec */
-int
+static int
 exec_insert(mongoc_collection_t * collection, const char *line, size_t linelen)
 {
 	bson_error_t error;
@@ -976,7 +976,7 @@ exec_insert(mongoc_collection_t * collection, const char *line, size_t linelen)
 }
 
 /* parse remove command, expect one selector */
-int
+static int
 exec_remove(mongoc_collection_t * collection, const char *line, size_t linelen)
 {
 	int offset;
@@ -1009,7 +1009,7 @@ exec_remove(mongoc_collection_t * collection, const char *line, size_t linelen)
  *
  * Return 0 on success, -1 on failure.
  */
-int
+static int
 exec_agquery(mongoc_collection_t * collection, const char *line, size_t linelen)
 {
 	bson_error_t error;
@@ -1072,7 +1072,7 @@ exec_agquery(mongoc_collection_t * collection, const char *line, size_t linelen)
  *
  * Return 0 on success, -1 on failure.
  */
-int
+static int
 exec_cmd(const char *cmd, const char *allcmds[], const char *line, size_t linelen)
 {
 	char p[PATH_MAX];
@@ -1203,7 +1203,7 @@ exec_cmd(const char *cmd, const char *allcmds[], const char *line, size_t linele
  *
  * Return 0 on success, -1 on failure.
  */
-int
+static int
 loaddotfile(char *line, size_t linelen)
 {
 	struct stat st;
@@ -1266,7 +1266,7 @@ loaddotfile(char *line, size_t linelen)
  * Returns the number of inserted objects on success, or -1 on error with errno
  * set.
  */
-int
+static int
 do_import(mongoc_collection_t * collection)
 {
 	bson_error_t error;
@@ -1339,14 +1339,14 @@ exit:
 	return i;
 }
 
-void
+static void
 printversion(int d)
 {
 	dprintf(d, "%s v%d.%d.%d\n", progname, VERSION_MAJOR,
 	    VERSION_MINOR, VERSION_PATCH);
 }
 
-void
+static void
 printusage(int d)
 {
 	dprintf(d, "usage: %s [-p] [/database/collection]\n", progname);
