@@ -809,7 +809,7 @@ exec_drop(const char *npath)
  * Return 0 on success, -1 on failure.
  */
 static int
-exec_chcoll(mongoc_client_t * client, const path_t newpath)
+exec_chcoll(mongoc_client_t *client, const path_t newpath)
 {
 	/* unset current collection */
 	if (ccoll != NULL) {
@@ -846,7 +846,7 @@ exec_chcoll(mongoc_client_t * client, const path_t newpath)
  * Return 0 on success, -1 on failure.
  */
 static int
-exec_count(mongoc_collection_t * collection, const char *line, size_t linelen)
+exec_count(mongoc_collection_t *collection, const char *line, size_t linelen)
 {
 	bson_error_t error;
 	bson_t *query;
@@ -891,7 +891,7 @@ exec_count(mongoc_collection_t * collection, const char *line, size_t linelen)
  * doc.
  */
 static int
-exec_update(mongoc_collection_t * collection, const char *line, size_t linelen,
+exec_update(mongoc_collection_t *collection, const char *line, size_t linelen,
     int upsert)
 {
 	uint8_t update_docs[MAXDOC];
@@ -965,7 +965,7 @@ cleanuperr:
 
 /* parse insert command, expect one json object, the insert doc and exec */
 static int
-exec_insert(mongoc_collection_t * collection, const char *line, size_t linelen)
+exec_insert(mongoc_collection_t *collection, const char *line, size_t linelen)
 {
 	bson_error_t error;
 	bson_t *doc;
@@ -995,7 +995,7 @@ exec_insert(mongoc_collection_t * collection, const char *line, size_t linelen)
 
 /* parse remove command, expect one selector */
 static int
-exec_remove(mongoc_collection_t * collection, const char *line, size_t linelen)
+exec_remove(mongoc_collection_t *collection, const char *line, size_t linelen)
 {
 	int offset;
 	bson_error_t error;
@@ -1028,7 +1028,7 @@ exec_remove(mongoc_collection_t * collection, const char *line, size_t linelen)
  * Return 0 on success, -1 on failure.
  */
 static int
-exec_agquery(mongoc_collection_t * collection, const char *line, size_t linelen)
+exec_agquery(mongoc_collection_t *collection, const char *line, size_t linelen)
 {
 	bson_error_t error;
 	bson_t *aggr_query;
