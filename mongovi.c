@@ -86,6 +86,8 @@ static char pmpt[8 * MAXPROMPTCOLUMNS + 8] = "/> ";
 static mongoc_client_t *client;
 static mongoc_collection_t *ccoll;	/* current collection */
 
+static bson_t *bsonupsertopt;
+
 /* print human readable or not */
 static int hr;
 static int ttyin, ttyout;
@@ -897,12 +899,12 @@ exec_update(mongoc_collection_t *collection, const char *line, size_t linelen,
 	uint8_t update_docs[MAXDOC];
 	uint8_t *update_doc = update_docs;
 	bson_error_t error;
-	bson_t *query, *update;
+	bson_t *query, *update, *opts;
 	int offset;
-	int opts = MONGOC_UPDATE_NONE;
 
+	opts = NULL;
 	if (upsert)
-		opts |= MONGOC_UPDATE_UPSERT;
+		opts = bsonupsertopt;
 
 	/* expect two json objects */
 	offset = parse_selector(tmpdocs, sizeof(tmpdocs), line, linelen);
@@ -930,25 +932,10 @@ exec_update(mongoc_collection_t *collection, const char *line, size_t linelen,
 		goto cleanuperr;
 	}
 
-	if (!mongoc_collection_update(collection,
-	    opts | MONGOC_UPDATE_MULTI_UPDATE, query, update, NULL, &error)) {
-		/*
-		 * if error is "multi update only works with $ operators", retry
-		 * without MULTI
-		 */
-		if (error.domain == MONGOC_ERROR_COMMAND &&
-		    error.code == MONGOC_ERROR_CLIENT_TOO_SMALL) {
-			if (!mongoc_collection_update(collection, opts, query,
-			    update, NULL, &error)) {
-				warnx("%d.%d %s", error.domain, error.code,
-				    error.message);
-				goto cleanuperr;
-			}
-		} else {
-			warnx("%d.%d %s", error.domain, error.code,
-			    error.message);
-			goto cleanuperr;
-		}
+	if (!mongoc_collection_update_many(collection, query, update, opts,
+	    NULL, &error)) {
+		warnx("%d.%d %s", error.domain, error.code, error.message);
+		goto cleanuperr;
 	}
 
 	bson_destroy(query);
@@ -980,9 +967,8 @@ exec_insert(mongoc_collection_t *collection, const char *line, size_t linelen)
 		return -1;
 	}
 
-	/* execute insert */
-	if (!mongoc_collection_insert(collection, MONGOC_INSERT_NONE, doc, NULL,
-	    &error)) {
+	if (!mongoc_collection_insert_one(collection, doc, NULL, NULL, &error))
+	    {
 		warnx("%d.%d %s", error.domain, error.code, error.message);
 		bson_destroy(doc);
 		return -1;
@@ -999,25 +985,25 @@ exec_remove(mongoc_collection_t *collection, const char *line, size_t linelen)
 {
 	int offset;
 	bson_error_t error;
-	bson_t *doc;
+	bson_t *selector;
 
 	offset = parse_selector(tmpdocs, sizeof(tmpdocs), line, linelen);
 	if (offset <= 0)
 		return -1;
 
-	if ((doc = bson_new_from_json(tmpdocs, -1, &error)) == NULL) {
+	if ((selector = bson_new_from_json(tmpdocs, -1, &error)) == NULL) {
 		warnx("%d.%d %s", error.domain, error.code, error.message);
 		return -1;
 	}
 
-	if (!mongoc_collection_remove(collection, MONGOC_REMOVE_NONE, doc, NULL,
+	if (!mongoc_collection_delete_many(collection, selector, NULL, NULL,
 	    &error)) {
 		warnx("%d.%d %s", error.domain, error.code, error.message);
-		bson_destroy(doc);
+		bson_destroy(selector);
 		return -1;
 	}
 
-	bson_destroy(doc);
+	bson_destroy(selector);
 
 	return 0;
 }
@@ -1379,6 +1365,7 @@ printusage(int d)
 int
 main(int argc, char **argv)
 {
+	bson_error_t error;
 	const wchar_t *line;
 	const char *cmd, *args;
 	char p[PATH_MAX];
@@ -1492,6 +1479,12 @@ main(int argc, char **argv)
 		exit(0);
 	}
 
+	bsonupsertopt = bson_new_from_json((const uint8_t *)"{\"upsert\":true}",
+	    -1, &error);
+	if (bsonupsertopt == NULL)
+		errx(1, "could not load upsert option document %d.%d %s",
+		    error.domain, error.code, error.message);
+
 	if ((e = el_init(progname, stdin, stdout, stderr)) == NULL)
 		errx(1, "can't initialize editline");
 
@@ -1578,6 +1571,9 @@ main(int argc, char **argv)
 
 	if (read == -1)
 		err(1, NULL);
+
+	bson_destroy(bsonupsertopt);
+	bsonupsertopt = NULL;
 
 	mongoc_collection_destroy(ccoll);
 	ccoll = NULL;
