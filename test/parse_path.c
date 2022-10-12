@@ -16,14 +16,6 @@ struct expfmt {
 	int exitcode;
 };
 
-struct expfmt2 {
-	char *cpath;
-	const char *npath;
-	const char *exppath;
-	int expcomps;
-	size_t exitcode;
-};
-
 static struct expfmt exps[] = {
 	{ "",                     { "", "" },                 -1 },
 	{ "db",                   { "", "" },                 -1 },
@@ -40,6 +32,14 @@ static struct expfmt exps[] = {
 	{ "/£/£",                 { "£", "£" },                0 }, /* two bytes in UTF-8 */
 	{ "/＄/＄",               { "＄", "＄" },              0 }, /* three bytes in UTF-8 */
 	{ "/£ह€한𐍈＄/£ह€한𐍈＄",   { "£ह€한𐍈＄", "£ह€한𐍈＄" },  0 }
+};
+
+struct expfmt2 {
+	char *cpath;
+	const char *npath;
+	const char *exppath;
+	int expcomps;
+	size_t exitcode;
 };
 
 static struct expfmt2 exps2[] = {
