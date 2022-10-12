@@ -110,6 +110,66 @@ static const char *cmds[] = {
 };
 
 /*
+ * Tokenize a list of paths.
+ *
+ * Returns the number of paths parsed into *ps on success, -1 on failure. *ps
+ * must be free(3)d by the caller only on success.
+ */
+static int
+tok_paths(path_t **ps, const char *paths)
+{
+	Tokenizer *t;
+	const char **av;
+	int rc, ac;
+
+	*ps = NULL;
+
+	t = tok_init(NULL);
+
+	rc = tok_str(t, paths, &ac, &av);
+
+	if (rc == -1) {
+		warnx("could not tokenize paths: %s", paths);
+		goto cleanup;
+	}
+
+	if (rc == 1) {
+		warnx("unmatched single quote: %s", paths);
+		rc = -1;
+		goto cleanup;
+	} else if (rc == 2) {
+		warnx("unmatched double quote: %s", paths);
+		rc = -1;
+		goto cleanup;
+	} else if (rc == 3) {
+		warnx("multi-line unsupported");
+		rc = -1;
+		goto cleanup;
+	}
+
+	if (rc != 0) {
+		warnx("unknown tokenization error");
+		rc = -1;
+		goto cleanup;
+	}
+
+	if (parse_paths(ps, path, av, ac) == -1) {
+		warnx("could not parse paths: %s", paths);
+		free(*ps);
+		*ps = NULL;
+		rc = -1;
+		goto cleanup;
+	}
+
+	rc = ac;
+
+cleanup:
+	tok_end(t);
+
+	return rc;
+}
+
+/*
  * Given a word, a cursor position in the word and a list of options, complete
  * the word to the longest common prefix and print a list of remaining options,
  * if any.
@@ -710,103 +770,128 @@ exec_query(mongoc_collection_t * collection, const char *line, size_t linelen,
 	return 0;
 }
 
+/*
+ * List all databases, collections and/or object ids for each path in paths.
+ *
+ * Return 0 on success, -1 on failure.
+ */
 static int
-exec_ls(const char *npath)
+exec_ls(const char *paths)
 {
-	int rc;
-	path_t tmppath;
-	char p[PATH_MAX];
+	path_t *psp, *ps = NULL;
 	mongoc_collection_t *ccoll;
+	int rc, i, n;
 
-	/* copy current context */
-	if ((size_t)snprintf(p, sizeof(p), "/%s/%s", path.dbname, path.collname)
-	    >= sizeof(p)) {
-		warnx("exec_ls p too small: %s", npath);
+	n = tok_paths(&ps, paths);
+	if (n == -1) {
+		warnx("could not parse paths: %s", paths);
 		return -1;
 	}
 
-	if (resolvepath(p, sizeof(p), npath, NULL) == (size_t)-1) {
-		warnx("exec_ls resolvepath error: %s", npath);
-		return -1;
+	if (n == 0) {
+		/* default to current path */
+		psp = &path;
+		n = 1;
+	} else {
+		psp = ps;
 	}
 
-	if (parse_path(&tmppath, p) == -1) {
-		warnx("parse_path error: %s", npath);
-		abort();
+	rc = 0;
+
+	for (i = 0; i < n; i++) {
+		if (strlen(psp[i].collname) > 0) {
+			ccoll = mongoc_client_get_collection(client,
+			    psp[i].dbname, psp[i].collname);
+			rc = exec_query(ccoll, "{}", 2, 1);
+			mongoc_collection_destroy(ccoll);
+			ccoll = NULL;
+		} else if (strlen(psp[i].dbname) > 0) {
+			rc = exec_lscolls(client, psp[i].dbname);
+		} else {
+			rc = exec_lsdbs(client, NULL);
+		}
+
+		if (rc != 0) {
+			warnx("failed listing: /%s/%s", psp[i].dbname,
+			    psp[i].collname);
+			rc = -1;
+			goto cleanup;
+		}
 	}
 
-	if (strlen(tmppath.collname) > 0) {
-		/* print all document ids */
-		ccoll = mongoc_client_get_collection(client, tmppath.dbname,
-		    tmppath.collname);
-		rc = exec_query(ccoll, "{}", 2, 1);
-		mongoc_collection_destroy(ccoll);
-		ccoll = NULL;
-		return rc;
-	} else if (strlen(tmppath.dbname) > 0) {
-		return exec_lscolls(client, tmppath.dbname);
-	}
+cleanup:
+	free(ps);
 
-	return exec_lsdbs(client, NULL);
+	return rc;
 }
 
 static int
-exec_drop(const char *npath)
+exec_drop(const char *paths)
 {
-	char p[PATH_MAX];
-	path_t tmppath;
+	path_t *psp, *ps = NULL;
 	mongoc_collection_t *coll;
 	mongoc_database_t *db;
 	bson_error_t error;
+	int rc, i, n;
 
-	/* copy current context */
-	if ((size_t)snprintf(p, sizeof(p), "/%s/%s", path.dbname, path.collname)
-	    >= sizeof(p)) {
-		warnx("p too small: %s", npath);
+	n = tok_paths(&ps, paths);
+	if (n == -1) {
+		warnx("could not parse paths: %s", paths);
 		return -1;
 	}
 
-	if (resolvepath(p, sizeof(p), npath, NULL) == (size_t)-1) {
-		warnx("resolvepath error: %s", npath);
-		return -1;
+	if (n == 0) {
+		/* default to current path */
+		psp = &path;
+		n = 1;
+	} else {
+		psp = ps;
 	}
 
-	if (parse_path(&tmppath, p) == -1) {
-		warnx("parse_path error: %s", npath);
-		abort();
-	}
+	rc = 0;
 
-	if (strlen(tmppath.collname) > 0) {	/* drop collection */
-		coll = mongoc_client_get_collection(client, tmppath.dbname,
-		    tmppath.collname);
-		if (!mongoc_collection_drop(coll, &error)) {
-			warnx("cursor failed: %d.%d %s", error.domain,
-			    error.code, error.message);
+	for (i = 0; i < n; i++) {
+		if (strlen(psp[i].collname) > 0) {	/* drop collection */
+			coll = mongoc_client_get_collection(client,
+			    psp[i].dbname, psp[i].collname);
+			if (!mongoc_collection_drop(coll, &error)) {
+				warnx("%d.%d %s", error.domain, error.code,
+				    error.message);
+				rc = -1;
+			} else {
+				printf("dropped /%s/%s\n", psp[i].dbname,
+				    psp[i].collname);
+			}
 			mongoc_collection_destroy(coll);
 			coll = NULL;
-			return -1;
-		}
-		mongoc_collection_destroy(coll);
-		coll = NULL;
-		printf("dropped /%s/%s\n", tmppath.dbname, tmppath.collname);
-	} else if (strlen(tmppath.dbname) > 0) {
-		db = mongoc_client_get_database(client, tmppath.dbname);
-		if (!mongoc_database_drop(db, &error)) {
-			warnx("cursor failed: %d.%d %s", error.domain,
-			    error.code, error.message);
+		} else if (strlen(psp[i].dbname) > 0) {
+			db = mongoc_client_get_database(client, psp[i].dbname);
+			if (!mongoc_database_drop(db, &error)) {
+				warnx("%d.%d %s", error.domain, error.code,
+				    error.message);
+				rc = -1;
+			} else {
+				printf("dropped %s\n", psp[i].dbname);
+			}
 			mongoc_database_destroy(db);
 			db = NULL;
-			return -1;
+		} else {
+			warnx("can't drop all databases at once");
+			rc = -1;
 		}
-		mongoc_database_destroy(db);
-		db = NULL;
-		printf("dropped %s\n", tmppath.dbname);
-	} else {
-		/* illegal context */
-		return -1;
+
+		if (rc != 0) {
+			warnx("failed dropping: /%s/%s", psp[i].dbname,
+			    psp[i].collname);
+			rc = -1;
+			goto cleanup;
+		}
 	}
 
-	return 0;
+cleanup:
+	free(ps);
+
+	return rc;
 }
 
 /*
@@ -1156,23 +1241,11 @@ exec_cmd(const char *cmd, const char *allcmds[], const char *line, size_t linele
 		return 0;
 	}
 
-	if (strcmp("ls", cmd) == 0) {
-		if (arg2len > 0) {
-			warnx("ls takes at most one argument: ls [path]");
-			return -1;
-		}
-
+	if (strcmp("ls", cmd) == 0)
 		return exec_ls(line);
-	}
 
-	if (strcmp("drop", cmd) == 0) {
-		if (arg2len > 0) {
-			warnx("drop takes at most one argument: ls [path]");
-			return -1;
-		}
-
+	if (strcmp("drop", cmd) == 0)
 		return exec_drop(line);
-	}
 
 	/*
 	 * All the other commands need a database and collection to be

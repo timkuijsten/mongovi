@@ -22,6 +22,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+#ifndef PATH_MAX
+#define PATH_MAX 1024
+#endif
+
 #include "parse_path.h"
 
 /*
@@ -164,6 +168,36 @@ parse_path(path_t *p, const char *path)
 
 		i = snprintf(p->collname, sizeof(p->collname), "%s", coll + 1);
 		if ((size_t)i >= sizeof(p->collname))
+			return -1;
+	}
+
+	return 0;
+}
+
+/*
+ * Parse paths into "*ps" using the current path from cpath.
+ *
+ * Returns 0 on success, -1 on failure. The caller should always free(3) *ps.
+ */
+int
+parse_paths(path_t *ps[], const path_t cpath, const char **av, size_t avlen)
+{
+	char p[PATH_MAX];
+	size_t i;
+
+	*ps = calloc(avlen, sizeof(path_t));
+	if (*ps == NULL)
+		return -1;
+
+	for (i = 0; i < avlen; i++) {
+		if ((size_t)snprintf(p, sizeof(p), "/%s/%s", cpath.dbname,
+		    cpath.collname) >= sizeof(p))
+			return -1;
+
+		if (resolvepath(p, sizeof(p), av[i], NULL) == (size_t)-1)
+			return -1;
+
+		if (parse_path(&(*ps)[i], p) == -1)
 			return -1;
 	}
 

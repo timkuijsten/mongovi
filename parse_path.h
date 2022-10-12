@@ -29,5 +29,7 @@ typedef struct {
 
 size_t resolvepath(char *c, size_t csize, const char *n, int *comps);
 int parse_path(path_t *p, const char *path);
+int parse_paths(path_t *ps[], const path_t cpath, const char **av,
+    size_t avlen);
 
 #endif

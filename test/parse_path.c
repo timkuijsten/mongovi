@@ -70,6 +70,67 @@ static struct expfmt2 exps2[] = {
 	{ "//foo//..///../..//..//b//", "bar", "/b/bar", 2, 6 },
 };
 
+struct expfmt3 {
+	const path_t cpath;
+	const char *av[2];
+	const path_t expps[2];
+	size_t exitcode;
+};
+
+static struct expfmt3 exps3[] = {
+	{ {"a", ""},  {"/x/y", "."},           {{"x", "y"},{"a",""}},  0 },
+	{ {"a", "b"}, {"/x/y", ""},            {{"x", "y"},{"a","b"}}, 0 },
+	{ {"a", "b"}, {"/x/y", "."},           {{"x", "y"},{"a","b"}}, 0 },
+	{ {"a", "b"}, {"/x/y", "../c"},        {{"x", "y"},{"a","c"}}, 0 },
+	{ {"a", "b"}, {"/x/y", "../../c"},     {{"x", "y"},{"c",""}},  0 },
+	{ {"a", "b"}, {"/x/y", "../../c/d"},   {{"x", "y"},{"c","d"}}, 0 },
+	{ {"a", "b"}, {"../../c/d", "../y/"},  {{"c", "d"},{"a","y"}}, 0 },
+	{ {"a", ""},  {"/x/y", ""},            {{"x", "y"},{"a",""}},  0 },
+	{ {"a", ""},  {"../x", ""},            {{"x", ""}, {"a",""}},  0 }
+};
+
+/*
+ * Return 0 if test passes, 1 if test fails.
+ */
+static int
+test_parse_paths(path_t *ps[], const path_t cpath, const char **av,
+    size_t avlen, const path_t *exp, const int exp_exit)
+{
+	size_t i;
+	int exit;
+
+	exit = parse_paths(ps, cpath, av, avlen);
+	if (exit != exp_exit) {
+		warnx("FAIL: \"/%s/%s\" = exit: %d, expected: %d\n",
+		    cpath.dbname, cpath.collname, exit, exp_exit);
+		return 1;
+	}
+
+	if (exit == exp_exit && exit == -1) {
+		if (verbose)
+			printf("PASS: \"/%s/%s\" = exit: %d, expected: %d\n",
+			    cpath.dbname, cpath.collname, exit, exp_exit);
+
+		return 0;
+	}
+
+	for (i = 0; i < avlen; i++) {
+		if (strcmp((*ps)[i].dbname, exp[i].dbname) != 0 ||
+		    strcmp((*ps)[i].collname, exp[i].collname) != 0) {
+			warnx("FAIL: /%s/%s, expected /%s/%s\n",
+			    (*ps)[i].dbname, (*ps)[i].collname,
+			    exp[i].dbname, exp[i].collname);
+			return 1;
+		}
+	}
+
+	if (verbose)
+		printf("PASS: \"/%s/%s\" %ld\n", cpath.dbname, cpath.collname,
+		    avlen);
+
+	return 0;
+}
+
 /*
  * return 0 if test passes, 1 if test fails, -1 on internal error
  */
@@ -160,7 +221,9 @@ main(void)
 	char path[1000];
 	struct expfmt *cexp;
 	struct expfmt2 *cexp2;
+	struct expfmt3 *cexp3;
 	int total, failed, i;
+	path_t *ps;
 
 	failed = 0;
 
@@ -185,6 +248,18 @@ main(void)
 		failed += test_resolvepath(path, sizeof(path), cexp2->npath,
 		    cexp2->exppath, cexp2->expcomps, cexp2->exitcode);
 		cexp2++;
+	}
+
+	if (verbose)
+		printf("\ntest parse_paths:\n");
+
+	cexp3 = exps3;
+	total = sizeof(exps3) / sizeof(exps3[0]);
+	for (i = 0; i < total; i++) {
+		failed += test_parse_paths(&ps, cexp3->cpath, cexp3->av, 2,
+		    cexp3->expps, cexp3->exitcode);
+		free(ps);
+		cexp3++;
 	}
 
 	return failed;
