@@ -342,14 +342,18 @@ cleanup:
 }
 
 /*
- * Update **line and return size of the token pointed to. The separator is
- * always an ASCII SPACE (0x20).
+ * Find the next token starting at *line. *line is updated to point to the
+ * first non-whitespace character.
+ *
+ * Note: the separator is always an ASCII SPACE (0x20) or ASCII HTAB (0x09).
+ *
+ * Returns the number of bytes of the token starting at *line.
  */
 static size_t
 nexttok(const char **line)
 {
-	*line = &(*line)[strspn(*line, " ")];
-	return strcspn(*line, " ");
+	*line = &(*line)[strspn(*line, " \t")];
+	return strcspn(*line, " \t");
 }
 
 /*
