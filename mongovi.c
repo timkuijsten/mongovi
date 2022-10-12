@@ -354,17 +354,40 @@ complete(EditLine *e, __attribute__((unused)) int ch)
 	const char **av;
 	int i, rc, ac, cc, co;
 
-	rc = CC_ERROR;
-
 	t = tok_init(NULL);
-	if (tok_line(t, el_line(e), &ac, &av, &cc, &co) != 0)
-		return rc;
+	rc = tok_line(t, el_line(e), &ac, &av, &cc, &co);
+
+	if (rc == -1) {
+		warnx("could not tokenize line");
+		rc = CC_ERROR;
+		goto cleanup;
+	}
+
+	if (rc == 1) {
+		warnx("unmatched single quote");
+		rc = CC_ERROR;
+		goto cleanup;
+	} else if (rc == 2) {
+		warnx("unmatched double quote");
+		rc = CC_ERROR;
+		goto cleanup;
+	} else if (rc == 3) {
+		warnx("multi-line unsupported");
+		rc = CC_ERROR;
+		goto cleanup;
+	}
+
+	if (rc != 0) {
+		warnx("unknown tokenization error");
+		rc = CC_ERROR;
+		goto cleanup;
+	}
 
 	if (ac == 0) {
-		i = 0;
 		printf("\n");
-		while (cmds[i] != NULL)
-			printf("%s\n", cmds[i++]);
+		for (i = 0; cmds[i] != NULL; i++)
+			printf("%s\n", cmds[i]);
+
 		rc = CC_REDISPLAY;
 		goto cleanup;
 	}
@@ -381,7 +404,7 @@ complete(EditLine *e, __attribute__((unused)) int ch)
 			el_insertstr(e, " ");
 
 		rc = CC_REDISPLAY;
-	} else if (cc == 1) {
+	} else if (cc >= 1) {
 		if (strcmp(av[0], "cd") == 0 || strcmp(av[0], "ls") == 0 ||
 		    strcmp(av[0], "drop") == 0) {
 			if (complete_path(e, av[cc], co) == -1) {
@@ -390,9 +413,6 @@ complete(EditLine *e, __attribute__((unused)) int ch)
 			}
 		}
 		rc = CC_REDISPLAY;
-	} else {
-		/* ignore subsequent words */
-		rc = CC_NORM;
 	}
 
 cleanup:
