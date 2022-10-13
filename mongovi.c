@@ -1592,6 +1592,10 @@ main(int argc, char **argv)
 	if (history(h, &he, H_SETSIZE, 100) == -1)
 		warnx("could not set history size: %d %s", he.num, he.str);
 
+	if (history(h, &he, H_SETUNIQUE, 1) == -1)
+		warnx("could not set history unique flag: %d %s", he.num,
+		    he.str);
+
 	if (el_set(e, EL_HIST, history, h) == -1)
 		warnx("could not set history function");
 
