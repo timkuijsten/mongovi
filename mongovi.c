@@ -794,6 +794,54 @@ exec_query(mongoc_collection_t * collection, const char *line, size_t linelen,
 }
 
 /*
+ * Change dbname and/or collname, set ccoll and update prompt.
+ *
+ * Return 0 on success, -1 on failure.
+ */
+static int
+exec_chcoll(mongoc_client_t *client, const path_t newpath)
+{
+	size_t dbnamelen, collnamelen;
+
+	if (ccoll != NULL) {
+		mongoc_collection_destroy(ccoll);
+		ccoll = NULL;
+	}
+
+	dbnamelen = strlen(newpath.dbname);
+	collnamelen = strlen(newpath.collname);
+
+	if (dbnamelen == 0 && collnamelen > 0) {
+		warnx("can't change collection because no db is set");
+		return -1;
+	}
+
+	if (collnamelen > 0)
+		ccoll = mongoc_client_get_collection(client, newpath.dbname,
+		    newpath.collname);
+
+	if (set_prompt(newpath.dbname, dbnamelen, newpath.collname, collnamelen)
+	    == -1)
+		warnx("can't update prompt with db and collection name");
+
+	if (strlcpy(prevpath.dbname, path.dbname, MAXDBNAME) >= MAXDBNAME)
+		return -1;
+
+	if (strlcpy(prevpath.collname, path.collname, MAXCOLLNAME) >=
+	    MAXCOLLNAME)
+		return -1;
+
+	if (strlcpy(path.dbname, newpath.dbname, MAXDBNAME) >= MAXDBNAME)
+		return -1;
+
+	if (strlcpy(path.collname, newpath.collname, MAXCOLLNAME) >=
+	    MAXCOLLNAME)
+		return -1;
+
+	return 0;
+}
+
+/*
  * List all databases, collections and/or object ids for each path in paths.
  *
  * Return 0 on success, -1 on failure.
@@ -915,54 +963,6 @@ cleanup:
 	free(ps);
 
 	return rc;
-}
-
-/*
- * Change dbname and/or collname, set ccoll and update prompt.
- *
- * Return 0 on success, -1 on failure.
- */
-static int
-exec_chcoll(mongoc_client_t *client, const path_t newpath)
-{
-	size_t dbnamelen, collnamelen;
-
-	if (ccoll != NULL) {
-		mongoc_collection_destroy(ccoll);
-		ccoll = NULL;
-	}
-
-	dbnamelen = strlen(newpath.dbname);
-	collnamelen = strlen(newpath.collname);
-
-	if (dbnamelen == 0 && collnamelen > 0) {
-		warnx("can't change collection because no db is set");
-		return -1;
-	}
-
-	if (collnamelen > 0)
-		ccoll = mongoc_client_get_collection(client, newpath.dbname,
-		    newpath.collname);
-
-	if (set_prompt(newpath.dbname, dbnamelen, newpath.collname, collnamelen)
-	    == -1)
-		warnx("can't update prompt with db and collection name");
-
-	if (strlcpy(prevpath.dbname, path.dbname, MAXDBNAME) >= MAXDBNAME)
-		return -1;
-
-	if (strlcpy(prevpath.collname, path.collname, MAXCOLLNAME) >=
-	    MAXCOLLNAME)
-		return -1;
-
-	if (strlcpy(path.dbname, newpath.dbname, MAXDBNAME) >= MAXDBNAME)
-		return -1;
-
-	if (strlcpy(path.collname, newpath.collname, MAXCOLLNAME) >=
-	    MAXCOLLNAME)
-		return -1;
-
-	return 0;
 }
 
 /*
