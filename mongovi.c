@@ -842,6 +842,82 @@ exec_chcoll(mongoc_client_t *client, const path_t newpath)
 }
 
 /*
+ * Change database/collection.
+ *
+ * Return 0 on success, -1 on failure.
+ */
+static int
+exec_cd(const char *paths)
+{
+	Tokenizer *t;
+	const char **av;
+	path_t *ps;
+	int rc, ac;
+
+	ps = NULL;
+
+	t = tok_init(NULL);
+
+	rc = tok_str(t, paths, &ac, &av);
+
+	if (rc == -1) {
+		warnx("could not tokenize paths: %s", paths);
+		goto cleanup;
+	}
+
+	if (rc == 1) {
+		warnx("unmatched single quote: %s", paths);
+		rc = -1;
+		goto cleanup;
+	} else if (rc == 2) {
+		warnx("unmatched double quote: %s", paths);
+		rc = -1;
+		goto cleanup;
+	} else if (rc == 3) {
+		warnx("multi-line unsupported");
+		rc = -1;
+		goto cleanup;
+	}
+
+	if (rc != 0) {
+		warnx("unknown tokenization error");
+		rc = -1;
+		goto cleanup;
+	}
+
+	if (ac == 0) {
+		warnx("cd requires one path argument: cd path");
+		rc = -1;
+		goto cleanup;
+	}
+
+	if (ac > 1) {
+		warnx("cd requires only one path argument: cd path");
+		rc = -1;
+		goto cleanup;
+	}
+
+	/* special case "cd -" */
+	if (strcmp("-", av[0]) == 0) {
+		rc = exec_chcoll(client, prevpath);
+	} else {
+		if (parse_paths(&ps, path, av, ac) == -1) {
+			warnx("could not parse paths: %s", paths);
+			rc = -1;
+			goto cleanup;
+		}
+
+		rc = exec_chcoll(client, *ps);
+	}
+
+cleanup:
+	free(ps);
+	tok_end(t);
+
+	return rc;
+}
+
+/*
  * List all databases, collections and/or object ids for each path in paths.
  *
  * Return 0 on success, -1 on failure.
@@ -1204,69 +1280,7 @@ exec_agquery(mongoc_collection_t *collection, const char *line, size_t linelen)
 static int
 exec_cmd(const char *cmd, const char *allcmds[], const char *line, size_t linelen)
 {
-	char p[PATH_MAX];
-	const char *arg1, *arg2;
-	char *arg;
-	size_t i, arg1len, arg2len;
-	path_t tmppath;
-
-	arg1 = line;
-	arg1len = nexttok(&arg1);
-
-	arg2len = 0;
-	if (arg1len > 0) {
-		arg2 = &arg1[arg1len];
-		arg2len = nexttok(&arg2);
-	}
-
-	if (strcmp("cd", cmd) == 0) {
-		if (arg1len == 0) {
-			warnx("cd requires one path argument: cd path");
-			return -1;
-		}
-
-		if (arg2len > 0) {
-			warnx("cd requires only one path argument: cd path");
-			return -1;
-		}
-
-		/* special case "cd -" */
-		if (arg1len == 1 && arg1[0] == '-') {
-			if (strlcpy(tmppath.dbname, prevpath.dbname, MAXDBNAME)
-			    >= MAXDBNAME)
-				return -1;
-			if (strlcpy(tmppath.collname, prevpath.collname,
-			    MAXCOLLNAME) >= MAXCOLLNAME)
-				return -1;
-		} else {
-			if ((size_t)snprintf(p, sizeof(p), "/%s/%s",
-			    path.dbname, path.collname) >= sizeof(p)) {
-				warnx("p too small: %s", line);
-				return -1;
-			}
-
-			arg = strndup(arg1, arg1len);
-			if (arg == NULL) {
-				warn("exec_cmd strndup");
-				abort();
-			}
-
-			if (resolvepath(p, sizeof(p), arg, NULL) == (size_t)-1)
-			    {
-				warnx("resolvepath error: %s", line);
-				free(arg);
-				return -1;
-			}
-			free(arg);
-
-			if (parse_path(&tmppath, p) == -1) {
-				warnx("parse_path error: %s", line);
-				abort();
-			}
-		}
-
-		return exec_chcoll(client, tmppath);
-	}
+	size_t i;
 
 	if (strcmp("help", cmd) == 0) {
 		for (i = 0; allcmds[i] != NULL; i++)
@@ -1274,6 +1288,9 @@ exec_cmd(const char *cmd, const char *allcmds[], const char *line, size_t linele
 
 		return 0;
 	}
+
+	if (strcmp("cd", cmd) == 0)
+		return exec_cd(line);
 
 	if (strcmp("ls", cmd) == 0)
 		return exec_ls(line);
