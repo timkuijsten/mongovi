@@ -1589,7 +1589,9 @@ main(int argc, char **argv)
 	if ((h = history_init()) == NULL)
 		errx(1, "can't initialize history");
 
-	history(h, &he, H_SETSIZE, 100);
+	if (history(h, &he, H_SETSIZE, 100) == -1)
+		warnx("could not set history size: %d %s", he.num, he.str);
+
 	if (el_set(e, EL_HIST, history, h) == -1)
 		warnx("could not set history function");
 
@@ -1644,7 +1646,8 @@ main(int argc, char **argv)
 			continue;
 
 		if (history(h, &he, H_ENTER, linecpy) == -1)
-			warnx("can't enter history");
+			warnx("can't add line to history: %d %s", he.num,
+			    he.str);
 
 		/*
 		 * Parse command and let args point to the first token after
