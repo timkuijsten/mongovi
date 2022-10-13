@@ -1582,6 +1582,7 @@ main(int argc, char **argv)
 		errx(1, "could not load upsert option document %d.%d %s",
 		    error.domain, error.code, error.message);
 
+	/* init editline */
 	if ((e = el_init(progname, stdin, stdout, stderr)) == NULL)
 		errx(1, "can't initialize editline");
 
@@ -1589,25 +1590,34 @@ main(int argc, char **argv)
 		errx(1, "can't initialize history");
 
 	history(h, &he, H_SETSIZE, 100);
-	el_set(e, EL_HIST, history, h);
+	if (el_set(e, EL_HIST, history, h) == -1)
+		warnx("could not set history function");
 
-	el_set(e, EL_PROMPT, prompt);
-	el_set(e, EL_EDITOR, "emacs");
-	el_set(e, EL_TERMINAL, NULL);
+	if (el_set(e, EL_PROMPT, prompt) == -1)
+		warnx("could not set prompt function");
+
+	if (el_set(e, EL_EDITOR, "emacs") == -1)
+		warnx("could not set editor mode");
+
+	if (el_set(e, EL_TERMINAL, NULL) == -1)
+		warnx("could not initialize terminal");
 
 	/* load user defaults */
 	if (el_source(e, NULL) == -1)
 		warnx("sourcing .editrc failed");
 
-	if (el_get(e, EL_EDITMODE, &i) != 0)
-		errx(1, "can't determine editline status");
+	/* override tab binding */
+	if (el_set(e, EL_ADDFN, "complete", "tab completion", complete) == -1)
+		warnx("could not set tab completion function");
+
+	if (el_set(e, EL_BIND, "\t", "complete", NULL) == -1)
+		warnx("could not bind tab for tab completion");
+
+	if (el_get(e, EL_EDITMODE, &i) == -1)
+		warnx("can't determine editline status");
 
 	if (i == 0)
-		errx(1, "editline disabled");
-
-	el_set(e, EL_ADDFN, "complete", "tab completion", complete);
-
-	el_set(e, EL_BIND, "\t", "complete", NULL);
+		warnx("editline disabled");
 
 	while ((line = el_wgets(e, &read)) != NULL) {
 		linecpy[0] = '\0';
