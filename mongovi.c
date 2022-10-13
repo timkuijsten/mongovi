@@ -574,30 +574,33 @@ prompt(void)
  *      "/db..me/co..me> ".
  */
 static int
-set_prompt(const char *dbname, const char *collname)
+set_prompt(const char *dbname, size_t dbnamelen, const char *collname,
+    size_t collnamelen)
 {
 	char c1[sizeof(pmpt)], c2[sizeof(pmpt)];
 	size_t n;
 
-	if (dbname == NULL && collname == NULL) {
+	if (dbnamelen == 0 && collnamelen == 0) {
 		if ((size_t)snprintf(pmpt, sizeof(pmpt), "/> ") >= sizeof(pmpt))
 			return -1;
+
+		return 0;
 	}
 
-	if (dbname == NULL) {
-		/* only collname is provided */
+	/* err if only collname is provided */
+	if (dbnamelen == 0)
 		return -1;
-	}
 
 	c1[0] = '\0';
 	c2[0] = '\0';
 
 	/* default to db only prompt */
 	n = strlen("/> ");
+
 	if (strlcpy(c1, dbname, sizeof(c1)) >= sizeof(c1))
 		return -1;
 
-	if (collname != NULL) {
+	if (collnamelen > 0) {
 		/* make dbname + collname prompt */
 		n = strlen("//> ");
 		if (strlcpy(c2, collname, sizeof(c2)) >= sizeof(c2))
@@ -607,7 +610,7 @@ set_prompt(const char *dbname, const char *collname)
 	if (shorten_comps(c1, c2, MAXPROMPTCOLUMNS - n) == (size_t)-1)
 		return -1;
 
-	if (collname == NULL) {
+	if (collnamelen == 0) {
 		n = snprintf(pmpt, sizeof(pmpt), "/%s> ", c1);
 		if (n >= sizeof(pmpt))
 			return -1;
@@ -922,28 +925,39 @@ cleanup:
 static int
 exec_chcoll(mongoc_client_t *client, const path_t newpath)
 {
-	/* unset current collection */
+	size_t dbnamelen, collnamelen;
+
 	if (ccoll != NULL) {
 		mongoc_collection_destroy(ccoll);
 		ccoll = NULL;
 	}
-	/* if there is a new collection, change to it */
-	if (strlen(newpath.dbname) > 0 && strlen(newpath.dbname) > 0)
+
+	dbnamelen = strlen(newpath.dbname);
+	collnamelen = strlen(newpath.collname);
+
+	if (dbnamelen == 0 && collnamelen > 0) {
+		warnx("can't change collection because no db is set");
+		return -1;
+	}
+
+	if (collnamelen > 0)
 		ccoll = mongoc_client_get_collection(client, newpath.dbname,
 		    newpath.collname);
 
-	/* update prompt to show whatever we've changed to */
-	if (set_prompt(newpath.dbname, newpath.collname) == -1)
+	if (set_prompt(newpath.dbname, dbnamelen, newpath.collname, collnamelen)
+	    == -1)
 		warnx("can't update prompt with db and collection name");
 
-	/* update global references */
 	if (strlcpy(prevpath.dbname, path.dbname, MAXDBNAME) >= MAXDBNAME)
 		return -1;
+
 	if (strlcpy(prevpath.collname, path.collname, MAXCOLLNAME) >=
 	    MAXCOLLNAME)
 		return -1;
+
 	if (strlcpy(path.dbname, newpath.dbname, MAXDBNAME) >= MAXDBNAME)
 		return -1;
+
 	if (strlcpy(path.collname, newpath.collname, MAXCOLLNAME) >=
 	    MAXCOLLNAME)
 		return -1;
@@ -1547,8 +1561,8 @@ main(int argc, char **argv)
 		if (parse_path(&newpath, p) == -1)
 			errx(1, "parse_path error: %s", argv[0]);
 
-		if (exec_chcoll(client, newpath) < 0)
-			errx(1, "can't change database or collection");
+		if (exec_chcoll(client, newpath) == -1)
+			errx(1, "can't change to %s", argv[0]);
 	}
 
 	/*
