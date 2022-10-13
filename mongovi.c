@@ -110,6 +110,39 @@ static const char *cmds[] = {
 };
 
 /*
+ * Test the results of tok_str(3) and tok_line(3) and print an appropriate
+ * message on stderr if there was a problem.
+ *
+ * Return 0 on success or -1 on failure.
+ */
+static int
+test_tokresult(int rc)
+{
+	if (rc == -1) {
+		warnx("could not tokenize");
+		return -1;
+	}
+
+	if (rc == 1) {
+		warnx("unmatched single quote");
+		return -1;
+	} else if (rc == 2) {
+		warnx("unmatched double quote");
+		return -1;
+	} else if (rc == 3) {
+		warnx("multi-line unsupported");
+		return -1;
+	}
+
+	if (rc != 0) {
+		warnx("unknown tokenization error");
+		return -1;
+	}
+
+	return 0;
+}
+
+/*
  * Tokenize a list of paths.
  *
  * Returns the number of paths parsed into *ps on success, -1 on failure. *ps
@@ -127,31 +160,10 @@ tok_paths(path_t **ps, const char *paths)
 	t = tok_init(NULL);
 
 	rc = tok_str(t, paths, &ac, &av);
+	rc = test_tokresult(rc);
 
-	if (rc == -1) {
-		warnx("could not tokenize paths: %s", paths);
+	if (rc == -1)
 		goto cleanup;
-	}
-
-	if (rc == 1) {
-		warnx("unmatched single quote: %s", paths);
-		rc = -1;
-		goto cleanup;
-	} else if (rc == 2) {
-		warnx("unmatched double quote: %s", paths);
-		rc = -1;
-		goto cleanup;
-	} else if (rc == 3) {
-		warnx("multi-line unsupported");
-		rc = -1;
-		goto cleanup;
-	}
-
-	if (rc != 0) {
-		warnx("unknown tokenization error");
-		rc = -1;
-		goto cleanup;
-	}
 
 	if (parse_paths(ps, path, av, ac) == -1) {
 		warnx("could not parse paths: %s", paths);
@@ -356,29 +368,9 @@ complete(EditLine *e, __attribute__((unused)) int ch)
 
 	t = tok_init(NULL);
 	rc = tok_line(t, el_line(e), &ac, &av, &cc, &co);
+	rc = test_tokresult(rc);
 
 	if (rc == -1) {
-		warnx("could not tokenize line");
-		rc = CC_ERROR;
-		goto cleanup;
-	}
-
-	if (rc == 1) {
-		warnx("unmatched single quote");
-		rc = CC_ERROR;
-		goto cleanup;
-	} else if (rc == 2) {
-		warnx("unmatched double quote");
-		rc = CC_ERROR;
-		goto cleanup;
-	} else if (rc == 3) {
-		warnx("multi-line unsupported");
-		rc = CC_ERROR;
-		goto cleanup;
-	}
-
-	if (rc != 0) {
-		warnx("unknown tokenization error");
 		rc = CC_ERROR;
 		goto cleanup;
 	}
@@ -859,31 +851,10 @@ exec_cd(const char *paths)
 	t = tok_init(NULL);
 
 	rc = tok_str(t, paths, &ac, &av);
+	rc = test_tokresult(rc);
 
-	if (rc == -1) {
-		warnx("could not tokenize paths: %s", paths);
+	if (rc == -1)
 		goto cleanup;
-	}
-
-	if (rc == 1) {
-		warnx("unmatched single quote: %s", paths);
-		rc = -1;
-		goto cleanup;
-	} else if (rc == 2) {
-		warnx("unmatched double quote: %s", paths);
-		rc = -1;
-		goto cleanup;
-	} else if (rc == 3) {
-		warnx("multi-line unsupported");
-		rc = -1;
-		goto cleanup;
-	}
-
-	if (rc != 0) {
-		warnx("unknown tokenization error");
-		rc = -1;
-		goto cleanup;
-	}
 
 	if (ac == 0) {
 		warnx("cd requires one path argument: cd path");
