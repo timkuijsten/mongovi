@@ -347,7 +347,7 @@ complete_path(EditLine *e, const char *npath, size_t npathlen)
  * if matches exactly one command and not complete, complete
  * if command is complete and needs args, look at that
  */
-static uint8_t
+static unsigned char
 complete(EditLine *e, __attribute__((unused)) int ch)
 {
 	Tokenizer *t;
@@ -1605,8 +1605,7 @@ main(int argc, char **argv)
 	if (i == 0)
 		errx(1, "editline disabled");
 
-	el_set(e, EL_ADDFN, "complete", "Context sensitive argument completion",
-	    complete);
+	el_set(e, EL_ADDFN, "complete", "tab completion", complete);
 
 	el_set(e, EL_BIND, "\t", "complete", NULL);
 
