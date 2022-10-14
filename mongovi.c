@@ -29,6 +29,7 @@
 #include <histedit.h>
 #include <libgen.h>
 #include <pwd.h>
+#include <string.h>
 
 #include <bson.h>
 #include <mongoc.h>
@@ -841,10 +842,13 @@ exec_chcoll(mongoc_client_t *client, const path_t newpath)
 static int
 exec_cd(const char *paths)
 {
+	char p1[PATH_MAX], p2[PATH_MAX];
+	path_t tmppath;
 	Tokenizer *t;
-	const char **av;
+	const char **av, *s;
 	path_t *ps;
 	int rc, ac;
+	size_t n;
 
 	ps = NULL;
 
@@ -862,14 +866,49 @@ exec_cd(const char *paths)
 		goto cleanup;
 	}
 
-	if (ac > 1) {
-		warnx("cd requires only one path argument: cd path");
+	if (ac > 2) {
+		warnx("cd requires one path argument or a string substitution");
 		rc = -1;
 		goto cleanup;
 	}
 
-	/* special case "cd -" */
-	if (strcmp("-", av[0]) == 0) {
+	if (ac == 2) {
+		if ((size_t)snprintf(p1, sizeof(p1), "/%s/%s", path.dbname,
+		    path.collname) >= sizeof(p1)) {
+			warnx("exec_cd p1 too small");
+			rc = -1;
+			goto cleanup;
+		}
+
+		s = strstr(p1, av[0]);
+		if (s == NULL) {
+			warnx("%s not found in %s", av[0], p1);
+			rc = -1;
+			goto cleanup;
+		}
+
+		if ((size_t)snprintf(p2, sizeof(p2), "%.*s%s%s", (int)(s - p1), p1,
+		    av[1], &p1[(s - p1) + strlen(av[0])]) >= sizeof(p2)) {
+			warnx("exec_cd p2 too small for new path");
+			rc = -1;
+			goto cleanup;
+		}
+
+		/* assert p1 still contains cwd */
+		n = resolvepath(p1, sizeof(p1), p2, NULL);
+		if (n == (size_t)-1) {
+			warnx("exec_cd resolvepath error: %s", p2);
+			return -1;
+		}
+
+		if (parse_path(&tmppath, p1) == -1) {
+			warnx("parse_path error: %s", p1);
+			abort();
+		}
+
+		rc = exec_chcoll(client, tmppath);
+	} else if (strcmp("-", av[0]) == 0) {
+		/* cd - */
 		rc = exec_chcoll(client, prevpath);
 	} else {
 		if (parse_paths(&ps, path, av, ac) == -1) {
