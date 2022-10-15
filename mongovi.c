@@ -311,15 +311,16 @@ complete_path(EditLine *e, const char *npath, size_t npathlen)
 		abort();
 	}
 
-	if (comps > 1 || (comps == 1 && lastchar == '/') || (comps == 1 && lastchar == '\0')) {
+	if (comps > 1 || (comps == 1 && lastchar == '/') ||
+	    (comps == 1 && lastchar == '\0')) {
 		db = mongoc_client_get_database(client, tmppath.dbname);
 		strv = mongoc_database_get_collection_names_with_opts(db, NULL,
 		    &error);
 		mongoc_database_destroy(db);
 		db = NULL;
 		if (strv == NULL) {
-			warnx("cd coll failed %d.%d %s", error.domain,
-			    error.code, error.message);
+			warnx("complete collection failed: %d.%d %s",
+			    error.domain, error.code, error.message);
 			return -1;
 		}
 
@@ -334,8 +335,8 @@ complete_path(EditLine *e, const char *npath, size_t npathlen)
 		strv = mongoc_client_get_database_names_with_opts(client, NULL,
 		    &error);
 		if (strv == NULL) {
-			warnx("cd db failed %d.%d %s", error.domain, error.code,
-			    error.message);
+			warnx("complete db failed: %d.%d %s", error.domain,
+			    error.code, error.message);
 			return -1;
 		}
 
@@ -633,8 +634,8 @@ exec_lsdbs(mongoc_client_t * client, const char *prefix)
 
 	strv = mongoc_client_get_database_names_with_opts(client, NULL, &error);
 	if (strv == NULL) {
-		warnx("cursor failed: %d.%d %s", error.domain, error.code,
-		      error.message);
+		warnx("could not get database names: %d.%d %s", error.domain,
+		    error.code, error.message);
 		return -1;
 	}
 
@@ -674,8 +675,8 @@ exec_lscolls(mongoc_client_t *client, char *dbname)
 	mongoc_database_destroy(db);
 	db = NULL;
 	if (strv == NULL) {
-		warnx("lscolls failed %d.%d %s", error.domain, error.code,
-		    error.message);
+		warnx("could not get collection names: %d.%d %s", error.domain,
+		    error.code, error.message);
 		return -1;
 	}
 
@@ -1256,8 +1257,9 @@ exec_drop(const char *paths)
 			coll = mongoc_client_get_collection(client,
 			    psp[i].dbname, psp[i].collname);
 			if (!mongoc_collection_drop(coll, &error)) {
-				warnx("%d.%d %s", error.domain, error.code,
-				    error.message);
+				warnx("failed dropping /%s/%s: %d.%d %s",
+				    psp[i].dbname, psp[i].collname,
+				    error.domain, error.code, error.message);
 				rc = -1;
 			} else {
 				printf("dropped /%s/%s\n", psp[i].dbname,
@@ -1268,11 +1270,12 @@ exec_drop(const char *paths)
 		} else if (strlen(psp[i].dbname) > 0) {
 			db = mongoc_client_get_database(client, psp[i].dbname);
 			if (!mongoc_database_drop(db, &error)) {
-				warnx("%d.%d %s", error.domain, error.code,
+				warnx("failed dropping /%s: %d.%d %s",
+				    psp[i].dbname, error.domain, error.code,
 				    error.message);
 				rc = -1;
 			} else {
-				printf("dropped %s\n", psp[i].dbname);
+				printf("dropped /%s\n", psp[i].dbname);
 			}
 			mongoc_database_destroy(db);
 			db = NULL;
@@ -1282,8 +1285,6 @@ exec_drop(const char *paths)
 		}
 
 		if (rc != 0) {
-			warnx("failed dropping: /%s/%s", psp[i].dbname,
-			    psp[i].collname);
 			rc = -1;
 			goto cleanup;
 		}
@@ -1450,8 +1451,8 @@ do_import(mongoc_collection_t * collection)
 			continue;
 
 		if (bson_init_from_json(docs[j], line, r, &error) == false) {
-			warnx("JSON error: %d.%d %s", error.domain, error.code,
-			    error.message);
+			warnx("%d.%d %s: %s", error.domain, error.code,
+			    error.message, line);
 			continue;
 		}
 
