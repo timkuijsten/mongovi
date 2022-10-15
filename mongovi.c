@@ -817,19 +817,8 @@ exec_chcoll(mongoc_client_t *client, const path_t newpath)
 	    == -1)
 		warnx("can't update prompt with db and collection name");
 
-	if (strlcpy(prevpath.dbname, path.dbname, MAXDBNAME) >= MAXDBNAME)
-		return -1;
-
-	if (strlcpy(prevpath.collname, path.collname, MAXCOLLNAME) >=
-	    MAXCOLLNAME)
-		return -1;
-
-	if (strlcpy(path.dbname, newpath.dbname, MAXDBNAME) >= MAXDBNAME)
-		return -1;
-
-	if (strlcpy(path.collname, newpath.collname, MAXCOLLNAME) >=
-	    MAXCOLLNAME)
-		return -1;
+	prevpath = path;
+	path = newpath;
 
 	return 0;
 }
