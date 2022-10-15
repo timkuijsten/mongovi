@@ -719,7 +719,8 @@ exec_query(mongoc_collection_t * collection, const char *line, size_t linelen,
 	}
 
 	if ((query = bson_new_from_json(tmpdocs, -1, &error)) == NULL) {
-		warnx("%d.%d %s", error.domain, error.code, error.message);
+		warnx("%d.%d %s: %s", error.domain, error.code, error.message,
+		    tmpdocs);
 		return -1;
 	}
 
@@ -851,7 +852,7 @@ exec_cd(const char *paths)
 	rc = tok_str(t, paths, &ac, &av);
 	rc = test_tokresult(rc);
 
-	if (rc == -1)
+	if (rc == -1) /* assert message is printed by test_tokresult */
 		goto cleanup;
 
 	if (ac == 0) {
@@ -1078,7 +1079,8 @@ exec_count(mongoc_collection_t *collection, const char *line, size_t linelen)
 	}
 
 	if ((query = bson_new_from_json(tmpdocs, -1, &error)) == NULL) {
-		warnx("%d.%d %s", error.domain, error.code, error.message);
+		warnx("%d.%d %s: %s", error.domain, error.code, error.message,
+		    tmpdocs);
 		return -1;
 	}
 
@@ -1088,8 +1090,8 @@ exec_count(mongoc_collection_t *collection, const char *line, size_t linelen)
 	bson_destroy(query);
 
 	if (count == -1) {
-		warnx("cursor failed: %d.%d %s", error.domain, error.code,
-		    error.message);
+		warnx("count failed: %d.%d %s: %s", error.domain, error.code,
+		    error.message, tmpdocs);
 		return -1;
 	}
 
@@ -1126,25 +1128,30 @@ exec_update(mongoc_collection_t *collection, const char *line, size_t linelen,
 
 	offset = relaxed_to_strict((char *)update_doc, MAXDOC, line, linelen,
 	    1);
-	if (offset <= 0)
+	if (offset <= 0) {
+		warnx("could not parse update doc: %s", line);
 		return -1;
+	}
 
 	line += offset;
 	linelen -= offset;
 
 	if ((query = bson_new_from_json(tmpdocs, -1, &error)) == NULL) {
-		warnx("%d.%d %s", error.domain, error.code, error.message);
+		warnx("%d.%d %s: %s", error.domain, error.code, error.message,
+		    tmpdocs);
 		return -1;
 	}
 
 	if ((update = bson_new_from_json(update_doc, -1, &error)) == NULL) {
-		warnx("%d.%d %s", error.domain, error.code, error.message);
+		warnx("%d.%d %s: %s", error.domain, error.code, error.message,
+		    update_doc);
 		goto cleanuperr;
 	}
 
 	if (!mongoc_collection_update_many(collection, query, update, opts,
 	    NULL, &error)) {
-		warnx("%d.%d %s", error.domain, error.code, error.message);
+		warnx("update failed: %d.%d %s: %s %s", error.domain,
+		    error.code, error.message, tmpdocs, update_doc);
 		goto cleanuperr;
 	}
 
@@ -1173,13 +1180,15 @@ exec_insert(mongoc_collection_t *collection, const char *line, size_t linelen)
 		return -1;
 
 	if ((doc = bson_new_from_json(tmpdocs, -1, &error)) == NULL) {
-		warnx("%d.%d %s", error.domain, error.code, error.message);
+		warnx("%d.%d %s: %s", error.domain, error.code, error.message,
+		    tmpdocs);
 		return -1;
 	}
 
 	if (!mongoc_collection_insert_one(collection, doc, NULL, NULL, &error))
 	    {
-		warnx("%d.%d %s", error.domain, error.code, error.message);
+		warnx("insert failed: %d.%d %s: %s", error.domain, error.code,
+		    error.message, tmpdocs);
 		bson_destroy(doc);
 		return -1;
 	}
@@ -1202,13 +1211,15 @@ exec_remove(mongoc_collection_t *collection, const char *line, size_t linelen)
 		return -1;
 
 	if ((selector = bson_new_from_json(tmpdocs, -1, &error)) == NULL) {
-		warnx("%d.%d %s", error.domain, error.code, error.message);
+		warnx("%d.%d %s: %s", error.domain, error.code, error.message,
+		    tmpdocs);
 		return -1;
 	}
 
 	if (!mongoc_collection_delete_many(collection, selector, NULL, NULL,
 	    &error)) {
-		warnx("%d.%d %s", error.domain, error.code, error.message);
+		warnx("remove failed: %d.%d %s: %s", error.domain, error.code,
+		    error.message, tmpdocs);
 		bson_destroy(selector);
 		return -1;
 	}
@@ -1250,7 +1261,8 @@ exec_agquery(mongoc_collection_t *collection, const char *line, size_t linelen)
 	}
 
 	if ((aggr_query = bson_new_from_json(tmpdocs, -1, &error)) == NULL) {
-		warnx("%d.%d %s", error.domain, error.code, error.message);
+		warnx("%d.%d %s: %s", error.domain, error.code, error.message,
+		    tmpdocs);
 		return -1;
 	}
 
@@ -1720,8 +1732,11 @@ main(int argc, char **argv)
 			continue;
 		}
 
-		if (exec_cmd(cmd, cmds, args, strlen(args)) == -1)
-			warnx("execution failed");
+		/*
+		 * Assert each command prints a detailed error for the user if
+		 * needed.
+		 */
+		exec_cmd(cmd, cmds, args, strlen(args));
 	}
 
 	if (read == -1)
