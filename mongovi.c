@@ -897,12 +897,14 @@ exec_cd(const char *paths)
 		n = resolvepath(p1, sizeof(p1), p2, NULL);
 		if (n == (size_t)-1) {
 			warnx("exec_cd resolvepath error: %s", p2);
-			return -1;
+			rc = -1;
+			goto cleanup;
 		}
 
 		if (parse_path(&tmppath, p1) == -1) {
-			warnx("parse_path error: %s", p1);
-			abort();
+			warnx("exec_cd parse_path error: %s", p1);
+			rc = -1;
+			goto cleanup;
 		}
 
 		rc = exec_chcoll(client, tmppath);
