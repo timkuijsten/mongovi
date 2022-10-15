@@ -72,7 +72,7 @@
 
 static char progname[MAXPROG];
 
-static path_t path, prevpath;
+static path_t path, prevpath, homepath;
 
 /* use as temporary one-time storage while building a query or query results */
 static uint8_t tmpdocs[16 * 1024 * 1024];
@@ -93,7 +93,7 @@ static bson_t *bsonupsertopt;
 static int hr;
 static int ttyin, ttyout;
 
-static int import = 0;
+static int import, homepathset;
 
 static const char *cmds[] = {
 	"aggregate",
@@ -817,6 +817,11 @@ exec_chcoll(mongoc_client_t *client, const path_t newpath)
 	    == -1)
 		warnx("can't update prompt with db and collection name");
 
+	if (homepathset == 0 && dbnamelen > 0) {
+		homepath = newpath;
+		homepathset = 1;
+	}
+
 	prevpath = path;
 	path = newpath;
 
@@ -850,13 +855,18 @@ exec_cd(const char *paths)
 		goto cleanup;
 
 	if (ac == 0) {
-		warnx("cd requires one path argument: cd path");
-		rc = -1;
+		if (homepathset == 0) {
+			warnx("home path not set: no database or collection "
+			    "entered yet");
+			rc = -1;
+		} else {
+			rc = exec_chcoll(client, homepath);
+		}
 		goto cleanup;
 	}
 
 	if (ac > 2) {
-		warnx("cd requires one path argument or a string substitution");
+		warnx("too many arguments");
 		rc = -1;
 		goto cleanup;
 	}
