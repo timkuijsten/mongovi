@@ -87,7 +87,7 @@ static char pmpt[8 * MAXPROMPTCOLUMNS + 8] = "/> ";
 static mongoc_client_t *client;
 static mongoc_collection_t *ccoll;	/* current collection */
 
-static bson_t *bsonupsertopt;
+static bson_t *bsonupsertopt, *bsonprojectid;
 
 /* print human readable or not */
 static int hr;
@@ -745,7 +745,7 @@ exec_query(mongoc_collection_t * collection, const char *line, size_t linelen,
 	size_t rlen;
 	const bson_t *doc;
 	char *str;
-	bson_t *query, *fields;
+	bson_t *query;
 	struct winsize w;
 
 	if (sizeof(tmpdocs) < 3)
@@ -767,23 +767,10 @@ exec_query(mongoc_collection_t * collection, const char *line, size_t linelen,
 		return -1;
 	}
 
-	if (idsonly) {
-		if ((fields = bson_new_from_json(
-		    (uint8_t *)"{ \"projection\": { \"_id\": true } }", -1,
-		    &error)) == NULL) {
-			warnx("%d.%d %s", error.domain, error.code,
-			    error.message);
-			bson_destroy(query);
-			return -1;
-		}
-	}
-
 	cursor = mongoc_collection_find_with_opts(collection, query,
-	    idsonly ? fields : NULL, NULL);
+	    idsonly ? bsonprojectid : NULL, NULL);
 
 	bson_destroy(query);
-	if (idsonly)
-		bson_destroy(fields);
 
 	w.ws_row = 0;
 	w.ws_col = 0;
@@ -1631,10 +1618,17 @@ main(int argc, char **argv)
 		exit(0);
 	}
 
-	bsonupsertopt = bson_new_from_json((const uint8_t *)"{\"upsert\":true}",
-	    -1, &error);
+	bsonupsertopt = bson_new_from_json(
+	    (const uint8_t *)"{ \"upsert\": true }", -1, &error);
 	if (bsonupsertopt == NULL)
-		errx(1, "could not load upsert option document %d.%d %s",
+		errx(1, "could not load upsert option document: %d.%d %s",
+		    error.domain, error.code, error.message);
+
+	bsonprojectid = bson_new_from_json(
+	    (const uint8_t *)"{ \"projection\": { \"_id\": true } }", -1,
+	    &error);
+	if (bsonprojectid == NULL)
+		errx(1, "could not load project id document: %d.%d %s",
 		    error.domain, error.code, error.message);
 
 	/* init editline */
@@ -1742,6 +1736,9 @@ main(int argc, char **argv)
 
 	if (read == -1)
 		err(1, NULL);
+
+	bson_destroy(bsonprojectid);
+	bsonprojectid = NULL;
 
 	bson_destroy(bsonupsertopt);
 	bsonupsertopt = NULL;
