@@ -689,6 +689,48 @@ exec_lscolls(mongoc_client_t *client, char *dbname)
 }
 
 /*
+ * Change dbname and/or collname, set ccoll and update prompt.
+ *
+ * Return 0 on success, -1 on failure.
+ */
+static int
+exec_chcoll(mongoc_client_t *client, const path_t newpath)
+{
+	size_t dbnamelen, collnamelen;
+
+	if (ccoll != NULL) {
+		mongoc_collection_destroy(ccoll);
+		ccoll = NULL;
+	}
+
+	dbnamelen = strlen(newpath.dbname);
+	collnamelen = strlen(newpath.collname);
+
+	if (dbnamelen == 0 && collnamelen > 0) {
+		warnx("can't change collection because no db is set");
+		return -1;
+	}
+
+	if (collnamelen > 0)
+		ccoll = mongoc_client_get_collection(client, newpath.dbname,
+		    newpath.collname);
+
+	if (set_prompt(newpath.dbname, dbnamelen, newpath.collname, collnamelen)
+	    == -1)
+		warnx("can't update prompt with db and collection name");
+
+	if (homepathset == 0 && dbnamelen > 0) {
+		homepath = newpath;
+		homepathset = 1;
+	}
+
+	prevpath = path;
+	path = newpath;
+
+	return 0;
+}
+
+/*
  * Execute a query.
  *
  * Return 0 on success, -1 on failure.
@@ -785,272 +827,6 @@ exec_query(mongoc_collection_t * collection, const char *line, size_t linelen,
 	cursor = NULL;
 
 	return 0;
-}
-
-/*
- * Change dbname and/or collname, set ccoll and update prompt.
- *
- * Return 0 on success, -1 on failure.
- */
-static int
-exec_chcoll(mongoc_client_t *client, const path_t newpath)
-{
-	size_t dbnamelen, collnamelen;
-
-	if (ccoll != NULL) {
-		mongoc_collection_destroy(ccoll);
-		ccoll = NULL;
-	}
-
-	dbnamelen = strlen(newpath.dbname);
-	collnamelen = strlen(newpath.collname);
-
-	if (dbnamelen == 0 && collnamelen > 0) {
-		warnx("can't change collection because no db is set");
-		return -1;
-	}
-
-	if (collnamelen > 0)
-		ccoll = mongoc_client_get_collection(client, newpath.dbname,
-		    newpath.collname);
-
-	if (set_prompt(newpath.dbname, dbnamelen, newpath.collname, collnamelen)
-	    == -1)
-		warnx("can't update prompt with db and collection name");
-
-	if (homepathset == 0 && dbnamelen > 0) {
-		homepath = newpath;
-		homepathset = 1;
-	}
-
-	prevpath = path;
-	path = newpath;
-
-	return 0;
-}
-
-/*
- * Change database/collection.
- *
- * Return 0 on success, -1 on failure.
- */
-static int
-exec_cd(const char *paths)
-{
-	char p1[PATH_MAX], p2[PATH_MAX];
-	path_t tmppath;
-	Tokenizer *t;
-	const char **av, *s;
-	path_t *ps;
-	int rc, ac;
-	size_t n;
-
-	ps = NULL;
-
-	t = tok_init(NULL);
-
-	rc = tok_str(t, paths, &ac, &av);
-	rc = test_tokresult(rc);
-
-	if (rc == -1) /* assert message is printed by test_tokresult */
-		goto cleanup;
-
-	if (ac == 0) {
-		if (homepathset == 0) {
-			warnx("home path not set: no database or collection "
-			    "entered yet");
-			rc = -1;
-		} else {
-			rc = exec_chcoll(client, homepath);
-		}
-		goto cleanup;
-	}
-
-	if (ac > 2) {
-		warnx("too many arguments");
-		rc = -1;
-		goto cleanup;
-	}
-
-	if (ac == 2) {
-		if ((size_t)snprintf(p1, sizeof(p1), "/%s/%s", path.dbname,
-		    path.collname) >= sizeof(p1)) {
-			warnx("exec_cd p1 too small");
-			rc = -1;
-			goto cleanup;
-		}
-
-		s = strstr(p1, av[0]);
-		if (s == NULL) {
-			warnx("%s not found in %s", av[0], p1);
-			rc = -1;
-			goto cleanup;
-		}
-
-		if ((size_t)snprintf(p2, sizeof(p2), "%.*s%s%s", (int)(s - p1), p1,
-		    av[1], &p1[(s - p1) + strlen(av[0])]) >= sizeof(p2)) {
-			warnx("exec_cd p2 too small for new path");
-			rc = -1;
-			goto cleanup;
-		}
-
-		/* assert p1 still contains cwd */
-		n = resolvepath(p1, sizeof(p1), p2, NULL);
-		if (n == (size_t)-1) {
-			warnx("exec_cd resolvepath error: %s", p2);
-			rc = -1;
-			goto cleanup;
-		}
-
-		if (parse_path(&tmppath, p1) == -1) {
-			warnx("exec_cd parse_path error: %s", p1);
-			rc = -1;
-			goto cleanup;
-		}
-
-		rc = exec_chcoll(client, tmppath);
-	} else if (strcmp("-", av[0]) == 0) {
-		/* cd - */
-		rc = exec_chcoll(client, prevpath);
-	} else {
-		if (parse_paths(&ps, path, av, ac) == -1) {
-			warnx("could not parse paths: %s", paths);
-			rc = -1;
-			goto cleanup;
-		}
-
-		rc = exec_chcoll(client, *ps);
-	}
-
-cleanup:
-	free(ps);
-	tok_end(t);
-
-	return rc;
-}
-
-/*
- * List all databases, collections and/or object ids for each path in paths.
- *
- * Return 0 on success, -1 on failure.
- */
-static int
-exec_ls(const char *paths)
-{
-	path_t *psp, *ps = NULL;
-	mongoc_collection_t *ccoll;
-	int rc, i, n;
-
-	n = tok_paths(&ps, paths);
-	if (n == -1) {
-		warnx("could not parse paths: %s", paths);
-		return -1;
-	}
-
-	if (n == 0) {
-		/* default to current path */
-		psp = &path;
-		n = 1;
-	} else {
-		psp = ps;
-	}
-
-	rc = 0;
-
-	for (i = 0; i < n; i++) {
-		if (strlen(psp[i].collname) > 0) {
-			ccoll = mongoc_client_get_collection(client,
-			    psp[i].dbname, psp[i].collname);
-			rc = exec_query(ccoll, "{}", 2, 1);
-			mongoc_collection_destroy(ccoll);
-			ccoll = NULL;
-		} else if (strlen(psp[i].dbname) > 0) {
-			rc = exec_lscolls(client, psp[i].dbname);
-		} else {
-			rc = exec_lsdbs(client, NULL);
-		}
-
-		if (rc != 0) {
-			warnx("failed listing: /%s/%s", psp[i].dbname,
-			    psp[i].collname);
-			rc = -1;
-			goto cleanup;
-		}
-	}
-
-cleanup:
-	free(ps);
-
-	return rc;
-}
-
-static int
-exec_drop(const char *paths)
-{
-	path_t *psp, *ps = NULL;
-	mongoc_collection_t *coll;
-	mongoc_database_t *db;
-	bson_error_t error;
-	int rc, i, n;
-
-	n = tok_paths(&ps, paths);
-	if (n == -1) {
-		warnx("could not parse paths: %s", paths);
-		return -1;
-	}
-
-	if (n == 0) {
-		/* default to current path */
-		psp = &path;
-		n = 1;
-	} else {
-		psp = ps;
-	}
-
-	rc = 0;
-
-	for (i = 0; i < n; i++) {
-		if (strlen(psp[i].collname) > 0) {	/* drop collection */
-			coll = mongoc_client_get_collection(client,
-			    psp[i].dbname, psp[i].collname);
-			if (!mongoc_collection_drop(coll, &error)) {
-				warnx("%d.%d %s", error.domain, error.code,
-				    error.message);
-				rc = -1;
-			} else {
-				printf("dropped /%s/%s\n", psp[i].dbname,
-				    psp[i].collname);
-			}
-			mongoc_collection_destroy(coll);
-			coll = NULL;
-		} else if (strlen(psp[i].dbname) > 0) {
-			db = mongoc_client_get_database(client, psp[i].dbname);
-			if (!mongoc_database_drop(db, &error)) {
-				warnx("%d.%d %s", error.domain, error.code,
-				    error.message);
-				rc = -1;
-			} else {
-				printf("dropped %s\n", psp[i].dbname);
-			}
-			mongoc_database_destroy(db);
-			db = NULL;
-		} else {
-			warnx("can't drop all databases at once");
-			rc = -1;
-		}
-
-		if (rc != 0) {
-			warnx("failed dropping: /%s/%s", psp[i].dbname,
-			    psp[i].collname);
-			rc = -1;
-			goto cleanup;
-		}
-	}
-
-cleanup:
-	free(ps);
-
-	return rc;
 }
 
 /*
@@ -1293,6 +1069,230 @@ exec_agquery(mongoc_collection_t *collection, const char *line, size_t linelen)
 	cursor = NULL;
 
 	return 0;
+}
+
+/*
+ * Change database/collection.
+ *
+ * Return 0 on success, -1 on failure.
+ */
+static int
+exec_cd(const char *paths)
+{
+	char p1[PATH_MAX], p2[PATH_MAX];
+	path_t tmppath;
+	Tokenizer *t;
+	const char **av, *s;
+	path_t *ps;
+	int rc, ac;
+	size_t n;
+
+	ps = NULL;
+
+	t = tok_init(NULL);
+
+	rc = tok_str(t, paths, &ac, &av);
+	rc = test_tokresult(rc);
+
+	if (rc == -1) /* assert message is printed by test_tokresult */
+		goto cleanup;
+
+	if (ac == 0) {
+		if (homepathset == 0) {
+			warnx("home path not set: no database or collection "
+			    "entered yet");
+			rc = -1;
+		} else {
+			rc = exec_chcoll(client, homepath);
+		}
+		goto cleanup;
+	}
+
+	if (ac > 2) {
+		warnx("too many arguments");
+		rc = -1;
+		goto cleanup;
+	}
+
+	if (ac == 2) {
+		if ((size_t)snprintf(p1, sizeof(p1), "/%s/%s", path.dbname,
+		    path.collname) >= sizeof(p1)) {
+			warnx("exec_cd p1 too small");
+			rc = -1;
+			goto cleanup;
+		}
+
+		s = strstr(p1, av[0]);
+		if (s == NULL) {
+			warnx("%s not found in %s", av[0], p1);
+			rc = -1;
+			goto cleanup;
+		}
+
+		if ((size_t)snprintf(p2, sizeof(p2), "%.*s%s%s", (int)(s - p1), p1,
+		    av[1], &p1[(s - p1) + strlen(av[0])]) >= sizeof(p2)) {
+			warnx("exec_cd p2 too small for new path");
+			rc = -1;
+			goto cleanup;
+		}
+
+		/* assert p1 still contains cwd */
+		n = resolvepath(p1, sizeof(p1), p2, NULL);
+		if (n == (size_t)-1) {
+			warnx("exec_cd resolvepath error: %s", p2);
+			rc = -1;
+			goto cleanup;
+		}
+
+		if (parse_path(&tmppath, p1) == -1) {
+			warnx("exec_cd parse_path error: %s", p1);
+			rc = -1;
+			goto cleanup;
+		}
+
+		rc = exec_chcoll(client, tmppath);
+	} else if (strcmp("-", av[0]) == 0) {
+		/* cd - */
+		rc = exec_chcoll(client, prevpath);
+	} else {
+		if (parse_paths(&ps, path, av, ac) == -1) {
+			warnx("could not parse paths: %s", paths);
+			rc = -1;
+			goto cleanup;
+		}
+
+		rc = exec_chcoll(client, *ps);
+	}
+
+cleanup:
+	free(ps);
+	tok_end(t);
+
+	return rc;
+}
+
+/*
+ * List all databases, collections and/or object ids for each path in paths.
+ *
+ * Return 0 on success, -1 on failure.
+ */
+static int
+exec_ls(const char *paths)
+{
+	path_t *psp, *ps = NULL;
+	mongoc_collection_t *ccoll;
+	int rc, i, n;
+
+	n = tok_paths(&ps, paths);
+	if (n == -1) {
+		warnx("could not parse paths: %s", paths);
+		return -1;
+	}
+
+	if (n == 0) {
+		/* default to current path */
+		psp = &path;
+		n = 1;
+	} else {
+		psp = ps;
+	}
+
+	rc = 0;
+
+	for (i = 0; i < n; i++) {
+		if (strlen(psp[i].collname) > 0) {
+			ccoll = mongoc_client_get_collection(client,
+			    psp[i].dbname, psp[i].collname);
+			rc = exec_query(ccoll, "{}", 2, 1);
+			mongoc_collection_destroy(ccoll);
+			ccoll = NULL;
+		} else if (strlen(psp[i].dbname) > 0) {
+			rc = exec_lscolls(client, psp[i].dbname);
+		} else {
+			rc = exec_lsdbs(client, NULL);
+		}
+
+		if (rc != 0) {
+			warnx("failed listing: /%s/%s", psp[i].dbname,
+			    psp[i].collname);
+			rc = -1;
+			goto cleanup;
+		}
+	}
+
+cleanup:
+	free(ps);
+
+	return rc;
+}
+
+static int
+exec_drop(const char *paths)
+{
+	path_t *psp, *ps = NULL;
+	mongoc_collection_t *coll;
+	mongoc_database_t *db;
+	bson_error_t error;
+	int rc, i, n;
+
+	n = tok_paths(&ps, paths);
+	if (n == -1) {
+		warnx("could not parse paths: %s", paths);
+		return -1;
+	}
+
+	if (n == 0) {
+		/* default to current path */
+		psp = &path;
+		n = 1;
+	} else {
+		psp = ps;
+	}
+
+	rc = 0;
+
+	for (i = 0; i < n; i++) {
+		if (strlen(psp[i].collname) > 0) {	/* drop collection */
+			coll = mongoc_client_get_collection(client,
+			    psp[i].dbname, psp[i].collname);
+			if (!mongoc_collection_drop(coll, &error)) {
+				warnx("%d.%d %s", error.domain, error.code,
+				    error.message);
+				rc = -1;
+			} else {
+				printf("dropped /%s/%s\n", psp[i].dbname,
+				    psp[i].collname);
+			}
+			mongoc_collection_destroy(coll);
+			coll = NULL;
+		} else if (strlen(psp[i].dbname) > 0) {
+			db = mongoc_client_get_database(client, psp[i].dbname);
+			if (!mongoc_database_drop(db, &error)) {
+				warnx("%d.%d %s", error.domain, error.code,
+				    error.message);
+				rc = -1;
+			} else {
+				printf("dropped %s\n", psp[i].dbname);
+			}
+			mongoc_database_destroy(db);
+			db = NULL;
+		} else {
+			warnx("can't drop all databases at once");
+			rc = -1;
+		}
+
+		if (rc != 0) {
+			warnx("failed dropping: /%s/%s", psp[i].dbname,
+			    psp[i].collname);
+			rc = -1;
+			goto cleanup;
+		}
+	}
+
+cleanup:
+	free(ps);
+
+	return rc;
 }
 
 /*
