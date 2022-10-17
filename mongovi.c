@@ -725,7 +725,7 @@ exec_chcoll(mongoc_client_t *client, const path_t newpath)
  * Return 0 on success, -1 on failure.
  */
 static int
-exec_query(mongoc_collection_t * collection, const char *line, size_t linelen,
+exec_query(mongoc_collection_t *collection, const char *line, size_t linelen,
    int idsonly)
 {
 	mongoc_cursor_t *cursor;
@@ -1397,7 +1397,7 @@ loaddotfile(char *line, size_t linelen)
  * set.
  */
 static int
-do_import(mongoc_collection_t * collection)
+do_import(mongoc_collection_t *collection)
 {
 	bson_error_t error;
 	bson_t *docs[BULKINSERTMAX];
