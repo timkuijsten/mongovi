@@ -1200,12 +1200,9 @@ exec_ls(const char *paths)
 			rc = exec_lsdbs(client, NULL);
 		}
 
-		if (rc != 0) {
-			warnx("failed listing: /%s/%s", psp[i].dbname,
-			    psp[i].collname);
-			rc = -1;
+		/* assert an error message was printed */
+		if (rc == -1)
 			goto cleanup;
-		}
 	}
 
 cleanup:
