@@ -658,9 +658,6 @@ exec_lscolls(mongoc_client_t *client, char *dbname)
 	char **strv;
 	int i;
 
-	if (strlen(dbname) == 0)
-		return -1;
-
 	db = mongoc_client_get_database(client, dbname);
 	strv = mongoc_database_get_collection_names_with_opts(db, NULL, &error);
 	mongoc_database_destroy(db);
@@ -671,7 +668,7 @@ exec_lscolls(mongoc_client_t *client, char *dbname)
 		return -1;
 	}
 
-	for (i = 0; strv[i]; i++)
+	for (i = 0; strv[i] != NULL; i++)
 		printf("%s\n", strv[i]);
 
 	bson_strfreev(strv);
