@@ -623,14 +623,11 @@ set_prompt(const char *dbname, size_t dbnamelen, const char *collname,
  * Return 0 on success, -1 on failure.
  */
 static int
-exec_lsdbs(mongoc_client_t * client, const char *prefix)
+exec_lsdbs(mongoc_client_t *client)
 {
 	bson_error_t error;
 	char **strv;
-	int i, prefixlen;
-
-	if (prefix != NULL)
-		prefixlen = strlen(prefix);
+	int i;
 
 	strv = mongoc_client_get_database_names_with_opts(client, NULL, &error);
 	if (strv == NULL) {
@@ -639,14 +636,8 @@ exec_lsdbs(mongoc_client_t * client, const char *prefix)
 		return -1;
 	}
 
-	for (i = 0; strv[i]; i++) {
-		if (prefix == NULL) {
-			printf("%s\n", strv[i]);
-		} else {
-			if (strncmp(prefix, strv[i], prefixlen) == 0)
-				printf("%s\n", strv[i]);
-		}
-	}
+	for (i = 0; strv[i] != NULL; i++)
+		printf("%s\n", strv[i]);
 
 	bson_strfreev(strv);
 	strv = NULL;
@@ -1197,7 +1188,7 @@ exec_ls(const char *paths)
 		} else if (strlen(psp[i].dbname) > 0) {
 			rc = exec_lscolls(client, psp[i].dbname);
 		} else {
-			rc = exec_lsdbs(client, NULL);
+			rc = exec_lsdbs(client);
 		}
 
 		/* assert an error message was printed */
