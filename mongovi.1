@@ -20,7 +20,7 @@
 .Nd command line interface for MongoDB
 .Sh SYNOPSIS
 .Nm
-.Op Fl ps
+.Op Fl psV
 .Op Ar path
 .Nm
 .Fl i
@@ -30,6 +30,7 @@
 is a cli for MongoDB that uses
 .Xr editline 3
 for line editing and key bindings.
+It can be used both interactively and non-interactively i.e. via shell scripts.
 .Bl -tag -width Ds
 .It Fl p
 Print output in a human readable format.
@@ -49,13 +50,13 @@ database.
 Each line must contain one document and not any
 .Nm
 commands.
+.It Fl V
+Print version information and exit.
 .It Ar path
-Open a specific database and collection.
-A
-.Ar path
-is a
-.Qq /
-delimited list of a database and collection name.
+Open a specific database or collection.
+See
+.Sx PATH ARGUMENT
+for more info.
 .El
 .Pp
 The default key bindings are Emacs-like.
@@ -71,7 +72,7 @@ By default
 will connect to mongodb://localhost:27017 unless it is overridden with a
 connection string in
 .Pa ~/.mongovi .
-.Sh BUILTIN COMMANDS
+.Ss BUILTIN COMMANDS
 The following commands are supported:
 .Bl -tag -width Ds
 .It Ic find Op Ar selector
@@ -100,39 +101,36 @@ into the currently selected collection.
 is parsed as MongoDB Extended JSON.
 .It Ic aggregate Op Ar pipeline
 Run an aggregation query using the given pipeline.
-.It Ic cd Ar path
-Change the currently selected database and collection to
+.It Ic cd Op Ar path
+Change the currently selected database or collection to
 .Ar path .
-The database and collection name should be separated by a
-.Qq / .
-A path that starts with a leading
-.Qq /
-is treated as an absolute path and should always be followed by a database name.
-.Pp
 If
 .Ar path
-is
-.Qq -
-the previously selected path will be selected again.
-If a path component is
-.Qq ..
-it's interpreted as a way to traverse up.
-.Pp
+is a single dash
+.Pq Sq -
+the previous path will be selected.
 If
-.Qq / ,
-.Qq -
-or
-.Qq ..
-follow a collection name, these will be treated as part of that collection and
-won't have the special meaning described before.
-.It Ic ls Op Ar path
-List the contents of
 .Ar path
-or if path is omitted, the currently selected path.
-.It Ic drop Op Ar path
-drop a collection or database depending on
-.Ar path
-or the currently selected path.
+is absent the first path since
+.Nm
+started is selected.
+See
+.Sx PATH ARGUMENT
+for more info.
+.It Ic cd Ar old new
+The string
+.Ar new
+is substituted for
+.Ar old
+in the currently selected path.
+.It Ic ls Op Ar path ...
+List the contents of each
+.Ar path .
+If path is absent the currently selected path is used.
+.It Ic drop Op Ar path ...
+Drop the collection or database described by each
+.Ar path .
+In case path is absent the currently selected path is dropped.
 .It Ic help
 Print the list of commands.
 .El
@@ -147,6 +145,21 @@ since no other command starts with an f.
 If selector is not a JSON document it is treated as a shortcut to search on _id
 of type string.
 Hexadecimal strings of 24 characters are treated as object ids.
+.Ss PATH ARGUMENT
+Several commands take a
+.Ar path
+parameter.
+A path can be seen as a file hierarchy in which the root contains one directory
+per database and where each database contains one directory per collection.
+A path without a leading
+.Qq /
+is treated as a path relative to the currently selected database or collection.
+A path that starts with a
+.Qq /
+is considered an absolute path.
+A
+.Qq ..
+component can be used to traverse up in the hierarchy.
 .Sh FILES
 .Pa ~/.mongovi
 If it exists the first line is read and used as a MongoDB connection string.
