@@ -1,5 +1,11 @@
+mongovi (2.0.0-1) UNRELEASED; urgency=medium
+
+  * new release from upstream
+
+ -- Tim Kuijsten <info+mongovi@netsend.nl>  Wed, 02 Nov 2022 21:05:14 +0100
+
 mongovi (1.0.0-1) unstable; urgency=medium
 
   * Initial release (Closes: #845586)
 
- -- Tim Kuijsten <tim@netsend.nl>  Sun, 26 Feb 2017 20:35:00 +0100
+ -- Tim Kuijsten <info+mongovi@netsend.nl>  Sun, 26 Feb 2017 20:35:00 +0100

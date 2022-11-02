@@ -1,9 +1,9 @@
 Source: mongovi
 Section: database
 Priority: optional
-Maintainer: Tim Kuijsten <tim@netsend.nl>
-Build-Depends: debhelper (>= 9), libmongoc-dev (>= 1.3.1), libbson-dev (>= 1.3.1), libedit-dev (>= 3.1-20150325)
-Standards-Version: 3.9.8
+Maintainer: Tim Kuijsten <info+mongovi@netsend.nl>
+Build-Depends: debhelper-compat (= 13), libmongoc-dev (>= 1.17.0), libedit-dev (>= 3.1-20210910)
+Standards-Version: 4.5.1
 Vcs-Git: https://github.com/timkuijsten/mongovi.git
 Vcs-browser: https://github.com/timkuijsten/mongovi
 Homepage: https://github.com/timkuijsten/mongovi
@@ -11,14 +11,11 @@ Homepage: https://github.com/timkuijsten/mongovi
 Package: mongovi
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}
-Suggests: mongodb-server
 Description: Command line interface for MongoDB
  mongovi is a command line interface for MongoDB.
  .
  Features:
-  * Emacs-like and vi-like key bindings via libedit
-  * Tab-completion of commands, databases and collections
-  * move around databases and collections using the common `cd` idiom
-  * integrates into shell pipelines by reading and writing MongoDB Extended
-    JSON on stdin/stdout
-  * read a username and password from a simple config file
+  Easy integration into shell pipelines
+  Emacs-like and vi-like key bindings
+  Simple and secure authentication via ~/.mongovi
+  Move around databases and collections using the common `cd` idiom

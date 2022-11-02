@@ -7,4 +7,5 @@ export DEB_BUILD_MAINT_OPTIONS = hardening=+all
 %:
 	dh $@
 
-override_dh_auto_test:
+override_dh_auto_install:
+	$(MAKE) DESTDIR=$$(pwd)/debian/mongovi MANDIR=/usr/share/man PREFIX=/usr install

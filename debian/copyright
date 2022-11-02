@@ -3,10 +3,10 @@ Upstream-Name: mongovi
 Source: https://github.com/timkuijsten/mongovi
 
 Files: *
-Copyright: 2016 Tim Kuijsten <tim@netsend.nl>
+Copyright: 2016, 2022 Tim Kuijsten <info+mongovi@netsend.nl>
 License: ISC
 
-Files: compat/strlcat.c compat/strlcpy.c
+Files: compat/strlcpy.c
 Copyright: 1998, 2015, Todd C. Miller <Todd.Miller@courtesan.com>
 License: ISC
 
