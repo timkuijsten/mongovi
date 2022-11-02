@@ -1227,7 +1227,10 @@ exec_drop(const char *paths)
 				warnx("failed dropping /%s/%s: %d.%d %s",
 				    psp[i].dbname, psp[i].collname,
 				    error.domain, error.code, error.message);
-				rc = -1;
+
+				// ignore 5.26 ns not found
+				if (error.domain != 5 || error.code != 26)
+					rc = -1;
 			} else {
 				printf("dropped /%s/%s\n", psp[i].dbname,
 				    psp[i].collname);
