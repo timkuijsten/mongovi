@@ -618,6 +618,58 @@ set_prompt(const char *dbname, size_t dbnamelen, const char *collname,
 }
 
 /*
+ * Exhaust a cursor and print each object.
+ */
+static int
+printcursor(mongoc_cursor_t *cursor)
+{
+	bson_error_t error;
+	size_t rlen;
+	const bson_t *doc;
+	char *str;
+	struct winsize w;
+
+	w.ws_row = 0;
+	w.ws_col = 0;
+	if (hr && ttyout) {
+		if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &w) == -1)
+			warn("could not determine window size: %d %d", w.ws_row,
+			    w.ws_col);
+	}
+
+	while (mongoc_cursor_next(cursor, &doc)) {
+		if (hr) {
+			str = bson_as_relaxed_extended_json(doc, &rlen);
+		} else {
+			str = bson_as_canonical_extended_json(doc, &rlen);
+		}
+
+		if (hr && rlen > w.ws_col) {
+			if (human_readable((char *)tmpdocs, sizeof(tmpdocs),
+			    str, rlen) == -1) {
+				warnx("could not make human readable JSON "
+				    "string");
+
+				return -1;
+			}
+			printf("%s\n", tmpdocs);
+		} else {
+			printf("%s\n", str);
+		}
+
+		bson_free(str);
+	}
+
+	if (mongoc_cursor_error(cursor, &error)) {
+		warnx("cursor failed: %d.%d %s", error.domain, error.code,
+		    error.message);
+		return -1;
+	}
+
+	return 0;
+}
+
+/*
  * List database for the given client.
  *
  * Return 0 on success, -1 on failure.
@@ -730,11 +782,8 @@ exec_query(mongoc_collection_t *collection, const char *line, size_t linelen,
 {
 	mongoc_cursor_t *cursor;
 	bson_error_t error;
-	size_t rlen;
-	const bson_t *doc;
-	char *str;
 	bson_t *query;
-	struct winsize w;
+	int rc;
 
 	if (sizeof(tmpdocs) < 3)
 		abort();
@@ -760,49 +809,12 @@ exec_query(mongoc_collection_t *collection, const char *line, size_t linelen,
 
 	bson_destroy(query);
 
-	w.ws_row = 0;
-	w.ws_col = 0;
-	if (hr && ttyout) {
-		if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &w) == -1)
-			warn("could not determine window size: %d %d", w.ws_row,
-			    w.ws_col);
-	}
-
-	while (mongoc_cursor_next(cursor, &doc)) {
-		if (hr) {
-			str = bson_as_relaxed_extended_json(doc, &rlen);
-		} else {
-			str = bson_as_canonical_extended_json(doc, &rlen);
-		}
-
-		if (hr && rlen > w.ws_col) {
-			if (human_readable((char *)tmpdocs, sizeof(tmpdocs),
-			    str, rlen) == -1) {
-				warnx("could not make human readable JSON "
-				    "string");
-
-				return -1;
-			}
-			printf("%s\n", tmpdocs);
-		} else {
-			printf("%s\n", str);
-		}
-
-		bson_free(str);
-	}
-
-	if (mongoc_cursor_error(cursor, &error)) {
-		warnx("cursor failed: %d.%d %s", error.domain, error.code,
-		    error.message);
-		mongoc_cursor_destroy(cursor);
-		cursor = NULL;
-		return -1;
-	}
+	rc = printcursor(cursor);
 
 	mongoc_cursor_destroy(cursor);
 	cursor = NULL;
 
-	return 0;
+	return rc;
 }
 
 /*
@@ -992,8 +1004,7 @@ exec_agquery(mongoc_collection_t *collection, const char *line, size_t linelen)
 	bson_error_t error;
 	bson_t *aggr_query;
 	mongoc_cursor_t *cursor;
-	const bson_t *doc;
-	char *str;
+	int rc;
 
 	if (sizeof(tmpdocs) < 3)
 		abort();
@@ -1023,28 +1034,12 @@ exec_agquery(mongoc_collection_t *collection, const char *line, size_t linelen)
 
 	bson_destroy(aggr_query);
 
-	while (mongoc_cursor_next(cursor, &doc)) {
-		if (hr) {
-			str = bson_as_relaxed_extended_json(doc, NULL);
-		} else {
-			str = bson_as_canonical_extended_json(doc, NULL);
-		}
-		printf("%s\n", str);
-		bson_free(str);
-	}
-
-	if (mongoc_cursor_error(cursor, &error)) {
-		warnx("cursor failed: %d.%d %s", error.domain, error.code,
-		    error.message);
-		mongoc_cursor_destroy(cursor);
-		cursor = NULL;
-		return -1;
-	}
+	rc = printcursor(cursor);
 
 	mongoc_cursor_destroy(cursor);
 	cursor = NULL;
 
-	return 0;
+	return rc;
 }
 
 /*
