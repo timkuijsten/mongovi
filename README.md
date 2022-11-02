@@ -3,24 +3,39 @@
 mongovi is a command line interface for MongoDB.
 
 Features:
-* Emacs-like and vi-like [key bindings] via [libedit]
-* Tab-completion of commands, databases and collections
-* move around databases and collections using the common `cd` idiom
 * easy integration into shell pipelines by reading and writing
   [MongoDB Extended JSON] via stdin/stdout
-* securely authenticate to MongoDB using ~/.mongovi
-
-Status: **stable**
+* move around databases and collections using the common `cd` idiom
+* easy and secure MongoDB authentication using ~/.mongovi
+* emacs-like and vi-like [key bindings]
+* tab-completion of commands, databases and collections
 
 
 ## Usage examples
+
+### Non-interactive
+
+Copy all documents with *foo* equal to *bar* from one collection to another and delete
+the attibute *price* using [jq(1)]:
+
+```sh
+$ echo 'f { foo: "bar" }' | mongovi db1/collx | jq -c 'del(.price)' | mongovi -i db2/colly
+```
+
+List all databases:
+
+```sh
+$ echo ls | mongovi
+db1
+db2
+```
 
 ### Interactive
 
 Open database *raboof* and collection *bar*:
 
 ```sh
-$ mongovi /raboof/bar
+$ mongovi raboof/bar
 /raboof/bar> 
 ```
 
@@ -38,7 +53,7 @@ List all documents where *foo* is *bar*, using `find`.
 { "foo" : "bar" }
 ```
 
-Quick search on object id:
+Quick search on any \_id:
 
 ```
 /raboof/qux> find 57c6fb00495b576b10996f64
@@ -56,28 +71,13 @@ the *aggregate* command can be abbreviated to *a*.
 { "foo" : "bar" }
 ```
 
-### Non-interactive
-
-List all databases:
-
-```sh
-$ echo ls | mongovi
-raboof
-```
-
-Copy all documents where *foo* is *bar* from */raboof/qux* to */bazar/foo*:
-
-```sh
-$ echo 'f { foo: "bar" }' | mongovi /raboof/qux | mongovi -i /bazar/foo
-```
-
 ### vi key bindings
 
 vi key bindings can be enabled with a standard editline command. Just make sure
 your [editrc(5)] contains `bind -v`:
 
 ```sh
-echo "bind -v" >> ~/.editrc
+echo 'bind -v' >> ~/.editrc
 ```
 
 
@@ -105,24 +105,22 @@ valid mongodb [connection string], possibly containing a username and password.
 
 ### Pre-compiled .deb package for Debian and Ubuntu
 
-Using the binary package is the easiest way to get started on a Debian based
-system. On either Debian Stretch or Ubuntu 16.04 the following should be
-issued:
+Download [mongovi_2.0.0-rc1_amd64.deb](https://netsend.nl/mongovi/mongovi_2.0.0-rc1_amd64.deb),
+verify the checksum and install.
 
 ```sh
-$ wget https://netsend.nl/mongovi/mongovi_1.0.0~rc5-2_amd64.deb
-$ sha256sum mongovi_1.0.0~rc5-2_amd64.deb    # only proceed if this checksum matches
-9a1639684d3337b72baaf8f2ce96caa36faeb150e2dfb6a5cc74be7452d7ccdf  mongovi_1.0.0~rc5-2_amd64.deb
-$ sudo apt-get install -y libmongoc-1.0-0
-$ sudo dpkg -i mongovi_1.0.0~rc5-2_amd64.deb
+$ sha256sum mongovi_2.0.0-rc1_amd64.deb
+# only proceed if the following checksum matches
+27960bb61b45dc4f8f83c6db1a2b01ec91ebed16eb538685634f369e6b400b76  mongovi_2.0.0-rc1_amd64.deb
+$ sudo apt install libmongoc-1.0-0 libedit2
+$ sudo dpkg -i mongovi_2.0.0-rc1_amd64.deb
 ```
 
 ### Compile latest version on Debian/Ubuntu
 
-*(tested on Ubuntu 22.04)*
+*(tested on Debian 9, 11 and Ubuntu 22.04)*
 
-
-First install gcc, make, libedit-dev and libmongoc-dev.
+First install the build requirements.
 
 ```sh
 % sudo apt install make gcc libmongoc-dev libedit-dev
@@ -182,7 +180,7 @@ Then clone, compile and install mongovi:
 ## Tests
 
 ```sh
-$ make runtests
+$ make test
 ```
 
 
@@ -223,6 +221,7 @@ jsmn.h and jsmn.c are part of [JSMN] which is distributed under the MIT
 license.
 
 
+[jq(1)]: https://stedolan.github.io/jq/
 [MongoDB Extended JSON]: https://docs.mongodb.com/manual/reference/mongodb-extended-json/
 [libedit]: http://cvsweb.netbsd.org/bsdweb.cgi/src/lib/libedit/?sortby=date#dirlist
 [mongo-c-driver]: https://mongoc.org/
