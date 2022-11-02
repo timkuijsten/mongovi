@@ -20,12 +20,13 @@ INSTALL_MAN = install -m 0444
 SRCFILES = shorten.h jsonify.h jsmn.h parse_path.c test/parse_path.c \
 	    test/shorten.c test/jsonify.c test/prefix_match.c compat/compat.h \
 	    compat/strlcpy.c compat/reallocarray.c mongovi.c shorten.c \
-	    jsonify.c prefix_match.h prefix_match.c parse_path.h jsmn.c
+	    jsonify.c prefix_match.h prefix_match.c parse_path.h jsmn.c \
+	    compat/el_source.c
 
 mongovi: mongovi.o jsmn.o jsonify.o shorten.o prefix_match.o parse_path.o \
-    ${COMPAT}
+    compat/el_source.c ${COMPAT}
 	${CC} ${CFLAGS} -o $@ mongovi.o jsmn.o jsonify.o shorten.o \
-	    prefix_match.o parse_path.o ${COMPAT} ${LDFLAGS}
+	    prefix_match.o parse_path.o compat/el_source.c ${COMPAT} ${LDFLAGS}
 
 .SUFFIXES: .c .o
 .c.o:

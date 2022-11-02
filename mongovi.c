@@ -1644,7 +1644,8 @@ main(int argc, char **argv)
 
 	/* load user defaults */
 	if (el_source(e, NULL) == -1)
-		warnx("sourcing .editrc failed");
+		if (backup_el_source(e) == -1) // backup for broken editline on Debian 10
+			warnx("sourcing .editrc failed");
 
 	/* override tab binding */
 	if (el_set(e, EL_ADDFN, "complete", "tab completion", complete) == -1)
