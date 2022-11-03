@@ -1175,8 +1175,10 @@ exec_ls(const char *paths)
 			ccoll = mongoc_client_get_collection(client,
 			    psp[i].dbname, psp[i].collname);
 			rc = exec_query(ccoll, "{}", 2, 1);
-			mongoc_collection_destroy(ccoll);
-			ccoll = NULL;
+			if (ccoll != NULL) {
+				mongoc_collection_destroy(ccoll);
+				ccoll = NULL;
+			}
 		} else if (strlen(psp[i].dbname) > 0) {
 			rc = exec_lscolls(client, psp[i].dbname);
 		} else {
@@ -1235,8 +1237,10 @@ exec_drop(const char *paths)
 				printf("dropped /%s/%s\n", psp[i].dbname,
 				    psp[i].collname);
 			}
-			mongoc_collection_destroy(coll);
-			coll = NULL;
+			if (coll != NULL) {
+				mongoc_collection_destroy(coll);
+				coll = NULL;
+			}
 		} else if (strlen(psp[i].dbname) > 0) {
 			db = mongoc_client_get_database(client, psp[i].dbname);
 			if (!mongoc_database_drop(db, &error)) {
@@ -1590,8 +1594,10 @@ main(int argc, char **argv)
 
 		printf("inserted %d documents\n", i);
 
-		mongoc_collection_destroy(ccoll);
-		ccoll = NULL;
+		if (ccoll != NULL) {
+			mongoc_collection_destroy(ccoll);
+			ccoll = NULL;
+		}
 
 		mongoc_client_destroy(client);
 		client = NULL;
@@ -1727,8 +1733,10 @@ main(int argc, char **argv)
 	bson_destroy(bsonupsertopt);
 	bsonupsertopt = NULL;
 
-	mongoc_collection_destroy(ccoll);
-	ccoll = NULL;
+	if (ccoll != NULL) {
+		mongoc_collection_destroy(ccoll);
+		ccoll = NULL;
+	}
 
 	mongoc_client_destroy(client);
 	client = NULL;
