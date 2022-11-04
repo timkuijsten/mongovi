@@ -91,7 +91,15 @@ main(void)
 	exp = "{\"a\":{\"c\":{\"e\":f}}}{\"a\":{\"c\":{\"e\":f}}}";
 	failed += test_relaxed_to_strict(doc, strlen(doc), 2, exp, 44, "");
 
+	doc = "{ a.x: 'b' }";
+	exp = "{\"a.x\":\"b\"}";
+	failed += test_relaxed_to_strict(doc, strlen(doc), -1, exp, 13, "");
+
 	/* UTF-8 */
+	doc = "{ ＄in: 'b' }";
+	exp = "{\"＄in\":\"b\"}";
+	failed += test_relaxed_to_strict(doc, strlen(doc), -1, exp, 15, "");
+
 	/*
 	doc = "{ 한: '＄' }";
 	exp = "{ \"한\": \"＄\" }";
