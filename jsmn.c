@@ -23,7 +23,7 @@
 #include "jsmn.h"
 
 /**
- * Allocates a fresh unused token from the token pull.
+ * Allocates a fresh unused token from the token pool.
  */
 static jsmntok_t *jsmn_alloc_token(jsmn_parser *parser,
 		jsmntok_t *tokens, size_t num_tokens) {
@@ -109,9 +109,9 @@ static int jsmn_parse_string(jsmn_parser *parser, const char *js,
 
 	int start = parser->pos;
 
+	/* Skip starting quote */
 	parser->pos++;
 
-	/* Skip starting quote */
 	for (; parser->pos < len && js[parser->pos] != '\0'; parser->pos++) {
 		char c = js[parser->pos];
 
@@ -220,6 +220,9 @@ int jsmn_parse(jsmn_parser *parser, const char *js, size_t len,
 						break;
 					}
 					if (token->parent == -1) {
+						if(token->type != type || parser->toksuper == -1) {
+							return JSMN_ERROR_INVAL;
+						}
 						break;
 					}
 					token = &tokens[token->parent];
