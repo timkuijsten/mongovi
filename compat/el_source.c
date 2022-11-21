@@ -41,6 +41,7 @@
 #endif
 
 #include <err.h>
+#include <errno.h>
 #include <stdlib.h>
 #include <string.h>
 #include <histedit.h>
@@ -118,6 +119,9 @@ backup_el_source(EditLine *el)
 
 	fp = fopen(fname, "r");
 	if (fp == NULL) {
+		if (errno == ENOENT)
+			return 0;
+
 		warn("failed opening: %s", fname);
 		return -1;
 	}
