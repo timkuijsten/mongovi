@@ -138,20 +138,27 @@ $ sudo make install
 
 ### Compile on macOS
 
-*(tested on macOS 10.15)*
+*(tested on macOS 11.7)*
 
-Download, verify and compile the [mongo-c-driver] version 1.14.1 (which needs
+Download, verify and compile the [mongo-c-driver] version 1.23.1 (which needs
 cmake).
+
+Note: macOS 12.x on Apple silicon requires mongo-c-driver 1.23.2 which is not
+yet released at the time of writing (see [CDRIVER-4505]).
 
 ```sh
 % cd ~
-% curl -sLO https://github.com/mongodb/mongo-c-driver/releases/download/1.14.1/mongo-c-driver-1.14.1.tar.gz
-% shasum -a 256 mongo-c-driver-1.14.1.tar.gz
-84fca347a6818e5ed6db50e06eb6d33538346b49bf0ba7475d7dbcecacac2ec6  mongo-c-driver-1.14.1.tar.gz
-% tar zxf mongo-c-driver-1.14.1.tar.gz
-% export _mongoc=~/mongo-c-driver-1.14.1
-% cd "$_mongoc"/build
-% cmake -DENABLE_SSL=OFF -DENABLE_SASL=OFF -DENABLE_ZLIB=OFF ..
+% curl -sLO https://github.com/mongodb/mongo-c-driver/releases/download/1.23.1/mongo-c-driver-1.23.1.tar.gz
+% shasum -a 256 mongo-c-driver-1.23.1.tar.gz
+e1e4f59713b2e48dba1ed962bc0e52b00479b009a9ec4e5fbece61bda76a42df mongo-c-driver-1.23.1.tar.gz
+% tar zxf mongo-c-driver-1.23.1.tar.gz
+% export _mongoc=~/mongo-c-driver-1.23.1
+% cd "$_mongoc"
+% mkdir cmake-build
+% cd cmake-build
+% cmake -DENABLE_AUTOMATIC_INIT_AND_CLEANUP=OFF -DENABLE_SSL=OFF \
+  -DENABLE_SASL=OFF -DENABLE_ZLIB=OFF -DENABLE_ZSTD=OFF \
+  -DENABLE_CLIENT_SIDE_ENCRYPTION=OFF -DENABLE_SNAPPY=OFF ..
 % make
 ```
 
@@ -163,15 +170,13 @@ Then clone, compile and install mongovi:
 % cd mongovi
 % cc \
   -I "$_mongoc"/src/libmongoc/src \
-  -I "$_mongoc"/src/libmongoc/src/mongoc \
   -I "$_mongoc"/src/libbson/src \
-  -I "$_mongoc"/src/libbson/src/bson \
-  -I "$_mongoc"/build/src/libbson/src \
-  -I "$_mongoc"/build/src/libmongoc/src \
-  -o mongovi mongovi.c jsonify.c main.c  prefix_match.c shorten.c jsmn.c \
-  compat/reallocarray.c \
-  "$_mongoc"/build/src/libmongoc/libmongoc-static-1.0.a \
-  "$_mongoc"/build/src/libbson/libbson-static-1.0.a \
+  -I "$_mongoc"/cmake-build/src/libbson/src/bson \
+  -I "$_mongoc"/cmake-build/src/libmongoc/src/mongoc \
+  -o mongovi mongovi.c parse_path.c jsonify.c prefix_match.c shorten.c jsmn.c \
+    compat/reallocarray.c compat/el_source.c \
+  "$_mongoc"/cmake-build/src/libmongoc/libmongoc-static-1.0.a \
+  "$_mongoc"/cmake-build/src/libbson/libbson-static-1.0.a \
   -ledit -lresolv
 % sudo make install
 ```
@@ -234,3 +239,4 @@ license.
 [key bindings]: https://man.openbsd.org/editline.7#Input_character_bindings
 [connection string]: https://docs.mongodb.com/manual/reference/connection-string/
 [node-mongovi]: https://www.npmjs.com/package/mongovi
+[CDRIVER-4505]: https://jira.mongodb.org/browse/CDRIVER-4505
