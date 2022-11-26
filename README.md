@@ -105,15 +105,15 @@ valid mongodb [connection string], possibly containing a username and password.
 
 ### Pre-compiled .deb package for Debian and Ubuntu
 
-Download [mongovi_2.0.0-rc1_amd64.deb](https://netsend.nl/mongovi/mongovi_2.0.0-rc1_amd64.deb),
+Download [mongovi_2.0.0-rc2_amd64.deb](https://netsend.nl/mongovi/mongovi_2.0.0-rc2_amd64.deb),
 verify the checksum and install.
 
 ```sh
-$ sha256sum mongovi_2.0.0-rc1_amd64.deb
+$ sha256sum mongovi_2.0.0-rc2_amd64.deb
 # only proceed if the following checksum matches
-27960bb61b45dc4f8f83c6db1a2b01ec91ebed16eb538685634f369e6b400b76  mongovi_2.0.0-rc1_amd64.deb
+98b5b9ab8ba7cef822eaa80418fac0c2287f0248edd7466a45ec8537b7ed07b2  mongovi_2.0.0-rc2_amd64.deb
 $ sudo apt install libmongoc-1.0-0 libedit2
-$ sudo dpkg -i mongovi_2.0.0-rc1_amd64.deb
+$ sudo dpkg -i mongovi_2.0.0-rc2_amd64.deb
 ```
 
 ### Compile latest version on Debian/Ubuntu
