@@ -1,3 +1,30 @@
+2022.12.25, Version 2.0.0
+
+* add UTF-8 support
+* json string parsing speedups (from O(n^2) to O(n))
+* many code cleanups and simplifications
+* refactor code into more idiomatic style
+* decide on human readable format based on whether stdout is connected to a
+  terminal not stdin
+* support single and double quoted literal selectors
+* let import mode (-i) use fast bulk insert
+* print objects in MongoDB Extended JSON (v2) format
+* better error handling
+* manpage cleanup and refinements
+* update compile instructions for macOS
+* fix GCC 9.4.0 warnings
+* update to libmongoc 1.16 api
+* reformat coding style to K&R
+* support different locales
+* workaround an issue with el_source(3) on Debian 11
+* remove Ubuntu 12.04 workaround for libedit
+* compile using c17 and make non-debug builds
+* coalesce identical lines in history (libedit)
+* support `cd old new`
+* let `cd` without arguments go to home path
+* pull in upstream fixes from jsmn
+
+
 2017.02.26, Version 1.0.0
 
 * add debian package dir
