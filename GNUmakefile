@@ -7,6 +7,7 @@ endif
 
 ifeq (${OS},Darwin)
 COMPAT=reallocarray.o
+INCLUDES=-I/usr/local/include/libbson-1.0 -I/usr/local/include/libmongoc-1.0
 endif
 
 %.o: compat/%.c

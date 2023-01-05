@@ -140,26 +140,21 @@ $ sudo make install
 
 *(tested on macOS 11.7)*
 
-Download, verify and compile the [mongo-c-driver] version 1.23.1 (which needs
-cmake).
-
-Note: macOS 12.x on Apple silicon requires mongo-c-driver 1.23.2 which is not
-yet released at the time of writing (see [CDRIVER-4505]).
+Download, verify, compile and install the [mongo-c-driver] version 1.23.2 (which
+needs cmake).
 
 ```sh
 % cd ~
-% curl -sLO https://github.com/mongodb/mongo-c-driver/releases/download/1.23.1/mongo-c-driver-1.23.1.tar.gz
-% shasum -a 256 mongo-c-driver-1.23.1.tar.gz
-e1e4f59713b2e48dba1ed962bc0e52b00479b009a9ec4e5fbece61bda76a42df mongo-c-driver-1.23.1.tar.gz
-% tar zxf mongo-c-driver-1.23.1.tar.gz
-% export _mongoc=~/mongo-c-driver-1.23.1
-% cd "$_mongoc"
+% curl -sLO https://github.com/mongodb/mongo-c-driver/releases/download/1.23.2/mongo-c-driver-1.23.2.tar.gz
+% shasum -a 256 mongo-c-driver-1.23.2.tar.gz
+123c358827eea07cd76a31c40281bb1c81b6744f6587c96d0cf217be8b1234e3  mongo-c-driver-1.23.2.tar.gz
+% tar zxf mongo-c-driver-1.23.2.tar.gz
+% cd mongo-c-driver-1.23.2
 % mkdir cmake-build
 % cd cmake-build
-% cmake -DENABLE_AUTOMATIC_INIT_AND_CLEANUP=OFF -DENABLE_SSL=OFF \
-  -DENABLE_SASL=OFF -DENABLE_ZLIB=OFF -DENABLE_ZSTD=OFF \
-  -DENABLE_CLIENT_SIDE_ENCRYPTION=OFF -DENABLE_SNAPPY=OFF ..
+% cmake -DENABLE_AUTOMATIC_INIT_AND_CLEANUP=OFF ..
 % make
+% sudo make install
 ```
 
 Then clone, compile and install mongovi:
@@ -168,16 +163,7 @@ Then clone, compile and install mongovi:
 % cd ~
 % git clone https://github.com/timkuijsten/mongovi.git
 % cd mongovi
-% cc \
-  -I "$_mongoc"/src/libmongoc/src \
-  -I "$_mongoc"/src/libbson/src \
-  -I "$_mongoc"/cmake-build/src/libbson/src/bson \
-  -I "$_mongoc"/cmake-build/src/libmongoc/src/mongoc \
-  -o mongovi mongovi.c parse_path.c jsonify.c prefix_match.c shorten.c jsmn.c \
-    compat/reallocarray.c compat/el_source.c \
-  "$_mongoc"/cmake-build/src/libmongoc/libmongoc-static-1.0.a \
-  "$_mongoc"/cmake-build/src/libbson/libbson-static-1.0.a \
-  -ledit -lresolv
+% make
 % sudo make install
 ```
 
@@ -239,4 +225,3 @@ license.
 [key bindings]: https://man.openbsd.org/editline.7#Input_character_bindings
 [connection string]: https://docs.mongodb.com/manual/reference/connection-string/
 [node-mongovi]: https://www.npmjs.com/package/mongovi
-[CDRIVER-4505]: https://jira.mongodb.org/browse/CDRIVER-4505
