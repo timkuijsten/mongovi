@@ -111,7 +111,7 @@ verify the checksum and install.
 ```sh
 $ sha256sum mongovi_2.0.0-1_amd64.deb
 # only proceed if the following checksum matches
-f991807f026d80a6b2918344d1c91ebf9a06ac91a78d8a7272b48e83098d3600  mongovi_2.0.0-1_amd64.deb
+a702a29f542735c61a8979fac675a3d3e87df84a624f0f99f6f6cde91e2bf016  mongovi_2.0.0-1_amd64.deb
 $ sudo apt install libmongoc-1.0-0 libedit2
 $ sudo dpkg -i mongovi_2.0.0-1_amd64.deb
 ```
