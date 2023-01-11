@@ -3,7 +3,7 @@ Upstream-Name: mongovi
 Source: https://github.com/timkuijsten/mongovi
 
 Files: *
-Copyright: 2016, 2022 Tim Kuijsten <info+mongovi@netsend.nl>
+Copyright: 2016, 2022 Tim Kuijsten <tim@netsend.nl>
 License: ISC
 
 Files: compat/strlcpy.c

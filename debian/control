@@ -1,7 +1,7 @@
 Source: mongovi
 Section: database
 Priority: optional
-Maintainer: Tim Kuijsten <info+mongovi@netsend.nl>
+Maintainer: Tim Kuijsten <tim@netsend.nl>
 Build-Depends: debhelper-compat (= 13), libmongoc-dev (>= 1.17.0), libedit-dev (>= 3.1-20210910)
 Standards-Version: 4.5.1
 Vcs-Git: https://github.com/timkuijsten/mongovi.git
