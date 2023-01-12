@@ -89,6 +89,7 @@ int
 main(void)
 {
 	int failed = 0;
+	int n;
 
 	setlocale(LC_CTYPE, "");
 
@@ -206,6 +207,8 @@ main(void)
 	failed += test_shorten_comps("foobarbaz", "quxquuzraboof", 7,
 	    "foobarbaz", "quxquuzraboof", -1, "");
 
+	/* UTF-8 tests */
+	n = failed;
 	failed += test_shorten_comps("£ह€한𐍈＄£ह€한𐍈＄", "＄", 8, "£ह..＄",
 	    "＄", 8, "");
 	failed += test_shorten_comps("£＄ह€", "한𐍈＄£ह€한𐍈＄", 8, "£..€",
@@ -228,6 +231,11 @@ main(void)
 	    "한𐍈..𐍈＄", 13, "");
 	failed += test_shorten_comps("＄£ह€", "한𐍈＄£ह€한𐍈＄", 15, "＄£ह€",
 	    "한𐍈＄..𐍈＄", 15, "");
+
+	if (failed - n != 0) {
+		fprintf(stderr, "All UTF-8 tests failed, make sure your locale"
+		    " supports UTF-8.\nTry: LC_CTYPE=C.UTF-8; export LC_CTYPE\n");
+	}
 
 	return failed;
 }
