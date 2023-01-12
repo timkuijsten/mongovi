@@ -4,6 +4,8 @@ export USRDIR=/usr
 
 export DEB_BUILD_MAINT_OPTIONS = hardening=+all
 
+export LC_CTYPE=C.UTF-8
+
 %:
 	dh $@
 
