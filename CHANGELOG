@@ -1,14 +1,13 @@
-2022.12.25, Version 2.0.0
+2023.01.12, Version 2.0.0
 
 * add UTF-8 support
-* json string parsing speedups (from O(n^2) to O(n))
+* improve json string parsing performance
 * many code cleanups and simplifications
 * refactor code into more idiomatic style
-* decide on human readable format based on whether stdout is connected to a
-  terminal not stdin
+* better handling of human readable output based on terminal
 * support single and double quoted literal selectors
 * let import mode (-i) use fast bulk insert
-* print objects in MongoDB Extended JSON (v2) format
+* print objects in MongoDB Extended JSON v2 format
 * better error handling
 * manpage cleanup and refinements
 * update compile instructions for macOS
@@ -23,6 +22,7 @@
 * support `cd old new`
 * let `cd` without arguments go to home path
 * pull in upstream fixes from jsmn
+* modernized Debian packaging
 
 
 2017.02.26, Version 1.0.0
