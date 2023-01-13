@@ -1,6 +1,8 @@
 # mongovi
 
-mongovi is a command line interface for MongoDB.
+mongovi is a command line interface for MongoDB. It's a productivity tool that
+can be used both interactively and non-interactive and is made to be ergonomic
+for ad hoc querying and manipulation of documents in a database.
 
 Features:
 * easy integration into shell pipelines by reading and writing
@@ -13,23 +15,6 @@ Features:
 
 ## Usage examples
 
-### Non-interactive
-
-Copy all documents with *foo* equal to *bar* from one collection to another and delete
-the attibute *price* using [jq(1)]:
-
-```sh
-$ echo 'f { foo: "bar" }' | mongovi db1/collx | jq -c 'del(.price)' | mongovi -i db2/colly
-```
-
-List all databases:
-
-```sh
-$ echo ls | mongovi
-db1
-db2
-```
-
 ### Interactive
 
 Open database *raboof* and collection *bar*:
@@ -39,37 +24,89 @@ $ mongovi raboof/bar
 /raboof/bar> 
 ```
 
-Change collection from bar to qux:
+Change collection from bar to qux and insert a document:
 
 ```
 /raboof/bar> cd ../qux
-/raboof/qux> 
+/raboof/qux> insert { _id: "doc1", foo: "bar" }
 ```
 
-List all documents where *foo* is *bar*, using `find`.
+Query for all documents with *foo* equal to *bar*:
 
 ```
 /raboof/qux> find { foo: "bar" }
-{ "foo" : "bar" }
+{ "_id" : "doc1", "foo" : "bar" }
 ```
 
-Quick search on any \_id:
+Quick search on \_id:
 
 ```
-/raboof/qux> find 57c6fb00495b576b10996f64
-{ "_id" : { "$oid" : "57c6fb00495b576b10996f64" }, "foo" : "bar" }
+/raboof/qux> find doc1
+{ "_id" : "doc1", "foo" : "bar" }
 ```
 
 All commands can be abbreviated to the shortest non-ambiguous form, so `find`
 can be abbreviated to `f` since no other command starts with an *f*.
 
-Use an aggregation query to filter on documents where *foo* is *bar*. Note that
-the *aggregate* command can be abbreviated to *a*.
+Use an aggregation query to filter on documents with *foo* equal to *bar*. Note
+that the *aggregate* command can be abbreviated to *a*.
 
 ```
 /raboof/qux> a [{ $project: { foo: true } }, { $match: { foo: "bar" } }]
-{ "foo" : "bar" }
+{ "_id" : "doc1", "foo" : "bar" }
 ```
+
+
+### Non-interactive
+
+Let's start with listing all databases:
+
+```sh
+$ echo ls | mongovi
+db1
+db2
+```
+
+Then we insert two documents into collection *collx* of database *db1* via stdin
+using a POSIX shell here-document:
+
+```sh
+$ mongovi db1/collx <<'eof'
+insert { _id: "doc1", price: 25, foo: "bar", x: true }
+insert { _id: "doc2", price: 10, foo: "bar", qux: "raboof" }
+eof
+```
+
+Now query for all documents with *foo* equal to *bar* in the collection *collx*
+in database *db1*:
+
+```sh
+$ echo 'find { foo: "bar" }' | mongovi db1/collx
+{ "_id" : "doc1", "price" : 25, "foo" : "bar", "x" : true }
+{ "_id" : "doc2", "price" : 10, "foo" : "bar", "qux" : "raboof" }
+```
+
+A more powerful example in which we use [jq(1)] to filter out the price of the
+JSON objects output by mongovi. Please note that all commands can be abbreviated
+to the shortest non-ambiguous form, so `find` can be abbreviated to `f` since no
+other command starts with an *f*.
+
+```sh
+$ echo 'f { foo: "bar" }' | mongovi db1/collx | jq -c 'del(.price)'
+{"_id":"doc1","foo":"bar","x":true}
+{"_id":"doc2","foo":"bar","qux":"raboof"}
+```
+
+And at last it should be noted that mongovi can batch insert by reading one JSON
+object per line from stdin when the `-i` switch is used. Let's copy all objects
+where *foo* is *bar* to another database/collection with the *price* attribute
+stripped using [jq(1)]:
+
+```sh
+$ echo 'f { foo: "bar" }' | mongovi db1/collx | jq -c 'del(.price)' | mongovi -i db2/colly
+inserted 2 documents
+```
+
 
 ### vi key bindings
 
