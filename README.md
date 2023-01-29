@@ -1,8 +1,8 @@
 # mongovi
 
-mongovi is a command line interface for MongoDB. It's a productivity tool that
-can be used both interactively and non-interactive and is made to be ergonomic
-for ad hoc querying and manipulation of documents in a database.
+mongovi is a command line interface for MongoDB. It can be used interactively
+and non-interactive and is made to be ergonomic for ad hoc querying and
+manipulation of documents in a database.
 
 Features:
 * easy integration into shell pipelines by reading and writing
@@ -67,8 +67,8 @@ db1
 db2
 ```
 
-Then we insert two documents into collection *collx* of database *db1* via stdin
-using a POSIX shell here-document:
+Insert two documents into collection *collx* of database *db1* via stdin using a
+POSIX shell here-document:
 
 ```sh
 $ mongovi db1/collx <<'eof'
