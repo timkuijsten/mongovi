@@ -1433,11 +1433,13 @@ do_import(mongoc_collection_t *collection)
 		j++;
 
 		if (j == BULKINSERTMAX) {
+			// show warning, but make sure to always reset j
 			if (mongoc_collection_insert_many(collection,
 			    (const bson_t **)docs, j, NULL, NULL, &error) ==
 			    false) {
 				warnx("insert error: %d.%d %s", error.domain,
 				    error.code, error.message);
+				j = 0;
 				continue;
 			}
 			i += j;
