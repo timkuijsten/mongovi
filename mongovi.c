@@ -107,6 +107,7 @@ static const char *cmds[] = {
 	"remove",
 	"update",
 	"upsert",
+	"exit",
 	NULL
 };
 
@@ -1273,12 +1274,16 @@ cleanup:
 /*
  * Execute command with given arguments.
  *
- * Return 0 on success, -1 on failure.
+ * Return 1 if request to exit, 0 on success, -1 on failure.
  */
 static int
 exec_cmd(const char *cmd, const char *allcmds[], const char *line, size_t linelen)
 {
 	size_t i;
+
+	if (strcmp("exit", cmd) == 0) {
+		return 1;
+	}
 
 	if (strcmp("help", cmd) == 0) {
 		for (i = 0; allcmds[i] != NULL; i++)
@@ -1723,7 +1728,9 @@ main(int argc, char **argv)
 		 * Assert each command prints a detailed error for the user if
 		 * needed.
 		 */
-		exec_cmd(cmd, cmds, args, strlen(args));
+		if (exec_cmd(cmd, cmds, args, strlen(args)) == 1) {
+			break;
+		}
 	}
 
 	if (read == -1)
