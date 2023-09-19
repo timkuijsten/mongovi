@@ -740,6 +740,11 @@ exec_chcoll(mongoc_client_t *client, const path_t newpath)
 {
 	size_t dbnamelen, collnamelen;
 
+	if (strcmp(newpath.dbname, path.dbname) == 0 &&
+	    strcmp(newpath.collname, path.collname) == 0) {
+		return 0;
+	}
+
 	if (ccoll != NULL) {
 		mongoc_collection_destroy(ccoll);
 		ccoll = NULL;
